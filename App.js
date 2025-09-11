@@ -10,11 +10,14 @@ import SavedScreen from './screens/SavedScreen';
 import BasketScreen from './screens/BasketScreen';
 import ProductScreen from './screens/ProductScreen';
 import LoginScreen from './screens/LoginScreen';
-import AdminScreen from './screens/AdminScreen';
 import CategoryScreen from './screens/CategoryScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import EditProductScreen from './screens/EditProductScreen';
-import OrderHistoryScreen from './screens/OrderHistoryScreen'; // Import the new screen
+import OrderHistoryScreen from './screens/OrderHistoryScreen';
+
+// Import Admin Screens & Navigator
+import AdminNavigator from './navigation/AdminNavigator';
+import AdminOrderDetailScreen from './screens/admin/AdminOrderDetailScreen';
 
 // Import Providers
 import { ToastProvider } from './src/components/ToastProvider';
@@ -105,7 +108,8 @@ export default function App() {
               <Stack.Screen name="Main" component={MainTabs} />
               <Stack.Screen name="Product" component={ProductScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Admin" component={AdminScreen} />
+              <Stack.Screen name="Admin" component={AdminNavigator} />
+              <Stack.Screen name="AdminOrderDetail" component={AdminOrderDetailScreen} />
               <Stack.Screen name="Category" component={CategoryScreen} />
               <Stack.Screen name="EditProduct" component={EditProductScreen} />
               <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />

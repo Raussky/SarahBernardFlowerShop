@@ -32,6 +32,9 @@ importers:
       expo-font:
         specifier: ~14.0.7
         version: 14.0.7(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
+      expo-image-picker:
+        specifier: ^17.0.7
+        version: 17.0.7(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))
       expo-linear-gradient:
         specifier: ^15.0.6
         version: 15.0.6(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
@@ -1556,6 +1559,16 @@ packages:
       expo: '*'
       react: '*'
       react-native: '*'
+
+  expo-image-loader@6.0.0:
+    resolution: {integrity: sha512-nKs/xnOGw6ACb4g26xceBD57FKLFkSwEUTDXEDF3Gtcu3MqF3ZIYd3YM+sSb1/z9AKV1dYT7rMSGVNgsveXLIQ==}
+    peerDependencies:
+      expo: '*'
+
+  expo-image-picker@17.0.7:
+    resolution: {integrity: sha512-U/xuSqA8RyTHsVqan4xICFGFYCZPnHk4da163VH4eOOhU7f7YideFpLuhGoCpmYU3D7y8rmKse2c2vy8fRxI/g==}
+    peerDependencies:
+      expo: '*'
 
   expo-keep-awake@15.0.6:
     resolution: {integrity: sha512-xO/KbQQjSdhHR87x2uZsMnIDXsDO9apa64jqxG5t0WKSBujdS3uDmvuYF7EwiJc8fKEWZ500Co51nOtO0wU1dg==}
@@ -5196,6 +5209,15 @@ snapshots:
       fontfaceobserver: 2.3.0
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0)
+
+  expo-image-loader@6.0.0(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)):
+    dependencies:
+      expo: 54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
+
+  expo-image-picker@17.0.7(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)):
+    dependencies:
+      expo: 54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
+      expo-image-loader: 6.0.0(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))
 
   expo-keep-awake@15.0.6(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))(react@19.1.0):
     dependencies:
