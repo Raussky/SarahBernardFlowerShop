@@ -19,6 +19,7 @@ import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
 import { DELIVERY_COST, WHATSAPP_PHONE } from '../src/config/constants';
 import { supabase } from '../src/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 // Memoized Order Form Component to prevent re-renders on text input
 const OrderForm = memo(({
@@ -133,12 +134,14 @@ const BasketScreen = ({ navigation }) => {
 
     const subtotal = getSubtotal();
     const total = getTotalPrice();
+    const newOrderId = uuidv4(); // Генерируем ID на клиенте
 
     try {
       // 1. Insert order into Supabase
-      const { data: orderData, error: orderError } = await supabase
+      const { error: orderError } = await supabase
         .from('orders')
         .insert({
+          id: newOrderId, // Используем сгенерированный ID
           user_id: user?.id || null,
           customer_name: customerName,
           customer_phone: customerPhone,
@@ -148,15 +151,13 @@ const BasketScreen = ({ navigation }) => {
           order_comment: orderComment,
           total_price: total,
           status: 'pending',
-        })
-        .select()
-        .single();
+        });
 
       if (orderError) throw orderError;
 
       // 2. Insert order items
       const orderItems = cart.map(item => ({
-        order_id: orderData.id,
+        order_id: newOrderId, // Используем тот же сгенерированный ID
         product_id: item.id,
         product_variant_id: item.variantId,
         product_name: item.name || item.nameRu,
@@ -177,8 +178,6 @@ const BasketScreen = ({ navigation }) => {
       const { error: decrementError } = await supabase.rpc('decrement_stock', { items_to_decrement: itemsToDecrement });
       if (decrementError) {
         console.error("Stock decrement error:", decrementError);
-        // In a real app, you might want to handle this more gracefully, e.g., by cancelling the order.
-        // For now, we'll just log it and proceed.
         showToast('Ошибка при обновлении остатков', 'error');
       }
 
@@ -187,7 +186,7 @@ const BasketScreen = ({ navigation }) => {
         `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
       ).join('\n');
       
-      const message = `*Новый заказ #${orderData.id.substring(0, 8)}*\n\n` +
+      const message = `*Новый заказ #${newOrderId.substring(0, 8)}*\n\n` +
                       `*Имя:* ${customerName}\n` +
                       `*Телефон:* ${customerPhone}\n` +
                       `*Способ получения:* ${deliveryMethod === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +

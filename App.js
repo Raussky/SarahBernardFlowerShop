@@ -1,3 +1,4 @@
+import 'react-native-get-random-values'; // Must be at the top
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
