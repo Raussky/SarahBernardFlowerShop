@@ -5,15 +5,15 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CartContext } from '../context/CartContext';
+import { CartContext } from '../src/context/CartContext';
 import { useToast } from '../src/components/ToastProvider';
 
 const LoginScreen = ({ navigation }) => {

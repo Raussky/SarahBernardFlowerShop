@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   FlatList,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { CartContext } from '../context/CartContext';
+import { CartContext } from '../src/context/CartContext';
 import ProductCard from '../src/components/ProductCard';
 
 const SavedScreen = ({ navigation }) => {

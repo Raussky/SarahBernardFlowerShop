@@ -6,11 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
-  Alert, // Keep Alert for confirmation dialogs
+  Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useToast } from '../src/components/ToastProvider'; // New import
+import { useToast } from '../src/components/ToastProvider';
 
 const AdminScreen = ({ navigation }) => {
   const [products, setProducts] = useState([
@@ -21,7 +21,7 @@ const AdminScreen = ({ navigation }) => {
 
   const [newProduct, setNewProduct] = useState({ name: '', price: '' });
   const [orders, setOrders] = useState([]);
-  const { showToast } = useToast(); // Use toast hook
+  const { showToast } = useToast();
 
   const handleAddProduct = () => {
     if (newProduct.name && newProduct.price) {
@@ -31,21 +31,21 @@ const AdminScreen = ({ navigation }) => {
         price: parseInt(newProduct.price)
       }]);
       setNewProduct({ name: '', price: '' });
-      showToast('Товар добавлен', 'success'); // Replaced Alert with toast
+      showToast('Товар добавлен', 'success');
     } else {
-      showToast('Заполните все поля', 'error'); // Replaced Alert with toast
+      showToast('Заполните все поля', 'error');
     }
   };
 
   const handleDeleteProduct = (id) => {
-    Alert.alert( // Keep Alert for confirmation
+    Alert.alert(
       'Удалить товар?',
       'Это действие нельзя отменить',
       [
         { text: 'Отмена', style: 'cancel' },
         { text: 'Удалить', onPress: () => {
           setProducts(products.filter(p => p.id !== id));
-          showToast('Товар удален', 'success'); // Use toast after confirmation
+          showToast('Товар удален', 'success');
         }}
       ]
     );

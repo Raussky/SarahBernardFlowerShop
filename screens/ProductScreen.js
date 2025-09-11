@@ -6,12 +6,12 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
-  SafeAreaView,
   Dimensions,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { CartContext } from '../context/CartContext';
+import { CartContext } from '../src/context/CartContext';
 import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
 
