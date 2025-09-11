@@ -8,13 +8,13 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  Alert, // Keep Alert for system-level issues if needed, but for auth feedback, use toast
+  Alert,
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CartContext } from '../App';
-import { useToast } from '../src/components/ToastProvider'; // New import
+import { CartContext } from '../context/CartContext';
+import { useToast } from '../src/components/ToastProvider';
 
 const LoginScreen = ({ navigation }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,32 +25,29 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   
   const { setIsAdmin } = useContext(CartContext);
-  const { showToast } = useToast(); // Use toast hook
+  const { showToast } = useToast();
 
   const handleAuth = async () => {
     if (isLogin) {
-      // Login logic
       if (email === 'admin@sarah.kz' && password === 'admin123') {
         await AsyncStorage.setItem('isAdmin', 'true');
         setIsAdmin(true);
-        showToast('Вход выполнен успешно!', 'success'); // Replaced Alert with toast
+        showToast('Вход выполнен успешно!', 'success');
         navigation.navigate('Admin');
       } else {
-        showToast('Неверный email или пароль', 'error'); // Replaced Alert with toast
+        showToast('Неверный email или пароль', 'error');
       }
     } else {
-      // Signup logic
       if (!email || !password || !confirmPassword || !storeName) {
-        showToast('Заполните все поля', 'error'); // Replaced Alert with toast
+        showToast('Заполните все поля', 'error');
         return;
       }
       
       if (password !== confirmPassword) {
-        showToast('Пароли не совпадают', 'error'); // Replaced Alert with toast
+        showToast('Пароли не совпадают', 'error');
         return;
       }
       
-      // Save new admin
       const adminData = {
         email,
         password,
@@ -58,7 +55,7 @@ const LoginScreen = ({ navigation }) => {
       };
       
       await AsyncStorage.setItem('adminData', JSON.stringify(adminData));
-      showToast('Аккаунт создан! Теперь войдите', 'success'); // Replaced Alert with toast
+      showToast('Аккаунт создан! Теперь войдите', 'success');
       setIsLogin(true);
     }
   };

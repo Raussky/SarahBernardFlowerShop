@@ -1,9 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import screens
@@ -14,15 +12,14 @@ import ProductScreen from './screens/ProductScreen';
 import LoginScreen from './screens/LoginScreen';
 import AdminScreen from './screens/AdminScreen';
 import CategoryScreen from './screens/CategoryScreen';
+import ProfileScreen from './screens/ProfileScreen';
 
-// Import ToastProvider
+// Import Providers
 import { ToastProvider } from './src/components/ToastProvider';
+import { CartProvider } from './src/context/CartContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
-
-// Cart Context
-export const CartContext = React.createContext();
 
 function MainTabs() {
   return (
@@ -44,6 +41,7 @@ function MainTabs() {
         name="Home" 
         component={HomeScreen}
         options={{
+          tabBarLabel: 'Главная',
           tabBarIcon: ({ color }) => (
             <Ionicons name="home-outline" size={24} color={color} />
           ),
@@ -53,6 +51,7 @@ function MainTabs() {
         name="Saved" 
         component={SavedScreen}
         options={{
+          tabBarLabel: 'Избранное',
           tabBarIcon: ({ color }) => (
             <Ionicons name="heart-outline" size={24} color={color} />
           ),
@@ -62,8 +61,19 @@ function MainTabs() {
         name="Basket" 
         component={BasketScreen}
         options={{
+          tabBarLabel: 'Корзина',
           tabBarIcon: ({ color }) => (
             <Ionicons name="cart-outline" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile" 
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'Профиль',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="person-outline" size={24} color={color} />
           ),
         }}
       />
@@ -72,72 +82,8 @@ function MainTabs() {
 }
 
 export default function App() {
-  const [cart, setCart] = useState([]);
-  const [saved, setSaved] = useState([]);
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    loadCart();
-    loadSaved();
-  }, []);
-
-  const loadCart = async () => {
-    try {
-      const cartData = await AsyncStorage.getItem('cart');
-      if (cartData) setCart(JSON.parse(cartData));
-    } catch (error) {
-      console.error('Error loading cart:', error);
-    }
-  };
-
-  const loadSaved = async () => {
-    try {
-      const savedData = await AsyncStorage.getItem('saved');
-      if (savedData) setSaved(JSON.parse(savedData));
-    } catch (error) {
-      console.error('Error loading saved:', error);
-    }
-  };
-
-  const addToCart = async (item) => {
-    const newCart = [...cart, item];
-    setCart(newCart);
-    await AsyncStorage.setItem('cart', JSON.stringify(newCart));
-  };
-
-  const removeFromCart = async (itemId) => {
-    const newCart = cart.filter(item => item.id !== itemId);
-    setCart(newCart);
-    await AsyncStorage.setItem('cart', JSON.stringify(newCart));
-  };
-
-  const clearCart = async () => {
-    setCart([]);
-    await AsyncStorage.removeItem('cart');
-  };
-
-  const toggleSaved = async (item) => {
-    let newSaved;
-    if (saved.find(i => i.id === item.id)) {
-      newSaved = saved.filter(i => i.id !== item.id);
-    } else {
-      newSaved = [...saved, item];
-    }
-    setSaved(newSaved);
-    await AsyncStorage.setItem('saved', JSON.stringify(newSaved));
-  };
-
   return (
-    <CartContext.Provider value={{ 
-      cart, 
-      saved, 
-      addToCart, 
-      removeFromCart, 
-      clearCart, // Added clearCart
-      toggleSaved,
-      isAdmin,
-      setIsAdmin 
-    }}>
+    <CartProvider>
       <ToastProvider>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -149,6 +95,6 @@ export default function App() {
           </Stack.Navigator>
         </NavigationContainer>
       </ToastProvider>
-    </CartContext.Provider>
+    </CartProvider>
   );
 }

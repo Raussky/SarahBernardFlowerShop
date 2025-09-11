@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,83 +6,22 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Image,
   SafeAreaView,
   FlatList,
-  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CartContext } from '../App';
-
-const { width } = Dimensions.get('window');
+import { PRODUCTS, CATEGORIES } from '../data/products';
+import ProductCard from '../src/components/ProductCard';
 
 const HomeScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
-  const { toggleSaved, saved } = useContext(CartContext);
 
-  const categories = [
-    { id: 1, name: 'Roses', icon: '🌹', nameRu: 'Розы' },
-    { id: 2, name: 'Lilies', icon: '🌺', nameRu: 'Лилии' },
-    { id: 3, name: 'Tulips', icon: '🌷', nameRu: 'Тюльпаны' },
-    { id: 4, name: 'Daisies', icon: '🌼', nameRu: 'Ромашки' },
-  ];
-
-  const products = [
-    {
-      id: 1,
-      name: 'Red Velvet Bouquet',
-      nameRu: 'Красный бархат',
-      price: 19500,
-      image: 'https://via.placeholder.com/200/FF69B4/FFFFFF?text=Bouquet',
-      category: 'bouquets',
-      description: "Men's Fashion"
-    },
-    {
-      id: 2,
-      name: 'Red & White Royal Bouquet',
-      nameRu: 'Королевский букет',
-      price: 14599,
-      image: 'https://via.placeholder.com/200/FFB6C1/FFFFFF?text=Royal',
-      category: 'bouquets',
-      description: '2018 - White'
-    },
-  ];
-
-  const renderProduct = ({ item }) => {
-    const isSaved = saved.find(i => i.id === item.id);
-    
-    return (
-      <TouchableOpacity 
-        style={styles.productCard}
-        onPress={() => navigation.navigate('Product', { product: item })}
-      >
-        <Image source={{ uri: item.image }} style={styles.productImage} />
-        <TouchableOpacity 
-          style={styles.heartIcon}
-          onPress={() => toggleSaved(item)}
-        >
-          <Ionicons 
-            name={isSaved ? "heart" : "heart-outline"} 
-            size={24} 
-            color={isSaved ? "#FF69B4" : "#fff"} 
-          />
-        </TouchableOpacity>
-        <View style={styles.productInfo}>
-          <Text style={styles.productName}>{item.name}</Text>
-          <Text style={styles.productDesc}>{item.description}</Text>
-          <Text style={styles.productPrice}>₸{item.price.toLocaleString()}</Text>
-        </View>
-        <TouchableOpacity style={styles.addButton}>
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    );
-  };
+  const categories = CATEGORIES.slice(0, 4);
+  const products = PRODUCTS.slice(0, 4);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={20} color="#FF69B4" />
@@ -100,7 +39,6 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#999" />
           <TextInput
@@ -112,7 +50,6 @@ const HomeScreen = ({ navigation }) => {
           />
         </View>
 
-        {/* Banner */}
         <View style={styles.banner}>
           <View style={styles.bannerContent}>
             <Text style={styles.bannerTitle}>SARAH BERNARD</Text>
@@ -127,7 +64,6 @@ const HomeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Categories */}
         <Text style={styles.sectionTitle}>Categories</Text>
         <ScrollView 
           horizontal 
@@ -143,16 +79,14 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.categoryIcon}>
                 <Text style={styles.categoryEmoji}>{category.icon}</Text>
               </View>
-              <Text style={styles.categoryName}>{category.name}</Text>
+              <Text style={styles.categoryName}>{category.nameEn}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {/* Recommended Products */}
         <View style={styles.recommendedSection}>
           <Text style={styles.sectionTitle}>Recommended For You</Text>
           
-          {/* Filter Tabs */}
           <ScrollView 
             horizontal 
             showsHorizontalScrollIndicator={false}
@@ -170,10 +104,9 @@ const HomeScreen = ({ navigation }) => {
             ))}
           </ScrollView>
 
-          {/* Products Grid */}
           <FlatList
             data={products}
-            renderItem={renderProduct}
+            renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
             keyExtractor={item => item.id.toString()}
             numColumns={2}
             columnWrapperStyle={styles.productRow}
@@ -181,7 +114,6 @@ const HomeScreen = ({ navigation }) => {
           />
         </View>
 
-        {/* Special Offer */}
         <View style={styles.specialOffer}>
           <Text style={styles.offerTitle}>Special Offer</Text>
           <Text style={styles.offerText}>Get 20% off on orders above ₸50</Text>
@@ -190,12 +122,11 @@ const HomeScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* More Products */}
         <View style={styles.recommendedSection}>
-          <Text style={styles.sectionTitle}>Recommended For You</Text>
+          <Text style={styles.sectionTitle}>More For You</Text>
           <FlatList
-            data={products}
-            renderItem={renderProduct}
+            data={products.slice().reverse()}
+            renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
             keyExtractor={item => `${item.id}-2`}
             numColumns={2}
             columnWrapperStyle={styles.productRow}
@@ -345,65 +276,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
   },
-  productCard: {
-    width: (width - 50) / 2,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  productImage: {
-    width: '100%',
-    height: 150,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  heartIcon: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 20,
-    padding: 5,
-  },
-  productInfo: {
-    padding: 10,
-  },
-  productName: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  productDesc: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 5,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: '#1e3a8a',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
   specialOffer: {
     backgroundColor: '#FF69B4',
     marginHorizontal: 20,
@@ -434,5 +306,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-export default HomeScreen;

@@ -8,19 +8,19 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
-  Alert, // Keep Alert for WhatsApp error, as it's a system-level issue
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CartContext } from '../App';
+import { CartContext } from '../context/CartContext';
 import * as Linking from 'expo-linking';
-import { useToast } from '../src/components/ToastProvider'; // New import
+import { useToast } from '../src/components/ToastProvider';
 
 const { width } = Dimensions.get('window');
 
 const ProductScreen = ({ navigation, route }) => {
   const { product } = route.params;
   const { addToCart, toggleSaved, saved } = useContext(CartContext);
-  const { showToast } = useToast(); // Use toast hook
+  const { showToast } = useToast();
   const [selectedSize, setSelectedSize] = useState(15);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -67,36 +67,32 @@ const ProductScreen = ({ navigation, route }) => {
       ...product,
       size: selectedSize,
       price: calculatePrice(),
-      quantity: 1,
     };
     addToCart(item);
-    showToast('Товар добавлен в корзину', 'success'); // Replaced Alert with toast
+    showToast('Товар добавлен в корзину', 'success');
   };
 
   const handleWhatsAppOrder = () => {
     const message = `Здравствуйте! Хочу заказать:\n${product.name}\nРазмер: ${selectedSize} стеблей\nЦена: ₸${calculatePrice().toLocaleString()}`;
     const whatsappUrl = `whatsapp://send?phone=+77001234567&text=${encodeURIComponent(message)}`;
     Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве'); // Keep Alert for system error
+      Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве');
     });
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={28} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Basket</Text>
+          <Text style={styles.headerTitle}>Product Details</Text>
           <View style={{ width: 28 }} />
         </View>
 
-        {/* Product Title */}
-        <Text style={styles.productTitle}>Белая Роза</Text>
+        <Text style={styles.productTitle}>{product.name || product.nameRu}</Text>
 
-        {/* Image Gallery */}
         <View style={styles.imageContainer}>
           <Image source={{ uri: images[currentImageIndex] }} style={styles.mainImage} />
           <ScrollView 
@@ -119,7 +115,6 @@ const ProductScreen = ({ navigation, route }) => {
           </ScrollView>
         </View>
 
-        {/* Product Info */}
         <View style={styles.productInfo}>
           <Text style={styles.productName}>White Chrysanthemums and Purple Roses</Text>
           
@@ -133,7 +128,6 @@ const ProductScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
 
-          {/* Size Selection */}
           <View style={styles.sizeSection}>
             <Text style={styles.sectionTitle}>Sizes (Stems)</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -157,7 +151,6 @@ const ProductScreen = ({ navigation, route }) => {
             </ScrollView>
           </View>
 
-          {/* Add to Order Section */}
           <View style={styles.addToOrderSection}>
             <Text style={styles.sectionTitle}>Добавить к заказу?</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -185,7 +178,6 @@ const ProductScreen = ({ navigation, route }) => {
         </View>
       </ScrollView>
 
-      {/* Bottom Bar */}
       <View style={styles.bottomBar}>
         <View style={styles.priceContainer}>
           <Text style={styles.totalLabel}>Total Price</Text>
@@ -221,6 +213,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 20,
+    paddingHorizontal: 20,
   },
   imageContainer: {
     marginBottom: 20,
