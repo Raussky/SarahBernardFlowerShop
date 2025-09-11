@@ -28,10 +28,11 @@ function MainTabs() {
       screenOptions={{
         tabBarStyle: {
           backgroundColor: '#fff',
-          borderTopWidth: 1,
-          borderTopColor: '#f0f0f0',
+          borderTopWidth: 0, // Remove top border
           height: 60,
           paddingBottom: 5,
+          elevation: 0, // for Android
+          shadowOpacity: 0, // for iOS
         },
         tabBarActiveTintColor: '#FF69B4',
         tabBarInactiveTintColor: '#999',
@@ -42,9 +43,9 @@ function MainTabs() {
         name="Home" 
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Главная',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="home-outline" size={24} color={color} />
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -52,9 +53,9 @@ function MainTabs() {
         name="Saved" 
         component={SavedScreen}
         options={{
-          tabBarLabel: 'Избранное',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="heart-outline" size={24} color={color} />
+          tabBarLabel: 'Saved',
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? "heart" : "heart-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -62,9 +63,9 @@ function MainTabs() {
         name="Basket" 
         component={BasketScreen}
         options={{
-          tabBarLabel: 'Корзина',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="cart-outline" size={24} color={color} />
+          tabBarLabel: 'Basket',
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? "cart" : "cart-outline"} size={24} color={color} />
           ),
         }}
       />
@@ -72,9 +73,9 @@ function MainTabs() {
         name="Profile" 
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Профиль',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="person-outline" size={24} color={color} />
+          tabBarLabel: 'Profile',
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
           ),
         }}
       />
