@@ -41,34 +41,37 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = (item) => {
     setCart(prevCart => {
-      const existingItem = prevCart.find(cartItem => cartItem.id === item.id);
+      // Создаем уникальный ID для варианта товара (товар + размер)
+      const cartItemId = `${item.id}-${item.size}`;
+      const existingItem = prevCart.find(cartItem => cartItem.cartItemId === cartItemId);
+      
       let newCart;
       if (existingItem) {
         newCart = prevCart.map(cartItem =>
-          cartItem.id === item.id
+          cartItem.cartItemId === cartItemId
             ? { ...cartItem, quantity: cartItem.quantity + 1 }
             : cartItem
         );
       } else {
-        newCart = [...prevCart, { ...item, quantity: 1 }];
+        newCart = [...prevCart, { ...item, quantity: 1, cartItemId }];
       }
       saveData('cart', newCart);
       return newCart;
     });
   };
 
-  const removeFromCart = (itemId) => {
-    const newCart = cart.filter(item => item.id !== itemId);
+  const removeFromCart = (cartItemId) => {
+    const newCart = cart.filter(item => item.cartItemId !== cartItemId);
     setCart(newCart);
     saveData('cart', newCart);
   };
 
-  const updateItemQuantity = (itemId, quantity) => {
+  const updateItemQuantity = (cartItemId, quantity) => {
     if (quantity <= 0) {
-      removeFromCart(itemId);
+      removeFromCart(cartItemId);
     } else {
       const newCart = cart.map(item =>
-        item.id === itemId ? { ...item, quantity } : item
+        item.cartItemId === cartItemId ? { ...item, quantity } : item
       );
       setCart(newCart);
       saveData('cart', newCart);

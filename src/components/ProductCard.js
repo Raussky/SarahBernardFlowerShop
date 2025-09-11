@@ -2,19 +2,12 @@ import React, { useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../context/CartContext';
-import { useToast } from './ToastProvider';
 
 const { width } = Dimensions.get('window');
 
 const ProductCard = ({ product, navigation }) => {
-  const { toggleSaved, saved, addToCart } = useContext(CartContext);
-  const { showToast } = useToast();
+  const { toggleSaved, saved } = useContext(CartContext);
   const isSaved = saved.find(i => i.id === product.id);
-
-  const handleAddToCart = () => {
-    addToCart(product);
-    showToast(`${product.name || product.nameRu} добавлен в корзину`, 'success');
-  };
 
   return (
     <TouchableOpacity 
@@ -24,7 +17,10 @@ const ProductCard = ({ product, navigation }) => {
       <Image source={{ uri: product.image }} style={styles.productImage} />
       <TouchableOpacity 
         style={styles.heartIcon}
-        onPress={() => toggleSaved(product)}
+        onPress={(e) => {
+          e.stopPropagation(); // Предотвращаем переход на другую страницу
+          toggleSaved(product);
+        }}
       >
         <Ionicons 
           name={isSaved ? "heart" : "heart-outline"} 
@@ -37,7 +33,10 @@ const ProductCard = ({ product, navigation }) => {
         <Text style={styles.productDesc}>{product.description || `Категория: ${product.category}`}</Text>
         <Text style={styles.productPrice}>₸{product.price.toLocaleString()}</Text>
       </View>
-      <TouchableOpacity style={styles.addButton} onPress={handleAddToCart}>
+      <TouchableOpacity 
+        style={styles.addButton} 
+        onPress={() => navigation.navigate('Product', { product })}
+      >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
     </TouchableOpacity>

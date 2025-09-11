@@ -16,8 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../src/context/CartContext';
 import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
-
-const DELIVERY_COST = 500;
+import { DELIVERY_COST, WHATSAPP_PHONE } from '../src/config/constants';
 
 const BasketScreen = ({ navigation }) => {
   const { cart, clearCart, updateItemQuantity, removeFromCart } = useContext(CartContext);
@@ -61,7 +60,7 @@ const BasketScreen = ({ navigation }) => {
     }
 
     const orderDetails = cart.map(item => 
-      `- ${item.name || item.nameRu} (${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
+      `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
     ).join('\n');
     
     const message = `*Новый заказ*\n\n` +
@@ -76,7 +75,7 @@ const BasketScreen = ({ navigation }) => {
                     `*Доставка:* ${deliveryMethod === 'delivery' ? DELIVERY_COST.toLocaleString() : 0} ₸\n` +
                     `*Итого к оплате:* ${getTotalPrice().toLocaleString()} ₸`;
 
-    const whatsappUrl = `whatsapp://send?phone=+77001234567&text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `whatsapp://send?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(message)}`;
     
     Linking.openURL(whatsappUrl).then(() => {
       showToast('Заказ отправлен в WhatsApp!', 'success');
@@ -91,18 +90,19 @@ const BasketScreen = ({ navigation }) => {
       <Image source={{ uri: item.image }} style={styles.itemImage} />
       <View style={styles.itemDetails}>
         <Text style={styles.itemName} numberOfLines={1}>{item.name || item.nameRu}</Text>
+        <Text style={styles.itemSize}>Размер: {item.size}</Text>
         <Text style={styles.itemPrice}>₸{item.price.toLocaleString()}</Text>
       </View>
       <View style={styles.quantityControl}>
-        <TouchableOpacity onPress={() => updateItemQuantity(item.id, item.quantity - 1)}>
+        <TouchableOpacity onPress={() => updateItemQuantity(item.cartItemId, item.quantity - 1)}>
           <Ionicons name="remove-circle-outline" size={28} color="#FF69B4" />
         </TouchableOpacity>
         <Text style={styles.quantityText}>{item.quantity}</Text>
-        <TouchableOpacity onPress={() => updateItemQuantity(item.id, item.quantity + 1)}>
+        <TouchableOpacity onPress={() => updateItemQuantity(item.cartItemId, item.quantity + 1)}>
           <Ionicons name="add-circle-outline" size={28} color="#FF69B4" />
         </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.deleteButton} onPress={() => removeFromCart(item.id)}>
+      <TouchableOpacity style={styles.deleteButton} onPress={() => removeFromCart(item.cartItemId)}>
         <Ionicons name="trash-outline" size={24} color="#999" />
       </TouchableOpacity>
     </View>
@@ -195,7 +195,7 @@ const BasketScreen = ({ navigation }) => {
             <FlatList
               data={cart}
               renderItem={renderCartItem}
-              keyExtractor={item => item.id.toString()}
+              keyExtractor={item => item.cartItemId}
               contentContainerStyle={styles.listContainer}
               ListFooterComponent={renderOrderForm}
             />
@@ -226,7 +226,8 @@ const styles = StyleSheet.create({
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
   itemDetails: { flex: 1 },
-  itemName: { fontSize: 16, fontWeight: '600', marginBottom: 5 },
+  itemName: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
+  itemSize: { fontSize: 12, color: '#666', marginBottom: 4 },
   itemPrice: { fontSize: 14, color: '#666' },
   quantityControl: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   quantityText: { fontSize: 18, fontWeight: 'bold', minWidth: 20, textAlign: 'center' },
