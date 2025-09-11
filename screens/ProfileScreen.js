@@ -44,14 +44,16 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.menu}>
           {user ? (
             <>
-              <TouchableOpacity 
-                style={styles.menuItem}
-                onPress={() => navigation.navigate('Admin')}
-              >
-                <Ionicons name="settings-outline" size={24} color="#FF69B4" />
-                <Text style={styles.menuText}>Админ панель</Text>
-                <Ionicons name="chevron-forward" size={20} color="#999" />
-              </TouchableOpacity>
+              {profile?.is_admin && (
+                <TouchableOpacity 
+                  style={styles.menuItem}
+                  onPress={() => navigation.navigate('Admin')}
+                >
+                  <Ionicons name="settings-outline" size={24} color="#FF69B4" />
+                  <Text style={styles.menuText}>Админ панель</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#999" />
+                </TouchableOpacity>
+              )}
               <TouchableOpacity 
                 style={styles.menuItem}
                 onPress={handleSignOut}
