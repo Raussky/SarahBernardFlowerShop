@@ -5,12 +5,13 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, // Keep ActivityIndicator for initial full screen load if needed
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
+import SkeletonLoader from '../src/components/SkeletonLoader'; // Import SkeletonLoader
 
 const CategoryScreen = ({ navigation, route }) => {
   const { category } = route.params;
@@ -41,8 +42,43 @@ const CategoryScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF69B4" />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          <SkeletonLoader width={150} height={20} borderRadius={4} />
+          <SkeletonLoader width={24} height={24} borderRadius={12} />
+        </View>
+
+        <View style={styles.categoryHeader}>
+          <SkeletonLoader width={80} height={80} borderRadius={40} style={{ marginBottom: 10 }} />
+          <SkeletonLoader width={'70%'} height={14} borderRadius={4} />
+        </View>
+
+        <View style={styles.sortBar}>
+          <SkeletonLoader width={100} height={14} borderRadius={4} />
+          <SkeletonLoader width={100} height={20} borderRadius={4} />
+        </View>
+
+        <FlatList
+          data={[...Array(6)]} // Render 6 skeleton cards
+          renderItem={({ item }) => (
+            <View style={styles.productCardSkeleton}>
+              <SkeletonLoader width={'100%'} height={180} borderRadius={15} />
+              <View style={{ padding: 12 }}>
+                <SkeletonLoader width={'80%'} height={15} borderRadius={4} style={{ marginBottom: 4 }} />
+                <SkeletonLoader width={'60%'} height={12} borderRadius={4} style={{ marginBottom: 8 }} />
+                <SkeletonLoader width={'50%'} height={16} borderRadius={4} />
+              </View>
+            </View>
+          )}
+          keyExtractor={(_, index) => index.toString()}
+          numColumns={2}
+          columnWrapperStyle={styles.productRow}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
       </SafeAreaView>
     );
   }
@@ -164,6 +200,17 @@ const styles = StyleSheet.create({
   },
   productRow: {
     justifyContent: 'space-between',
+  },
+  productCardSkeleton: {
+    width: 160, // Adjust to match ProductCard width
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
   },
 });
 

@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   shopButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   listContainer: { 
     paddingHorizontal: 20, 
-    paddingBottom: 300 // Увеличиваем отступ для нового фиксированного футера и таббара
+    paddingBottom: 340 // Увеличиваем отступ для нового фиксированного футера и таббара
   },
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   totalPrice: { fontSize: 20, fontWeight: 'bold', color: '#FF69B4' },
   fixedFooter: { 
     position: 'absolute', 
-    bottom: 80, // Высота таббара
+    bottom: 40, // Высота таббара
     left: 0, 
     right: 0, 
     backgroundColor: '#fff', 

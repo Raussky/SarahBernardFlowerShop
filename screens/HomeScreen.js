@@ -7,7 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
+  ActivityIndicator, // Keep ActivityIndicator for initial full screen load if needed, or replace with full screen skeleton
   ImageBackground,
   Image,
 } from 'react-native';
@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 import { DEFAULT_CITY } from '../src/config/constants';
+import SkeletonLoader from '../src/components/SkeletonLoader'; // Import SkeletonLoader
 
 // Mapping for category icons to images
 const categoryImageMap = {
@@ -103,8 +104,67 @@ const HomeScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF69B4" />
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.headerSafeArea}>
+          <View style={styles.header}>
+            <View style={styles.headerTopRow}>
+              <View>
+                <SkeletonLoader width={80} height={15} borderRadius={4} style={{ marginBottom: 5 }} />
+                <SkeletonLoader width={120} height={20} borderRadius={4} />
+              </View>
+              <SkeletonLoader width={40} height={40} borderRadius={20} />
+            </View>
+            <View style={styles.headerBottomRow}>
+              <SkeletonLoader width={'75%'} height={48} borderRadius={12} />
+              <SkeletonLoader width={48} height={48} borderRadius={12} />
+            </View>
+          </View>
+        </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+          <SkeletonLoader width={'90%'} height={180} borderRadius={15} style={{ marginHorizontal: 20, marginTop: 20, marginBottom: 25 }} />
+          <Text style={styles.sectionTitle}>Категории</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
+            {[...Array(4)].map((_, i) => (
+              <View key={i} style={styles.categoryItem}>
+                <SkeletonLoader width={70} height={70} borderRadius={35} style={{ marginBottom: 8 }} />
+                <SkeletonLoader width={50} height={12} borderRadius={4} />
+              </View>
+            ))}
+          </ScrollView>
+          <Text style={styles.sectionTitle}>Бест Селлеры</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
+            {[...Array(3)].map((_, i) => (
+              <SkeletonLoader key={i} width={80} height={30} borderRadius={20} style={{ marginRight: 10 }} />
+            ))}
+          </ScrollView>
+          <View style={styles.productRow}>
+            {[...Array(4)].map((_, i) => (
+              <View key={i} style={styles.productCardSkeleton}>
+                <SkeletonLoader width={'100%'} height={180} borderRadius={15} />
+                <View style={{ padding: 12 }}>
+                  <SkeletonLoader width={'80%'} height={15} borderRadius={4} style={{ marginBottom: 4 }} />
+                  <SkeletonLoader width={'60%'} height={12} borderRadius={4} style={{ marginBottom: 8 }} />
+                  <SkeletonLoader width={'50%'} height={16} borderRadius={4} />
+                </View>
+              </View>
+            ))}
+          </View>
+          <SkeletonLoader width={'90%'} height={120} borderRadius={15} style={{ marginHorizontal: 20, marginBottom: 25 }} />
+          <Text style={styles.sectionTitle}>Рекомендовано для Вас</Text>
+          <View style={styles.productRow}>
+            {[...Array(4)].map((_, i) => (
+              <View key={i} style={styles.productCardSkeleton}>
+                <SkeletonLoader width={'100%'} height={180} borderRadius={15} />
+                <View style={{ padding: 12 }}>
+                  <SkeletonLoader width={'80%'} height={15} borderRadius={4} style={{ marginBottom: 4 }} />
+                  <SkeletonLoader width={'60%'} height={12} borderRadius={4} style={{ marginBottom: 8 }} />
+                  <SkeletonLoader width={'50%'} height={16} borderRadius={4} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -276,6 +336,17 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
     paddingHorizontal: 20,
+  },
+  productCardSkeleton: {
+    width: 160, // Adjust to match ProductCard width
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
   },
 });
 
