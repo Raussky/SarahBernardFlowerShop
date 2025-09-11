@@ -86,12 +86,12 @@ const EditProductScreen = ({ navigation, route }) => {
   const uploadImage = async (localUri) => {
     try {
       const response = await fetch(localUri);
-      const blob = await response.blob();
+      const arrayBuffer = await response.arrayBuffer(); // Use arrayBuffer instead of blob
       const fileName = `public/${Date.now()}.jpg`;
       
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, blob, {
+        .upload(fileName, arrayBuffer, { // Pass arrayBuffer to upload
           cacheControl: '3600',
           upsert: false,
           contentType: 'image/jpeg',
