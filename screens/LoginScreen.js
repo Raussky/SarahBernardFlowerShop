@@ -20,10 +20,11 @@ const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  // States for validation errors
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
@@ -73,6 +74,11 @@ const LoginScreen = ({ navigation }) => {
     setPasswordError('');
     setConfirmPasswordError('');
 
+    if (!isLogin && (!firstName || !lastName)) {
+      showToast('Пожалуйста, введите имя и фамилию.', 'error');
+      return;
+    }
+
     const emailValidation = validateEmail(email);
     const passwordValidation = validatePassword(password);
     let confirmPasswordValidation = '';
@@ -92,7 +98,16 @@ const LoginScreen = ({ navigation }) => {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+        },
+      },
+    });
     if (error) {
       showToast(error.message, 'error');
     } else {
@@ -129,18 +144,27 @@ const LoginScreen = ({ navigation }) => {
               {isLogin ? 'Вход в систему' : 'Регистрация'}
             </Text>
 
+            {!isLogin && (
+              <>
+                <View style={styles.inputWrapper}>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="person-outline" size={20} color="#999" style={styles.inputIcon} />
+                    <TextInput style={styles.input} placeholder="Имя" value={firstName} onChangeText={setFirstName} autoCapitalize="words" placeholderTextColor="#999" />
+                  </View>
+                </View>
+                <View style={styles.inputWrapper}>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="person-outline" size={20} color="#999" style={styles.inputIcon} />
+                    <TextInput style={styles.input} placeholder="Фамилия" value={lastName} onChangeText={setLastName} autoCapitalize="words" placeholderTextColor="#999" />
+                  </View>
+                </View>
+              </>
+            )}
+
             <View style={[styles.inputWrapper, emailError ? styles.inputWrapperError : {}]}>
               <View style={styles.inputContainer}>
                 <Ionicons name="mail-outline" size={20} color="#999" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Email"
-                  value={email}
-                  onChangeText={(text) => { setEmail(text); setEmailError(''); }}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholderTextColor="#999"
-                />
+                <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={(text) => { setEmail(text); setEmailError(''); }} keyboardType="email-address" autoCapitalize="none" placeholderTextColor="#999" />
               </View>
               {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
@@ -148,20 +172,9 @@ const LoginScreen = ({ navigation }) => {
             <View style={[styles.inputWrapper, passwordError ? styles.inputWrapperError : {}]}>
               <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Пароль"
-                  value={password}
-                  onChangeText={(text) => { setPassword(text); setPasswordError(''); }}
-                  secureTextEntry={!showPassword}
-                  placeholderTextColor="#999"
-                />
+                <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={(text) => { setPassword(text); setPasswordError(''); }} secureTextEntry={!showPassword} placeholderTextColor="#999" />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons 
-                    name={showPassword ? "eye-outline" : "eye-off-outline"} 
-                    size={20} 
-                    color="#999" 
-                  />
+                  <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#999" />
                 </TouchableOpacity>
               </View>
               {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
@@ -171,14 +184,7 @@ const LoginScreen = ({ navigation }) => {
               <View style={[styles.inputWrapper, confirmPasswordError ? styles.inputWrapperError : {}]}>
                 <View style={styles.inputContainer}>
                   <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Подтвердите пароль"
-                    value={confirmPassword}
-                    onChangeText={(text) => { setConfirmPassword(text); setConfirmPasswordError(''); }}
-                    secureTextEntry={!showPassword}
-                    placeholderTextColor="#999"
-                  />
+                  <TextInput style={styles.input} placeholder="Подтвердите пароль" value={confirmPassword} onChangeText={(text) => { setConfirmPassword(text); setConfirmPasswordError(''); }} secureTextEntry={!showPassword} placeholderTextColor="#999" />
                 </View>
                 {!!confirmPasswordError && <Text style={styles.errorText}>{confirmPasswordError}</Text>}
               </View>
@@ -200,13 +206,8 @@ const LoginScreen = ({ navigation }) => {
               </Text>
               <TouchableOpacity onPress={() => {
                 setIsLogin(!isLogin);
-                // Clear all errors and inputs when switching form type
-                setEmail('');
-                setPassword('');
-                setConfirmPassword('');
-                setEmailError('');
-                setPasswordError('');
-                setConfirmPasswordError('');
+                setEmail(''); setPassword(''); setConfirmPassword(''); setFirstName(''); setLastName('');
+                setEmailError(''); setPasswordError(''); setConfirmPasswordError('');
               }}>
                 <Text style={styles.switchLink}>
                   {isLogin ? 'Регистрация' : 'Войти'}
@@ -221,117 +222,29 @@ const LoginScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-  },
-  backButton: {
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#FF69B4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-  },
-  form: {
-    flex: 1,
-  },
-  formTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 25,
-    textAlign: 'center',
-  },
-  inputWrapper: {
-    marginBottom: 15,
-  },
-  inputWrapperError: {
-    marginBottom: 5, // Reduce margin if error text is present
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    height: 55,
-    borderWidth: 1,
-    borderColor: '#f5f5f5', // Default border color
-  },
-  inputContainerError: {
-    borderColor: '#FF0000', // Red border for error
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-  },
-  errorText: {
-    color: '#FF0000',
-    fontSize: 12,
-    marginTop: 5,
-    marginLeft: 15,
-  },
-  submitButton: {
-    backgroundColor: '#FF69B4',
-    borderRadius: 25,
-    paddingVertical: 15,
-    alignItems: 'center',
-    marginBottom: 20,
-    marginTop: 10,
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  switchContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  switchText: {
-    color: '#666',
-    marginRight: 5,
-  },
-  switchLink: {
-    color: '#FF69B4',
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 20 },
+  backButton: { marginTop: 10, marginBottom: 20 },
+  logoContainer: { alignItems: 'center', marginBottom: 40 },
+  logo: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FF69B4', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+  logoText: { fontSize: 32, fontWeight: 'bold', color: '#fff' },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 5 },
+  subtitle: { fontSize: 16, color: '#666' },
+  form: { flex: 1 },
+  formTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },
+  inputWrapper: { marginBottom: 15 },
+  inputWrapperError: { marginBottom: 5 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 12, paddingHorizontal: 15, height: 55, borderWidth: 1, borderColor: '#f5f5f5' },
+  inputContainerError: { borderColor: '#FF0000' },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 16, color: '#333' },
+  errorText: { color: '#FF0000', fontSize: 12, marginTop: 5, marginLeft: 15 },
+  submitButton: { backgroundColor: '#FF69B4', borderRadius: 25, paddingVertical: 15, alignItems: 'center', marginBottom: 20, marginTop: 10 },
+  submitButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  switchContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
+  switchText: { color: '#666', marginRight: 5 },
+  switchLink: { color: '#FF69B4', fontWeight: '600' },
 });
 
 export default LoginScreen;
