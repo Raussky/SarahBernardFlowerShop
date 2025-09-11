@@ -1,7 +1,7 @@
-import React, { useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
+import React, { useContext, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CartContext } from '../context/CartContext';
+import { CartContext } from '../src/context/CartContext';
 
 const { width } = Dimensions.get('window');
 
@@ -14,37 +14,80 @@ const ProductCard = ({ product, navigation }) => {
     ? product.product_variants[0].price
     : 0;
 
+  // Animation for card press
+  const cardScale = useRef(new Animated.Value(1)).current;
+  const handleCardPressIn = () => {
+    Animated.spring(cardScale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+    }).start();
+  };
+  const handleCardPressOut = () => {
+    Animated.spring(cardScale, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  // Animation for heart icon press
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const handleHeartPressIn = () => {
+    Animated.sequence([
+      Animated.timing(heartScale, {
+        toValue: 1.2,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(heartScale, {
+        toValue: 1,
+        friction: 3,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
   return (
-    <TouchableOpacity 
-      style={styles.productCard}
-      onPress={() => navigation.navigate('Product', { product })}
-    >
-      <Image source={{ uri: product.image }} style={styles.productImage} />
+    <Animated.View style={[styles.productCard, { transform: [{ scale: cardScale }] }]}>
       <TouchableOpacity 
-        style={styles.heartIcon}
-        onPress={(e) => {
-          e.stopPropagation();
-          toggleSaved(product);
-        }}
-      >
-        <Ionicons 
-          name={isSaved ? "heart" : "heart-outline"} 
-          size={24} 
-          color={isSaved ? "#FF69B4" : "#fff"} 
-        />
-      </TouchableOpacity>
-      <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
-        <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name || 'Категория'}</Text>
-        <Text style={styles.productPrice}>₸{displayPrice.toLocaleString()}</Text>
-      </View>
-      <TouchableOpacity 
-        style={styles.addButton} 
+        style={StyleSheet.absoluteFill} // Make TouchableOpacity cover the whole card for press
         onPress={() => navigation.navigate('Product', { product })}
+        onPressIn={handleCardPressIn}
+        onPressOut={handleCardPressOut}
+        activeOpacity={1} // Control opacity via Animated.View
       >
-        <Text style={styles.addButtonText}>+</Text>
+        <Image source={{ uri: product.image }} style={styles.productImage} />
+        <TouchableOpacity 
+          style={styles.heartIcon}
+          onPress={(e) => {
+            e.stopPropagation();
+            handleHeartPressIn(); // Trigger heart animation
+            toggleSaved(product);
+          }}
+        >
+          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+            <Ionicons 
+              name={isSaved ? "heart" : "heart-outline"} 
+              size={24} 
+              color={isSaved ? "#FF69B4" : "#fff"} 
+            />
+          </Animated.View>
+        </TouchableOpacity>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
+          <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name || 'Категория'}</Text>
+          <Text style={styles.productPrice}>₸{displayPrice.toLocaleString()}</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.addButton} 
+          onPress={() => navigation.navigate('Product', { product })}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
+    </Animated.View>
   );
 };
 

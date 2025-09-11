@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
+  Animated, // Import Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,23 @@ const ProductScreen = ({ navigation, route }) => {
   const [selectedVariant, setSelectedVariant] = useState(variants.length > 0 ? variants[0] : null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [recommended, setRecommended] = useState([]);
+
+  // Animation for add to cart button
+  const addToCartButtonScale = useRef(new Animated.Value(1)).current;
+  const handleAddToCartPressIn = () => {
+    Animated.spring(addToCartButtonScale, {
+      toValue: 0.95,
+      useNativeDriver: true,
+    }).start();
+  };
+  const handleAddToCartPressOut = () => {
+    Animated.spring(addToCartButtonScale, {
+      toValue: 1,
+      friction: 3,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  };
 
   useEffect(() => {
     const fetchRecommended = async () => {
@@ -181,17 +199,25 @@ const ProductScreen = ({ navigation, route }) => {
           <Text style={styles.totalLabel}>Итоговая цена</Text>
           <Text style={styles.totalPrice}>₸{(selectedVariant?.price || 0).toLocaleString()}</Text>
         </View>
-        <TouchableOpacity style={styles.addToCartButtonWrapper} onPress={handleAddToCart}>
-          <LinearGradient
-            colors={['#FFC0CB', '#FF69B4']}
-            style={styles.addToCartButton}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+        <Animated.View style={[styles.addToCartButtonWrapper, { transform: [{ scale: addToCartButtonScale }] }]}>
+          <TouchableOpacity 
+            style={StyleSheet.absoluteFill} // Make TouchableOpacity cover the whole Animated.View
+            onPress={handleAddToCart}
+            onPressIn={handleAddToCartPressIn}
+            onPressOut={handleAddToCartPressOut}
+            activeOpacity={1} // Control opacity via Animated.View
           >
-            <Ionicons name="cart-outline" size={24} color="#fff" />
-            <Text style={styles.addToCartText}>В корзину</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+            <LinearGradient
+              colors={['#FFC0CB', '#FF69B4']}
+              style={styles.addToCartButton}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+            >
+              <Ionicons name="cart-outline" size={24} color="#fff" />
+              <Text style={styles.addToCartText}>В корзину</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );
