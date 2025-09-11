@@ -177,7 +177,8 @@ const BasketScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderOrderForm = () => (
+  // Отдельная функция для прокручиваемых полей формы
+  const renderOrderFormInputs = () => (
     <View style={styles.formContainer}>
       <Text style={styles.sectionTitle}>Способ получения</Text>
       <View style={styles.toggleContainer}>
@@ -220,21 +221,6 @@ const BasketScreen = ({ navigation }) => {
           <Text style={[styles.toggleButtonText, paymentMethod === 'cash' && styles.activeToggleButtonText]}>Наличными</Text>
         </TouchableOpacity>
       </View>
-
-      <View style={styles.summaryContainer}>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Подытог</Text>
-          <Text style={styles.summaryValue}>₸{getSubtotal().toLocaleString()}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Доставка</Text>
-          <Text style={styles.summaryValue}>₸{deliveryMethod === 'delivery' ? DELIVERY_COST.toLocaleString() : 0}</Text>
-        </View>
-        <View style={[styles.summaryRow, styles.totalRow]}>
-          <Text style={styles.totalLabel}>Итого</Text>
-          <Text style={styles.totalPrice}>₸{getTotalPrice().toLocaleString()}</Text>
-        </View>
-      </View>
     </View>
   );
 
@@ -266,9 +252,24 @@ const BasketScreen = ({ navigation }) => {
               renderItem={renderCartItem}
               keyExtractor={item => item.cartItemId}
               contentContainerStyle={styles.listContainer}
-              ListFooterComponent={renderOrderForm}
+              ListFooterComponent={renderOrderFormInputs} // Теперь здесь только поля формы
             />
-            <View style={styles.bottomBar}>
+            {/* Новый фиксированный футер */}
+            <View style={styles.fixedFooter}>
+              <View style={styles.summaryContainer}>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Подытог</Text>
+                  <Text style={styles.summaryValue}>₸{getSubtotal().toLocaleString()}</Text>
+                </View>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Доставка</Text>
+                  <Text style={styles.summaryValue}>₸{deliveryMethod === 'delivery' ? DELIVERY_COST.toLocaleString() : 0}</Text>
+                </View>
+                <View style={[styles.summaryRow, styles.totalRow]}>
+                  <Text style={styles.totalLabel}>Итого</Text>
+                  <Text style={styles.totalPrice}>₸{getTotalPrice().toLocaleString()}</Text>
+                </View>
+              </View>
               <TouchableOpacity style={styles.whatsappButton} onPress={handleWhatsAppOrder}>
                 <Text style={styles.whatsappButtonText}>Отправить в WhatsApp</Text>
                 <Ionicons name="logo-whatsapp" size={24} color="#fff" />
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
   shopButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   listContainer: { 
     paddingHorizontal: 20, 
-    paddingBottom: 160 // Увеличиваем отступ для bottomBar и таббара
+    paddingBottom: 230 // Увеличиваем отступ для нового фиксированного футера и таббара
   },
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
@@ -320,9 +321,9 @@ const styles = StyleSheet.create({
   totalRow: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 10, marginTop: 5 },
   totalLabel: { fontSize: 18, fontWeight: 'bold' },
   totalPrice: { fontSize: 20, fontWeight: 'bold', color: '#FF69B4' },
-  bottomBar: { 
+  fixedFooter: { 
     position: 'absolute', 
-    bottom: 80, // Позиционируем над таббаром (высота таббара 80px)
+    bottom: 80, // Высота таббара
     left: 0, 
     right: 0, 
     backgroundColor: '#fff', 
@@ -330,11 +331,17 @@ const styles = StyleSheet.create({
     paddingVertical: 15, 
     borderTopWidth: 1, 
     borderTopColor: '#f0f0f0', 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center' 
   },
-  whatsappButton: { backgroundColor: '#25D366', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, borderRadius: 25, gap: 10 },
+  whatsappButton: { 
+    backgroundColor: '#25D366', 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    paddingVertical: 15, 
+    borderRadius: 25, 
+    gap: 10,
+    marginTop: 15, // Отступ от блока 'Итого'
+  },
   whatsappButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
 
