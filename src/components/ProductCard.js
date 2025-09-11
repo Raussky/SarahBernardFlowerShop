@@ -51,41 +51,41 @@ const ProductCard = ({ product, navigation }) => {
 
   return (
     <Animated.View style={[styles.productCard, { transform: [{ scale: cardScale }] }]}>
-      <TouchableOpacity 
-        style={StyleSheet.absoluteFill} // Make TouchableOpacity cover the whole card for press
+      <TouchableOpacity
         onPress={() => navigation.navigate('Product', { product })}
         onPressIn={handleCardPressIn}
         onPressOut={handleCardPressOut}
-        activeOpacity={1} // Control opacity via Animated.View
+        activeOpacity={0.9}
       >
         <Image source={{ uri: product.image }} style={styles.productImage} />
-        <TouchableOpacity 
-          style={styles.heartIcon}
-          onPress={(e) => {
-            e.stopPropagation();
-            handleHeartPressIn(); // Trigger heart animation
-            toggleSaved(product);
-          }}
-        >
-          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-            <Ionicons 
-              name={isSaved ? "heart" : "heart-outline"} 
-              size={24} 
-              color={isSaved ? "#FF69B4" : "#fff"} 
-            />
-          </Animated.View>
-        </TouchableOpacity>
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
           <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name || 'Категория'}</Text>
           <Text style={styles.productPrice}>₸{displayPrice.toLocaleString()}</Text>
         </View>
-        <TouchableOpacity 
-          style={styles.addButton} 
-          onPress={() => navigation.navigate('Product', { product })}
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.heartIcon}
+        onPress={() => {
+          handleHeartPressIn();
+          toggleSaved(product);
+        }}
+      >
+        <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+          <Ionicons
+            name={isSaved ? "heart" : "heart-outline"}
+            size={24}
+            color={isSaved ? "#FF69B4" : "#fff"}
+          />
+        </Animated.View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => navigation.navigate('Product', { product })}
+      >
+        <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
     </Animated.View>
   );

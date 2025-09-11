@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   activeFilterTab: { backgroundColor: '#FF69B4' },
   filterText: { color: '#666' },
   activeFilterText: { color: '#fff', fontWeight: 'bold' },
-  specialOfferBanner: { marginHorizontal: 20, borderRadius: 15, padding: 30, marginBottom: 25, minHeight: 120, justifyContent: 'center', alignItems: 'center' },
+  specialOfferBanner: { marginHorizontal: 20, borderRadius: 15, padding: 30, marginBottom: 25, minHeight: 120, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFE4E1' },
   offerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff', textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
   offerSubtitle: { fontSize: 14, color: '#fff', textShadowColor: 'rgba(0, 0, 0, 0.7)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2, marginTop: 5 },
   recommendedSection: { marginBottom: 20 },
