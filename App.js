@@ -13,6 +13,7 @@ import LoginScreen from './screens/LoginScreen';
 import AdminScreen from './screens/AdminScreen';
 import CategoryScreen from './screens/CategoryScreen';
 import ProfileScreen from './screens/ProfileScreen';
+import EditProductScreen from './screens/EditProductScreen'; // Import the new screen
 
 // Import Providers
 import { ToastProvider } from './src/components/ToastProvider';
@@ -105,6 +106,7 @@ export default function App() {
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="Admin" component={AdminScreen} />
               <Stack.Screen name="Category" component={CategoryScreen} />
+              <Stack.Screen name="EditProduct" component={EditProductScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </ToastProvider>

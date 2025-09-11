@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
+import { DEFAULT_CITY } from '../src/config/constants';
 
 // Mapping for category icons to images
 const categoryImageMap = {
@@ -29,6 +30,7 @@ const HomeScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Все');
 
@@ -46,9 +48,10 @@ const HomeScreen = ({ navigation }) => {
         const { data: productsData, error: productsError } = await supabase
           .from('products')
           .select('*, categories(name, name_en), product_variants(*)')
-          .limit(8);
+          .order('created_at', { ascending: false });
         if (productsError) throw productsError;
         setProducts(productsData);
+        setFilteredProducts(productsData); // Initialize filtered products
 
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -60,9 +63,33 @@ const HomeScreen = ({ navigation }) => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    let currentFiltered = products;
+
+    // Apply search filter
+    if (searchText) {
+      const lowercasedSearchText = searchText.toLowerCase();
+      currentFiltered = currentFiltered.filter(product =>
+        product.name?.toLowerCase().includes(lowercasedSearchText) ||
+        product.name_ru?.toLowerCase().includes(lowercasedSearchText) ||
+        product.categories?.name?.toLowerCase().includes(lowercasedSearchText) ||
+        product.categories?.name_en?.toLowerCase().includes(lowercasedSearchText)
+      );
+    }
+
+    // Apply category filter
+    if (activeFilter !== 'Все') {
+      currentFiltered = currentFiltered.filter(product =>
+        product.categories?.name === activeFilter || product.categories?.name_en === activeFilter
+      );
+    }
+
+    setFilteredProducts(currentFiltered);
+  }, [searchText, activeFilter, products]);
+
   const renderBestsellerFilters = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
-      {['Все', 'Букеты', 'Цветы', 'Подарки'].map(filter => (
+      {['Все', ...categories.map(cat => cat.name)].map(filter => (
         <TouchableOpacity 
           key={filter}
           style={[styles.filterTab, activeFilter === filter && styles.activeFilterTab]}
@@ -92,7 +119,7 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.locationLabel}>Локация</Text>
               <TouchableOpacity style={styles.locationRow}>
                 <Ionicons name="location" size={20} color="#fff" />
-                <Text style={styles.locationText}>Актау</Text>
+                <Text style={styles.locationText}>{DEFAULT_CITY}</Text>
                 <Ionicons name="chevron-down" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -162,14 +189,18 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.bestsellerSection}>
           <Text style={styles.sectionTitle}>Бест Селлеры</Text>
           {renderBestsellerFilters()}
-          <FlatList
-            data={products.slice(0, 4)}
-            renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
-            keyExtractor={item => item.id.toString()}
-            numColumns={2}
-            columnWrapperStyle={styles.productRow}
-            scrollEnabled={false}
-          />
+          {filteredProducts.length > 0 ? (
+            <FlatList
+              data={filteredProducts.slice(0, 4)} // Show only a few bestsellers
+              renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
+              keyExtractor={item => item.id.toString()}
+              numColumns={2}
+              columnWrapperStyle={styles.productRow}
+              scrollEnabled={false}
+            />
+          ) : (
+            <Text style={styles.emptyResultsText}>Нет товаров, соответствующих вашему запросу.</Text>
+          )}
         </View>
 
         <ImageBackground
@@ -183,14 +214,18 @@ const HomeScreen = ({ navigation }) => {
 
         <View style={styles.recommendedSection}>
           <Text style={styles.sectionTitle}>Рекомендовано для Вас</Text>
-          <FlatList
-            data={products}
-            renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
-            keyExtractor={item => item.id.toString()}
-            numColumns={2}
-            columnWrapperStyle={styles.productRow}
-            scrollEnabled={false}
-          />
+          {filteredProducts.length > 0 ? (
+            <FlatList
+              data={filteredProducts}
+              renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
+              keyExtractor={item => item.id.toString()}
+              numColumns={2}
+              columnWrapperStyle={styles.productRow}
+              scrollEnabled={false}
+            />
+          ) : (
+            <Text style={styles.emptyResultsText}>Нет товаров, соответствующих вашему запросу.</Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -233,7 +268,15 @@ const styles = StyleSheet.create({
   offerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff', textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
   offerSubtitle: { fontSize: 14, color: '#fff', textShadowColor: 'rgba(0, 0, 0, 0.7)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2, marginTop: 5 },
   recommendedSection: { marginBottom: 20 },
-  productRow: { justifyContent: 'space-between', paddingHorizontal: 20 },
+  productRow: { justifyContent: 'space-between', paddingHorizontal: 0 }, // Removed padding here as FlatList contentContainerStyle handles it
+  emptyResultsText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: '#999',
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
 });
 
 export default HomeScreen;

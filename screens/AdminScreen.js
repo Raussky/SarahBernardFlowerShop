@@ -13,25 +13,29 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
+import { useIsFocused } from '@react-navigation/native';
 
 const AdminScreen = ({ navigation }) => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', category_id: null });
-  const [orders, setOrders] = useState([]);
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', category_id: null, description: '', image: '' });
+  const [orders, setOrders] = useState([]); // Placeholder for orders
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
+  const isFocused = useIsFocused(); // Hook to re-fetch data when screen is focused
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isFocused) {
+      fetchData();
+    }
+  }, [isFocused]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('*, product_variants(*)')
+        .select('*, product_variants(*), categories(name)')
         .order('created_at', { ascending: false });
       if (productsError) throw productsError;
       setProducts(productsData);
@@ -41,6 +45,11 @@ const AdminScreen = ({ navigation }) => {
         .select('*');
       if (categoriesError) throw categoriesError;
       setCategories(categoriesData);
+
+      // TODO: Fetch orders data here
+      // const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*');
+      // if (ordersError) throw ordersError;
+      // setOrders(ordersData);
 
     } catch (error) {
       showToast(error.message, 'error');
@@ -63,7 +72,8 @@ const AdminScreen = ({ navigation }) => {
           name: newProduct.name,
           name_ru: newProduct.name,
           category_id: newProduct.category_id,
-          image: 'https://via.placeholder.com/200/FF69B4/FFFFFF?text=New'
+          image: newProduct.image || 'https://via.placeholder.com/200/FF69B4/FFFFFF?text=New',
+          description: newProduct.description || 'Описание нового товара.',
         })
         .select()
         .single();
@@ -82,7 +92,7 @@ const AdminScreen = ({ navigation }) => {
       if (variantError) throw variantError;
 
       showToast('Товар успешно добавлен', 'success');
-      setNewProduct({ name: '', price: '', category_id: null });
+      setNewProduct({ name: '', price: '', category_id: null, description: '', image: '' });
       fetchData(); // Refetch data to show the new product
 
     } catch (error) {
@@ -147,6 +157,19 @@ const AdminScreen = ({ navigation }) => {
           />
           <TextInput
             style={styles.input}
+            placeholder="Описание товара"
+            value={newProduct.description}
+            onChangeText={(text) => setNewProduct({...newProduct, description: text})}
+            multiline
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="URL изображения"
+            value={newProduct.image}
+            onChangeText={(text) => setNewProduct({...newProduct, image: text})}
+          />
+          <TextInput
+            style={styles.input}
             placeholder="Цена"
             value={newProduct.price}
             onChangeText={(text) => setNewProduct({...newProduct, price: text})}
@@ -184,13 +207,25 @@ const AdminScreen = ({ navigation }) => {
             <View key={product.id} style={styles.productItem}>
               <View style={styles.productInfo}>
                 <Text style={styles.productName}>{product.name}</Text>
+                <Text style={styles.productCategory}>{product.categories?.name || 'Без категории'}</Text>
                 <Text style={styles.productPrice}>
-                  ₸{product.product_variants[0]?.price || 'N/A'}
+                  ₸{product.product_variants[0]?.price.toLocaleString() || 'N/A'}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => handleDeleteProduct(product.id)}>
-                <Ionicons name="trash-outline" size={20} color="#FF69B4" />
-              </TouchableOpacity>
+              <View style={styles.productActions}>
+                <TouchableOpacity 
+                  onPress={() => navigation.navigate('EditProduct', { productId: product.id })}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="create-outline" size={20} color="#333" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => handleDeleteProduct(product.id)}
+                  style={styles.actionButton}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF69B4" />
+                </TouchableOpacity>
+              </View>
             </View>
           ))}
         </View>
@@ -297,10 +332,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  productCategory: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
   productPrice: {
     fontSize: 14,
     color: '#FF69B4',
     marginTop: 5,
+  },
+  productActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionButton: {
+    padding: 5,
   },
   emptyText: {
     color: '#999',
