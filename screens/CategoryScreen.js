@@ -1,44 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator, // Keep ActivityIndicator for initial full screen load if needed
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
-import SkeletonLoader from '../src/components/SkeletonLoader'; // Import SkeletonLoader
+import SkeletonLoader from '../src/components/SkeletonLoader';
 
 const CategoryScreen = ({ navigation, route }) => {
   const { category } = route.params;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      if (!category?.id) return;
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('products')
-          .select('*, categories(name, name_en), product_variants(*)')
-          .eq('category_id', category.id);
-        
-        if (error) throw error;
-        setProducts(data);
-      } catch (error) {
-        console.error("Error fetching products for category:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProducts();
+  const fetchProducts = useCallback(async () => {
+    if (!category?.id) return;
+    try {
+      // Don't set loading to true on refetch
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, categories(name, name_en), product_variants(*)')
+        .eq('category_id', category.id);
+      
+      if (error) throw error;
+      setProducts(data);
+    } catch (error) {
+      console.error("Error fetching products for category:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [category]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`public:products:category_id=eq.${category.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `category_id=eq.${category.id}` }, () => fetchProducts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => fetchProducts())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchProducts, category.id]);
 
   if (loading) {
     return (
@@ -62,7 +74,7 @@ const CategoryScreen = ({ navigation, route }) => {
         </View>
 
         <FlatList
-          data={[...Array(6)]} // Render 6 skeleton cards
+          data={[...Array(6)]}
           renderItem={({ item }) => (
             <View style={styles.productCardSkeleton}>
               <SkeletonLoader width={'100%'} height={180} borderRadius={15} />

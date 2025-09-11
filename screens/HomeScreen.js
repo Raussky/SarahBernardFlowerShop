@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator, // Keep ActivityIndicator for initial full screen load if needed, or replace with full screen skeleton
+  ActivityIndicator,
   ImageBackground,
   Image,
 } from 'react-native';
@@ -17,9 +17,8 @@ import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 import { DEFAULT_CITY } from '../src/config/constants';
-import SkeletonLoader from '../src/components/SkeletonLoader'; // Import SkeletonLoader
+import SkeletonLoader from '../src/components/SkeletonLoader';
 
-// Mapping for category icons to images
 const categoryImageMap = {
   '💐': 'https://images.unsplash.com/photo-1546842931-886c185b4c8c?w=500&q=80',
   '🎁': 'https://images.unsplash.com/photo-1513201099705-4874684e20d8?w=500&q=80',
@@ -35,39 +34,51 @@ const HomeScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Все');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const { data: categoriesData, error: categoriesError } = await supabase
-          .from('categories')
-          .select('*')
-          .limit(4);
-        if (categoriesError) throw categoriesError;
-        setCategories(categoriesData);
+  const fetchData = useCallback(async () => {
+    try {
+      // Don't set loading to true on refetch
+      // setLoading(true); 
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*')
+        .limit(4);
+      if (categoriesError) throw categoriesError;
+      setCategories(categoriesData);
 
-        const { data: productsData, error: productsError } = await supabase
-          .from('products')
-          .select('*, categories(name, name_en), product_variants(*)')
-          .order('created_at', { ascending: false });
-        if (productsError) throw productsError;
-        setProducts(productsData);
-        setFilteredProducts(productsData); // Initialize filtered products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*, categories(name, name_en), product_variants(*)')
+        .order('created_at', { ascending: false });
+      if (productsError) throw productsError;
+      setProducts(productsData);
+      // setFilteredProducts(productsData); // This will be handled by the useEffect below
 
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('public:products_and_variants')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => fetchData())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
 
   useEffect(() => {
     let currentFiltered = products;
 
-    // Apply search filter
     if (searchText) {
       const lowercasedSearchText = searchText.toLowerCase();
       currentFiltered = currentFiltered.filter(product =>
@@ -78,7 +89,6 @@ const HomeScreen = ({ navigation }) => {
       );
     }
 
-    // Apply category filter
     if (activeFilter !== 'Все') {
       currentFiltered = currentFiltered.filter(product =>
         product.categories?.name === activeFilter || product.categories?.name_en === activeFilter

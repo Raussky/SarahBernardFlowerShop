@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import React, { useState, useContext, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -21,7 +21,8 @@ import RecommendedProductCard from '../src/components/RecommendedProductCard';
 const { width } = Dimensions.get('window');
 
 const ProductScreen = ({ navigation, route }) => {
-  const { product } = route.params;
+  const initialProduct = route.params.product;
+  const [product, setProduct] = useState(initialProduct);
   const { addToCart } = useContext(CartContext);
   const { showToast } = useToast();
   
@@ -39,6 +40,35 @@ const ProductScreen = ({ navigation, route }) => {
   const handleAddToCartPressOut = () => {
     Animated.spring(addToCartButtonScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
   };
+
+  const fetchProductDetails = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, product_variants(*)')
+      .eq('id', initialProduct.id)
+      .single();
+    
+    if (!error && data) {
+      setProduct(data);
+      // Reselect variant if it still exists
+      const currentSelectedId = selectedVariant?.id;
+      const newVariants = data.product_variants || [];
+      const newSelectedVariant = newVariants.find(v => v.id === currentSelectedId) || (newVariants.length > 0 ? newVariants[0] : null);
+      setSelectedVariant(newSelectedVariant);
+    }
+  }, [initialProduct.id, selectedVariant]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`public:product:${initialProduct.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `id=eq.${initialProduct.id}` }, fetchProductDetails)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants', filter: `product_id=eq.${initialProduct.id}` }, fetchProductDetails)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [initialProduct.id, fetchProductDetails]);
 
   useEffect(() => {
     const fetchRecommended = async () => {
