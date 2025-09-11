@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useIsFocused } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
 const ORDER_STATUSES = {
   all: 'Все',
@@ -17,15 +18,21 @@ const AdminOrdersScreen = ({ navigation }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const isFocused = useIsFocused();
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+      
       if (filter !== 'all') {
         query = query.eq('status', filter);
       }
+      if (searchQuery) {
+        query = query.ilike('customer_name', `%${searchQuery}%`);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
       setOrders(data);
@@ -34,13 +41,13 @@ const AdminOrdersScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, searchQuery]);
 
   useEffect(() => {
     if (isFocused) {
       fetchOrders();
     }
-  }, [isFocused, filter]);
+  }, [isFocused, fetchOrders]);
 
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity style={styles.orderItem} onPress={() => navigation.navigate('AdminOrderDetail', { orderId: item.id })}>
@@ -60,6 +67,16 @@ const AdminOrdersScreen = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Заказы</Text>
+      </View>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#999" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Поиск по имени клиента..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#999"
+        />
       </View>
       <View style={styles.filterContainer}>
         <FlatList
@@ -85,7 +102,7 @@ const AdminOrdersScreen = ({ navigation }) => {
           renderItem={renderOrderItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>Нет заказов с таким статусом</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>Нет заказов, соответствующих критериям</Text>}
         />
       )}
     </SafeAreaView>
@@ -94,9 +111,11 @@ const AdminOrdersScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { paddingHorizontal: 20, paddingVertical: 15 },
+  header: { paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 },
   headerTitle: { fontSize: 24, fontWeight: 'bold' },
-  filterContainer: { paddingHorizontal: 20, paddingBottom: 10 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 20, borderRadius: 10, paddingHorizontal: 10, marginTop: 10 },
+  searchInput: { flex: 1, height: 40, marginLeft: 10 },
+  filterContainer: { paddingHorizontal: 20, paddingVertical: 10 },
   filterButton: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, backgroundColor: '#e0e0e0', marginRight: 10 },
   activeFilterButton: { backgroundColor: '#FF69B4' },
   filterText: { color: '#333' },

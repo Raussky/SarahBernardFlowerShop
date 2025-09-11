@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/integrations/supabase/client';
@@ -9,17 +9,24 @@ import { useToast } from '../../src/components/ToastProvider';
 const AdminProductsScreen = ({ navigation }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const isFocused = useIsFocused();
   const { showToast } = useToast();
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*, product_variants(*), categories(name)')
         .filter('is_archived', 'is', 'false')
         .order('created_at', { ascending: false });
+
+      if (searchQuery) {
+        query = query.ilike('name', `%${searchQuery}%`);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setProducts(data);
     } catch (error) {
@@ -27,13 +34,13 @@ const AdminProductsScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery]);
 
   useEffect(() => {
     if (isFocused) {
       fetchProducts();
     }
-  }, [isFocused]);
+  }, [isFocused, fetchProducts]);
 
   const handleArchiveProduct = (id) => {
     Alert.alert(
@@ -81,6 +88,16 @@ const AdminProductsScreen = ({ navigation }) => {
           <Ionicons name="add" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#999" />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Поиск по названию товара..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholderTextColor="#999"
+        />
+      </View>
       {loading ? (
         <ActivityIndicator size="large" color="#FF69B4" style={{ flex: 1 }} />
       ) : (
@@ -89,7 +106,7 @@ const AdminProductsScreen = ({ navigation }) => {
           renderItem={renderProductItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>Нет товаров для отображения</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>Нет товаров, соответствующих критериям</Text>}
         />
       )}
     </SafeAreaView>
@@ -98,9 +115,11 @@ const AdminProductsScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 },
   headerTitle: { fontSize: 24, fontWeight: 'bold' },
   addButton: { backgroundColor: '#FF69B4', padding: 8, borderRadius: 20 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 20, borderRadius: 10, paddingHorizontal: 10, marginTop: 10, marginBottom: 10 },
+  searchInput: { flex: 1, height: 40, marginLeft: 10 },
   listContent: { paddingHorizontal: 20, paddingBottom: 20 },
   productItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },
   productInfo: { flex: 1 },

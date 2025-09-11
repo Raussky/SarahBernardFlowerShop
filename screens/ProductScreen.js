@@ -27,25 +27,17 @@ const ProductScreen = ({ navigation, route }) => {
   
   const variants = product.product_variants || [];
   const [selectedVariant, setSelectedVariant] = useState(variants.length > 0 ? variants[0] : null);
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [recommended, setRecommended] = useState([]);
+
+  const isVariantOutOfStock = selectedVariant?.stock_quantity <= 0;
 
   const addToCartButtonScale = useRef(new Animated.Value(1)).current;
 
   const handleAddToCartPressIn = () => {
-    Animated.spring(addToCartButtonScale, {
-      toValue: 0.95,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(addToCartButtonScale, { toValue: 0.95, useNativeDriver: true }).start();
   };
-
   const handleAddToCartPressOut = () => {
-    Animated.spring(addToCartButtonScale, {
-      toValue: 1,
-      friction: 3,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(addToCartButtonScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
   };
 
   useEffect(() => {
@@ -60,15 +52,16 @@ const ProductScreen = ({ navigation, route }) => {
         setRecommended(data);
       }
     };
-
     fetchRecommended();
   }, [product.id]);
-
-  const images = [product.image]; 
 
   const handleAddToCart = () => {
     if (!selectedVariant) {
       showToast('Выберите вариант товара', 'error');
+      return;
+    }
+    if (isVariantOutOfStock) {
+      showToast('Этого товара нет в наличии', 'error');
       return;
     }
     const item = {
@@ -79,6 +72,7 @@ const ProductScreen = ({ navigation, route }) => {
       size: selectedVariant.size,
       price: selectedVariant.price,
       variantId: selectedVariant.id,
+      stock_quantity: selectedVariant.stock_quantity,
     };
     addToCart(item);
     showToast('Товар добавлен в корзину', 'success');
@@ -87,6 +81,10 @@ const ProductScreen = ({ navigation, route }) => {
   const handleAddRecommendedToCart = (item) => {
     if (item.product_variants && item.product_variants.length > 0) {
         const variant = item.product_variants[0];
+        if (variant.stock_quantity <= 0) {
+          showToast(`${item.name || item.name_ru} закончился`, 'info');
+          return;
+        }
         const cartItem = {
             id: item.id,
             name: item.name,
@@ -95,6 +93,7 @@ const ProductScreen = ({ navigation, route }) => {
             size: variant.size,
             price: variant.price,
             variantId: variant.id,
+            stock_quantity: variant.stock_quantity,
         };
         addToCart(cartItem);
         showToast(`${item.name || item.name_ru} добавлен в корзину`, 'success');
@@ -117,27 +116,7 @@ const ProductScreen = ({ navigation, route }) => {
         <Text style={styles.productTitle}>{product.name || product.name_ru}</Text>
 
         <View style={styles.imageContainer}>
-          <Image source={{ uri: images[currentImageIndex] }} style={styles.mainImage} />
-          {images.length > 1 && (
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.thumbnailContainer}
-            >
-              {images.map((img, index) => (
-                <TouchableOpacity
-                  key={index}
-                  onPress={() => setCurrentImageIndex(index)}
-                  style={[
-                    styles.thumbnail,
-                    currentImageIndex === index && styles.activeThumbnail
-                  ]}
-                >
-                  <Image source={{ uri: img }} style={styles.thumbnailImage} />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          )}
+          <Image source={{ uri: product.image }} style={styles.mainImage} />
         </View>
 
         <View style={styles.productInfo}>
@@ -151,12 +130,15 @@ const ProductScreen = ({ navigation, route }) => {
                     onPress={() => setSelectedVariant(variant)}
                     style={[
                       styles.sizeButton,
-                      selectedVariant?.id === variant.id && styles.selectedSize
+                      selectedVariant?.id === variant.id && styles.selectedSize,
+                      variant.stock_quantity <= 0 && styles.disabledSize,
                     ]}
+                    disabled={variant.stock_quantity <= 0}
                   >
                     <Text style={[
                       styles.sizeText,
-                      selectedVariant?.id === variant.id && styles.selectedSizeText
+                      selectedVariant?.id === variant.id && styles.selectedSizeText,
+                      variant.stock_quantity <= 0 && styles.disabledSizeText,
                     ]}>
                       {variant.size}
                     </Text>
@@ -204,16 +186,17 @@ const ProductScreen = ({ navigation, route }) => {
           onPressIn={handleAddToCartPressIn}
           onPressOut={handleAddToCartPressOut}
           activeOpacity={0.8}
+          disabled={isVariantOutOfStock}
         >
           <Animated.View style={{ transform: [{ scale: addToCartButtonScale }] }}>
             <LinearGradient
-              colors={['#FFC0CB', '#FF69B4']}
+              colors={isVariantOutOfStock ? ['#ccc', '#aaa'] : ['#FFC0CB', '#FF69B4']}
               style={styles.addToCartButton}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             >
-              <Ionicons name="cart-outline" size={24} color="#fff" />
-              <Text style={styles.addToCartText}>В корзину</Text>
+              <Ionicons name={isVariantOutOfStock ? "close-circle-outline" : "cart-outline"} size={24} color="#fff" />
+              <Text style={styles.addToCartText}>{isVariantOutOfStock ? 'Нет в наличии' : 'В корзину'}</Text>
             </LinearGradient>
           </Animated.View>
         </TouchableOpacity>
@@ -223,150 +206,31 @@ const ProductScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  productTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
-    paddingHorizontal: 20,
-  },
-  imageContainer: {
-    marginBottom: 20,
-  },
-  mainImage: {
-    width: width - 40,
-    height: width - 40,
-    alignSelf: 'center',
-    borderRadius: 20,
-    marginBottom: 15,
-  },
-  thumbnailContainer: {
-    paddingHorizontal: 20,
-  },
-  thumbnail: {
-    marginRight: 10,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    borderRadius: 12,
-    padding: 2,
-  },
-  activeThumbnail: {
-    borderColor: '#FF69B4',
-  },
-  thumbnailImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 10,
-  },
-  productInfo: {
-    paddingHorizontal: 20,
-    paddingBottom: 120, // Increased padding to avoid overlap with bottom bar
-  },
-  detailsSection: {
-    marginBottom: 25,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 15,
-  },
-  description: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 22,
-  },
-  sizeSection: {
-    marginBottom: 25,
-  },
-  sizeButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    marginRight: 15,
-  },
-  selectedSize: {
-    backgroundColor: '#FF69B4',
-    transform: [{ scale: 1.1 }],
-  },
-  sizeText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-  },
-  selectedSizeText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  recommendedSection: {
-    marginBottom: 25,
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    paddingBottom: 30, // Safe area padding
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  priceContainer: {
-    flex: 0.8,
-  },
-  totalLabel: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 2,
-  },
-  totalPrice: {
-    fontSize: 26,
-    fontWeight: 'bold',
-  },
-  addToCartButtonWrapper: {
-    flex: 1.2,
-    borderRadius: 30,
-    shadowColor: '#FF69B4',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  addToCartButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 18,
-    borderRadius: 30,
-    gap: 10,
-  },
-  addToCartText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
+  headerTitle: { fontSize: 18, fontWeight: '600' },
+  productTitle: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, paddingHorizontal: 20 },
+  imageContainer: { marginBottom: 20 },
+  mainImage: { width: width - 40, height: width - 40, alignSelf: 'center', borderRadius: 20, marginBottom: 15 },
+  productInfo: { paddingHorizontal: 20, paddingBottom: 120 },
+  detailsSection: { marginBottom: 25 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
+  description: { fontSize: 14, color: '#666', lineHeight: 22 },
+  sizeSection: { marginBottom: 25 },
+  sizeButton: { minWidth: 50, height: 50, paddingHorizontal: 15, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', marginRight: 15 },
+  selectedSize: { backgroundColor: '#FF69B4', transform: [{ scale: 1.1 }] },
+  disabledSize: { backgroundColor: '#f5f5f5', opacity: 0.5 },
+  sizeText: { fontSize: 16, color: '#666', fontWeight: '500' },
+  selectedSizeText: { color: '#fff', fontWeight: 'bold' },
+  disabledSizeText: { textDecorationLine: 'line-through' },
+  recommendedSection: { marginBottom: 25 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 15, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#f0f0f0', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  priceContainer: { flex: 0.8 },
+  totalLabel: { fontSize: 14, color: '#999', marginBottom: 2 },
+  totalPrice: { fontSize: 26, fontWeight: 'bold' },
+  addToCartButtonWrapper: { flex: 1.2, borderRadius: 30, shadowColor: '#FF69B4', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 10 },
+  addToCartButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, borderRadius: 30, gap: 10 },
+  addToCartText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
 
 export default ProductScreen;

@@ -15,18 +15,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
+import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
 
 const EditProductScreen = ({ navigation, route }) => {
   const { productId } = route.params;
   const { showToast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isNewProduct, setIsNewProduct] = useState(!productId);
 
   // Product state
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(null);
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState(null); // Can be a URL or a local URI
   const [variants, setVariants] = useState([{ size: 'шт.', price: '', stock_quantity: '99' }]);
   
   const [categories, setCategories] = useState([]);
@@ -78,14 +80,105 @@ const EditProductScreen = ({ navigation, route }) => {
 
     if (!result.canceled) {
       setImage(result.assets[0].uri);
-      showToast('Изображение выбрано. Загрузка на сервер произойдет при сохранении.', 'info');
+    }
+  };
+
+  const uploadImage = async (localUri) => {
+    try {
+      const response = await fetch(localUri);
+      const blob = await response.blob();
+      const fileName = `public/${Date.now()}.jpg`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: 'image/jpeg',
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+      
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("Image upload error:", error);
+      throw new Error("Не удалось загрузить изображение.");
     }
   };
 
   const handleSaveProduct = async () => {
-    // TODO: Implement image upload to Supabase Storage
-    showToast('Сохранение... (загрузка изображения пока не реализована)', 'info');
-    // For now, we'll just save the product data without the image
+    if (!name || !categoryId) {
+      showToast('Название и категория обязательны.', 'error');
+      return;
+    }
+    setSaving(true);
+
+    try {
+      let imageUrl = image;
+      // If image is a local file URI, upload it first
+      if (image && image.startsWith('file://')) {
+        imageUrl = await uploadImage(image);
+      }
+
+      const productPayload = {
+        name,
+        description,
+        category_id: categoryId,
+        image: imageUrl,
+      };
+
+      let savedProduct;
+      if (isNewProduct) {
+        const { data, error } = await supabase.from('products').insert(productPayload).select().single();
+        if (error) throw error;
+        savedProduct = data;
+      } else {
+        const { data, error } = await supabase.from('products').update(productPayload).eq('id', productId).select().single();
+        if (error) throw error;
+        savedProduct = data;
+      }
+
+      // Now, handle variants
+      const variantsPayload = variants.map(v => ({
+        product_id: savedProduct.id,
+        size: v.size,
+        price: parseFloat(v.price) || 0,
+        stock_quantity: parseInt(v.stock_quantity, 10) || 0,
+      }));
+
+      // Simple approach: delete old variants and insert new ones
+      if (!isNewProduct) {
+        const { error: deleteError } = await supabase.from('product_variants').delete().eq('product_id', savedProduct.id);
+        if (deleteError) throw deleteError;
+      }
+      const { error: variantsError } = await supabase.from('product_variants').insert(variantsPayload);
+      if (variantsError) throw variantsError;
+
+      showToast(isNewProduct ? 'Товар успешно создан' : 'Товар успешно обновлен', 'success');
+      navigation.goBack();
+
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddVariant = () => {
+    setVariants([...variants, { size: '', price: '', stock_quantity: '99' }]);
+  };
+
+  const handleRemoveVariant = (index) => {
+    if (variants.length > 1) {
+      const newVariants = variants.filter((_, i) => i !== index);
+      setVariants(newVariants);
+    } else {
+      showToast('Должен быть хотя бы один вариант.', 'info');
+    }
   };
 
   if (loading) {
@@ -128,11 +221,18 @@ const EditProductScreen = ({ navigation, route }) => {
               <TextInput style={styles.variantInput} placeholder="Размер" value={variant.size} onChangeText={text => { const newVariants = [...variants]; newVariants[index].size = text; setVariants(newVariants); }} />
               <TextInput style={styles.variantInput} placeholder="Цена" value={variant.price} onChangeText={text => { const newVariants = [...variants]; newVariants[index].price = text; setVariants(newVariants); }} keyboardType="numeric" />
               <TextInput style={styles.variantInput} placeholder="Остаток" value={variant.stock_quantity} onChangeText={text => { const newVariants = [...variants]; newVariants[index].stock_quantity = text; setVariants(newVariants); }} keyboardType="numeric" />
+              <TouchableOpacity onPress={() => handleRemoveVariant(index)}>
+                <Ionicons name="trash-outline" size={22} color="#FF69B4" />
+              </TouchableOpacity>
             </View>
           ))}
+          <TouchableOpacity style={styles.addVariantButton} onPress={handleAddVariant}>
+            <Ionicons name="add" size={20} color="#FF69B4" />
+            <Text style={styles.addVariantText}>Добавить вариант</Text>
+          </TouchableOpacity>
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSaveProduct}>
-            <Text style={styles.saveButtonText}>Сохранить</Text>
+          <TouchableOpacity style={styles.saveButton} onPress={handleSaveProduct} disabled={saving}>
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -157,9 +257,11 @@ const styles = StyleSheet.create({
   selectedCategoryButton: { backgroundColor: '#FF69B4' },
   categoryButtonText: { color: '#333' },
   selectedCategoryButtonText: { color: '#fff' },
-  variantContainer: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  variantContainer: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'center' },
   variantInput: { flex: 1, backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, fontSize: 14 },
-  saveButton: { backgroundColor: '#FF69B4', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 20 },
+  addVariantButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#FF69B4', marginTop: 5 },
+  addVariantText: { color: '#FF69B4', marginLeft: 5 },
+  saveButton: { backgroundColor: '#FF69B4', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 30 },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
 

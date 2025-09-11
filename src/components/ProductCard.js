@@ -9,43 +9,25 @@ const ProductCard = ({ product, navigation }) => {
   const { toggleSaved, saved } = useContext(CartContext);
   const isSaved = saved.find(i => i.id === product.id);
 
-  // Use the price from the first variant as the display price
   const displayPrice = product.product_variants && product.product_variants.length > 0
     ? product.product_variants[0].price
     : 0;
 
-  // Animation for card press
+  const isOutOfStock = !product.product_variants || product.product_variants.every(v => v.stock_quantity <= 0);
+
   const cardScale = useRef(new Animated.Value(1)).current;
   const handleCardPressIn = () => {
-    Animated.spring(cardScale, {
-      toValue: 0.96,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(cardScale, { toValue: 0.96, useNativeDriver: true }).start();
   };
   const handleCardPressOut = () => {
-    Animated.spring(cardScale, {
-      toValue: 1,
-      friction: 3,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    Animated.spring(cardScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
   };
 
-  // Animation for heart icon press
   const heartScale = useRef(new Animated.Value(1)).current;
   const handleHeartPressIn = () => {
     Animated.sequence([
-      Animated.timing(heartScale, {
-        toValue: 1.2,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(heartScale, {
-        toValue: 1,
-        friction: 3,
-        tension: 40,
-        useNativeDriver: true,
-      }),
+      Animated.timing(heartScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
+      Animated.spring(heartScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }),
     ]).start();
   };
 
@@ -56,8 +38,14 @@ const ProductCard = ({ product, navigation }) => {
         onPressIn={handleCardPressIn}
         onPressOut={handleCardPressOut}
         activeOpacity={0.9}
+        disabled={isOutOfStock}
       >
         <Image source={{ uri: product.image }} style={styles.productImage} />
+        {isOutOfStock && (
+          <View style={styles.outOfStockOverlay}>
+            <Text style={styles.outOfStockText}>Нет в наличии</Text>
+          </View>
+        )}
         <View style={styles.productInfo}>
           <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
           <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name || 'Категория'}</Text>
@@ -82,8 +70,9 @@ const ProductCard = ({ product, navigation }) => {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={styles.addButton}
+        style={[styles.addButton, isOutOfStock && styles.addButtonDisabled]}
         onPress={() => navigation.navigate('Product', { product })}
+        disabled={isOutOfStock}
       >
         <Text style={styles.addButtonText}>+</Text>
       </TouchableOpacity>
@@ -108,6 +97,22 @@ const styles = StyleSheet.create({
     height: 180,
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
+  },
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+  },
+  outOfStockText: {
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    color: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 15,
+    fontWeight: 'bold',
   },
   heartIcon: {
     position: 'absolute',
@@ -145,6 +150,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  addButtonDisabled: {
+    backgroundColor: '#ccc',
   },
   addButtonText: {
     color: '#fff',

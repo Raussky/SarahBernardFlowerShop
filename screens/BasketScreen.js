@@ -18,7 +18,7 @@ import { AuthContext } from '../src/context/AuthContext';
 import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
 import { DELIVERY_COST, WHATSAPP_PHONE } from '../src/config/constants';
-import { supabase } from '../src/integrations/supabase/client'; // Import supabase client
+import { supabase } from '../src/integrations/supabase/client';
 
 const BasketScreen = ({ navigation }) => {
   const { cart, clearCart, updateItemQuantity, removeFromCart } = useContext(CartContext);
@@ -35,12 +35,7 @@ const BasketScreen = ({ navigation }) => {
   useEffect(() => {
     if (profile) {
       setCustomerName(profile.first_name || '');
-      // Assuming phone number might be in user metadata or a profile field
-      // For now, let's keep it empty or try to get from user.phone if available
-      // setCustomerPhone(user.phone || ''); 
-      // setCustomerAddress(profile.address || ''); // If you add an address field to profile
     } else if (user) {
-      // If no profile but user is logged in, use email for name or leave empty
       setCustomerName(user.email || '');
     }
   }, [profile, user]);
@@ -88,7 +83,7 @@ const BasketScreen = ({ navigation }) => {
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: user?.id || null, // null if guest user
+          user_id: user?.id || null,
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_address: deliveryMethod === 'delivery' ? customerAddress : null,
@@ -103,11 +98,11 @@ const BasketScreen = ({ navigation }) => {
 
       if (orderError) throw orderError;
 
-      // 2. Insert order items into Supabase
+      // 2. Insert order items
       const orderItems = cart.map(item => ({
         order_id: orderData.id,
         product_id: item.id,
-        product_variant_id: item.variantId, // Assuming variantId is available in cart item
+        product_variant_id: item.variantId,
         product_name: item.name || item.nameRu,
         product_image: item.image,
         variant_size: item.size,
@@ -115,18 +110,28 @@ const BasketScreen = ({ navigation }) => {
         price_at_purchase: item.price,
       }));
 
-      const { error: orderItemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
+      const { error: orderItemsError } = await supabase.from('order_items').insert(orderItems);
       if (orderItemsError) throw orderItemsError;
 
-      // 3. Send WhatsApp message
+      // 3. Decrement stock
+      const itemsToDecrement = cart.map(item => ({
+        variant_id: item.variantId,
+        quantity: item.quantity,
+      }));
+      const { error: decrementError } = await supabase.rpc('decrement_stock', { items_to_decrement: itemsToDecrement });
+      if (decrementError) {
+        console.error("Stock decrement error:", decrementError);
+        // In a real app, you might want to handle this more gracefully, e.g., by cancelling the order.
+        // For now, we'll just log it and proceed.
+        showToast('Ошибка при обновлении остатков', 'error');
+      }
+
+      // 4. Send WhatsApp message
       const orderDetails = cart.map(item => 
         `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
       ).join('\n');
       
-      const message = `*Новый заказ #${orderData.id}*\n\n` +
+      const message = `*Новый заказ #${orderData.id.substring(0, 8)}*\n\n` +
                       `*Имя:* ${customerName}\n` +
                       `*Телефон:* ${customerPhone}\n` +
                       `*Способ получения:* ${deliveryMethod === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
@@ -143,9 +148,11 @@ const BasketScreen = ({ navigation }) => {
       Linking.openURL(whatsappUrl).then(() => {
         showToast('Заказ отправлен в WhatsApp и сохранен!', 'success');
         clearCart();
+        navigation.navigate('Home');
       }).catch(() => {
-        Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве, но заказ сохранен.');
+        Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве, но ваш заказ успешно сохранен. Мы скоро с вами свяжемся.');
         clearCart();
+        navigation.navigate('Home');
       });
 
     } catch (error) {
@@ -177,7 +184,6 @@ const BasketScreen = ({ navigation }) => {
     </View>
   );
 
-  // Отдельная функция для прокручиваемых полей формы
   const renderOrderFormInputs = () => (
     <View style={styles.formContainer}>
       <Text style={styles.sectionTitle}>Способ получения</Text>
@@ -254,9 +260,8 @@ const BasketScreen = ({ navigation }) => {
               renderItem={renderCartItem}
               keyExtractor={item => item.cartItemId}
               contentContainerStyle={styles.listContainer}
-              ListFooterComponent={renderOrderFormInputs} // Теперь здесь только поля формы
+              ListFooterComponent={renderOrderFormInputs}
             />
-            {/* Новый фиксированный футер */}
             <View style={styles.fixedFooter}>
               <View style={styles.summaryContainer}>
                 <View style={styles.summaryRow}>
@@ -296,7 +301,7 @@ const styles = StyleSheet.create({
   shopButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   listContainer: { 
     paddingHorizontal: 20, 
-    paddingBottom: 340 // Увеличиваем отступ для нового фиксированного футера и таббара
+    paddingBottom: 260
   },
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
@@ -316,24 +321,25 @@ const styles = StyleSheet.create({
   activeToggleButtonText: { color: '#fff' },
   inputGroup: { gap: 10 },
   input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, fontSize: 16 },
-  summaryContainer: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 20, marginTop: 25 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  summaryLabel: { fontSize: 16, color: '#666' },
-  summaryValue: { fontSize: 16, fontWeight: '600' },
-  totalRow: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 10, marginTop: 5 },
-  totalLabel: { fontSize: 18, fontWeight: 'bold' },
-  totalPrice: { fontSize: 20, fontWeight: 'bold', color: '#FF69B4' },
   fixedFooter: { 
     position: 'absolute', 
-    bottom: 40, // Высота таббара
+    bottom: 80,
     left: 0, 
     right: 0, 
     backgroundColor: '#fff', 
     paddingHorizontal: 20, 
-    paddingVertical: 15, 
+    paddingTop: 15, 
+    paddingBottom: 10,
     borderTopWidth: 1, 
     borderTopColor: '#f0f0f0', 
   },
+  summaryContainer: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 15 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  summaryLabel: { fontSize: 16, color: '#666' },
+  summaryValue: { fontSize: 16, fontWeight: '600' },
+  totalRow: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 4 },
+  totalLabel: { fontSize: 18, fontWeight: 'bold' },
+  totalPrice: { fontSize: 20, fontWeight: 'bold', color: '#FF69B4' },
   whatsappButton: { 
     backgroundColor: '#25D366', 
     flexDirection: 'row', 
@@ -342,7 +348,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15, 
     borderRadius: 25, 
     gap: 10,
-    marginTop: 15, // Отступ от блока 'Итого'
+    marginTop: 15,
   },
   whatsappButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
