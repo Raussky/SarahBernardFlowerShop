@@ -50,19 +50,19 @@ const ProductCard = ({ product, navigation }) => {
 
 const styles = StyleSheet.create({
   productCard: {
-    width: (width - 60) / 2, // Increased gap between cards
+    width: (width - 60) / 2,
     backgroundColor: '#fff',
-    borderRadius: 15, // Slightly more rounded corners
-    marginBottom: 20, // Increased margin bottom
+    borderRadius: 15,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 }, // A bit more shadow
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   productImage: {
     width: '100%',
-    height: 180, // Taller image
+    height: 180,
     borderTopLeftRadius: 15,
     borderTopRightRadius: 15,
   },
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
     padding: 5,
   },
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
   },
   productDesc: {
     fontSize: 13,
-    color: '#888', // Lighter color for description
+    color: '#888',
     marginBottom: 8,
   },
   productPrice: {
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 12,
     right: 12,
-    backgroundColor: '#0F172A', // Dark navy blue from design
+    backgroundColor: '#0F172A',
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 22,
     fontWeight: 'bold',
-    lineHeight: 24, // Adjust for vertical centering
+    lineHeight: 24,
   },
 });
 
