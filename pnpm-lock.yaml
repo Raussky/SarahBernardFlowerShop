@@ -32,6 +32,9 @@ importers:
       expo-font:
         specifier: ~14.0.7
         version: 14.0.7(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
+      expo-linear-gradient:
+        specifier: ^15.0.6
+        version: 15.0.6(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
       expo-linking:
         specifier: ~8.0.7
         version: 8.0.7(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
@@ -1559,6 +1562,13 @@ packages:
     peerDependencies:
       expo: '*'
       react: '*'
+
+  expo-linear-gradient@15.0.6:
+    resolution: {integrity: sha512-tpjW7i90buuQx+1XSrWcSfcD5bfP4gJR96tvPzaZYWHnHgLrugnqWcauK4wugMiFJ8LxIwYSk+Y3AH+e4r6kHg==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
 
   expo-linking@8.0.7:
     resolution: {integrity: sha512-DCPEDg522ryJp752kcajGR8kWgQfKMc/YbjzApb4Uzm2kJNW+0JXrIwsLPTl/mn9XxcOkGrE81B1L5EwQZKHkw==}
@@ -5191,6 +5201,12 @@ snapshots:
     dependencies:
       expo: 54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
       react: 19.1.0
+
+  expo-linear-gradient@15.0.6(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      expo: 54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0)
 
   expo-linking@8.0.7(expo@54.0.1(@babel/core@7.28.4)(graphql@15.8.0)(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0))(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0):
     dependencies:

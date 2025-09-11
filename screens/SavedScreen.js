@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   tabContainer: {
     paddingHorizontal: 20,
     marginBottom: 15,
-    maxHeight: 50,
+    maxHeight: 35,
   },
   tab: {
     paddingHorizontal: 20,
