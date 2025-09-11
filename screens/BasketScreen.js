@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   shopButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   listContainer: { 
     paddingHorizontal: 20, 
-    paddingBottom: 230 // Увеличиваем отступ для нового фиксированного футера и таббара
+    paddingBottom: 300 // Увеличиваем отступ для нового фиксированного футера и таббара
   },
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
