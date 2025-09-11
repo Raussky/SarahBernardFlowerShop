@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from 'react';
+import React, { useContext, useState, useEffect, memo } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,62 @@ import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
 import { DELIVERY_COST, WHATSAPP_PHONE } from '../src/config/constants';
 import { supabase } from '../src/integrations/supabase/client';
+
+// Memoized Order Form Component to prevent re-renders on text input
+const OrderForm = memo(({
+  deliveryMethod, setDeliveryMethod,
+  paymentMethod, setPaymentMethod,
+  customerName, setCustomerName,
+  customerPhone, setCustomerPhone,
+  customerAddress, setCustomerAddress,
+  orderComment, setOrderComment
+}) => {
+  return (
+    <View style={styles.formContainer}>
+      <Text style={styles.sectionTitle}>Способ получения</Text>
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, deliveryMethod === 'delivery' && styles.activeToggleButton]}
+          onPress={() => setDeliveryMethod('delivery')}
+        >
+          <Text style={[styles.toggleButtonText, deliveryMethod === 'delivery' && styles.activeToggleButtonText]}>Доставка</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, deliveryMethod === 'pickup' && styles.activeToggleButton]}
+          onPress={() => setDeliveryMethod('pickup')}
+        >
+          <Text style={[styles.toggleButtonText, deliveryMethod === 'pickup' && styles.activeToggleButtonText]}>Самовывоз</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={styles.sectionTitle}>Ваши данные</Text>
+      <View style={styles.inputGroup}>
+        <TextInput style={styles.input} placeholder="Имя" value={customerName} onChangeText={setCustomerName} />
+        <TextInput style={styles.input} placeholder="Телефон" value={customerPhone} onChangeText={setCustomerPhone} keyboardType="phone-pad" />
+        {deliveryMethod === 'delivery' && (
+          <TextInput style={styles.input} placeholder="Адрес" value={customerAddress} onChangeText={setCustomerAddress} />
+        )}
+        <TextInput style={styles.input} placeholder="Комментарий к заказу" value={orderComment} onChangeText={setOrderComment} />
+      </View>
+
+      <Text style={styles.sectionTitle}>Способ оплаты</Text>
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, paymentMethod === 'kaspi' && styles.activeToggleButton]}
+          onPress={() => setPaymentMethod('kaspi')}
+        >
+          <Text style={[styles.toggleButtonText, paymentMethod === 'kaspi' && styles.activeToggleButtonText]}>Kaspi Перевод</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, paymentMethod === 'cash' && styles.activeToggleButton]}
+          onPress={() => setPaymentMethod('cash')}
+        >
+          <Text style={[styles.toggleButtonText, paymentMethod === 'cash' && styles.activeToggleButtonText]}>Наличными</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
 
 const BasketScreen = ({ navigation }) => {
   const { cart, clearCart, updateItemQuantity, removeFromCart } = useContext(CartContext);
@@ -184,52 +240,6 @@ const BasketScreen = ({ navigation }) => {
     </View>
   );
 
-  const renderOrderFormInputs = () => (
-    <View style={styles.formContainer}>
-      <Text style={styles.sectionTitle}>Способ получения</Text>
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[styles.toggleButton, deliveryMethod === 'delivery' && styles.activeToggleButton]}
-          onPress={() => setDeliveryMethod('delivery')}
-        >
-          <Text style={[styles.toggleButtonText, deliveryMethod === 'delivery' && styles.activeToggleButtonText]}>Доставка</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleButton, deliveryMethod === 'pickup' && styles.activeToggleButton]}
-          onPress={() => setDeliveryMethod('pickup')}
-        >
-          <Text style={[styles.toggleButtonText, deliveryMethod === 'pickup' && styles.activeToggleButtonText]}>Самовывоз</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.sectionTitle}>Ваши данные</Text>
-      <View style={styles.inputGroup}>
-        <TextInput style={styles.input} placeholder="Имя" value={customerName} onChangeText={setCustomerName} />
-        <TextInput style={styles.input} placeholder="Телефон" value={customerPhone} onChangeText={setCustomerPhone} keyboardType="phone-pad" />
-        {deliveryMethod === 'delivery' && (
-          <TextInput style={styles.input} placeholder="Адрес" value={customerAddress} onChangeText={setCustomerAddress} />
-        )}
-        <TextInput style={styles.input} placeholder="Комментарий к заказу" value={orderComment} onChangeText={setOrderComment} />
-      </View>
-
-      <Text style={styles.sectionTitle}>Способ оплаты</Text>
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[styles.toggleButton, paymentMethod === 'kaspi' && styles.activeToggleButton]}
-          onPress={() => setPaymentMethod('kaspi')}
-        >
-          <Text style={[styles.toggleButtonText, paymentMethod === 'kaspi' && styles.activeToggleButtonText]}>Kaspi Перевод</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleButton, paymentMethod === 'cash' && styles.activeToggleButton]}
-          onPress={() => setPaymentMethod('cash')}
-        >
-          <Text style={[styles.toggleButtonText, paymentMethod === 'cash' && styles.activeToggleButtonText]}>Наличными</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -260,7 +270,16 @@ const BasketScreen = ({ navigation }) => {
               renderItem={renderCartItem}
               keyExtractor={item => item.cartItemId}
               contentContainerStyle={styles.listContainer}
-              ListFooterComponent={renderOrderFormInputs}
+              ListFooterComponent={
+                <OrderForm
+                  deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod}
+                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                  customerName={customerName} setCustomerName={setCustomerName}
+                  customerPhone={customerPhone} setCustomerPhone={setCustomerPhone}
+                  customerAddress={customerAddress} setCustomerAddress={setCustomerAddress}
+                  orderComment={orderComment} setOrderComment={setOrderComment}
+                />
+              }
             />
             <View style={styles.fixedFooter}>
               <View style={styles.summaryContainer}>
