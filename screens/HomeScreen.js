@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   shopButton: { backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, alignSelf: 'flex-start' },
   shopButtonText: { color: '#FF69B4', fontWeight: 'bold' },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginHorizontal: 20, marginBottom: 15 },
-  categoriesContainer: { paddingHorizontal: 20, marginBottom: 25 },
+  categoriesContainer: { paddingHorizontal: 30, marginBottom: 25 },
   categoryItem: { alignItems: 'center', marginRight: 20 },
   categoryIcon: { width: 70, height: 70, borderRadius: 35, marginBottom: 8, overflow: 'hidden', backgroundColor: '#FFE4E1' },
   categoryImage: { width: '100%', height: '100%' },
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   offerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff', textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
   offerSubtitle: { fontSize: 14, color: '#fff', textShadowColor: 'rgba(0, 0, 0, 0.7)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2, marginTop: 5 },
   recommendedSection: { marginBottom: 20 },
-  productRow: { justifyContent: 'space-between', paddingHorizontal: 0 }, // Removed padding here as FlatList contentContainerStyle handles it
+  productRow: { justifyContent: 'space-between', paddingHorizontal: 15 }, // Removed padding here as FlatList contentContainerStyle handles it
   emptyResultsText: {
     textAlign: 'center',
     fontSize: 16,

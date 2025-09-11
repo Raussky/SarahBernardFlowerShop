@@ -291,7 +291,10 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 18, color: '#999', marginTop: 20, marginBottom: 30 },
   shopButton: { backgroundColor: '#FF69B4', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 },
   shopButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  listContainer: { paddingHorizontal: 20, paddingBottom: 100 },
+  listContainer: { 
+    paddingHorizontal: 20, 
+    paddingBottom: 160 // Увеличиваем отступ для bottomBar и таббара
+  },
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
   itemDetails: { flex: 1 },
@@ -317,7 +320,20 @@ const styles = StyleSheet.create({
   totalRow: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 10, marginTop: 5 },
   totalLabel: { fontSize: 18, fontWeight: 'bold' },
   totalPrice: { fontSize: 20, fontWeight: 'bold', color: '#FF69B4' },
-  bottomBar: { paddingHorizontal: 20, paddingVertical: 15, borderTopWidth: 1, borderTopColor: '#f0f0f0', backgroundColor: '#fff' },
+  bottomBar: { 
+    position: 'absolute', 
+    bottom: 80, // Позиционируем над таббаром (высота таббара 80px)
+    left: 0, 
+    right: 0, 
+    backgroundColor: '#fff', 
+    paddingHorizontal: 20, 
+    paddingVertical: 15, 
+    borderTopWidth: 1, 
+    borderTopColor: '#f0f0f0', 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center' 
+  },
   whatsappButton: { backgroundColor: '#25D366', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, borderRadius: 25, gap: 10 },
   whatsappButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
 });
