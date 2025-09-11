@@ -30,7 +30,7 @@ const HomeScreen = ({ navigation }) => {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('All');
+  const [activeFilter, setActiveFilter] = useState('Все');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,7 +45,7 @@ const HomeScreen = ({ navigation }) => {
 
         const { data: productsData, error: productsError } = await supabase
           .from('products')
-          .select('*, categories(name_en), product_variants(*)')
+          .select('*, categories(name, name_en), product_variants(*)')
           .limit(8);
         if (productsError) throw productsError;
         setProducts(productsData);
@@ -62,7 +62,7 @@ const HomeScreen = ({ navigation }) => {
 
   const renderBestsellerFilters = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
-      {['All', 'Bouquets', 'Flowers', 'Gifts'].map(filter => (
+      {['Все', 'Букеты', 'Цветы', 'Подарки'].map(filter => (
         <TouchableOpacity 
           key={filter}
           style={[styles.filterTab, activeFilter === filter && styles.activeFilterTab]}
@@ -105,7 +105,7 @@ const HomeScreen = ({ navigation }) => {
               <Ionicons name="search" size={20} color="#999" />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search here..."
+                placeholder="Искать здесь..."
                 value={searchText}
                 onChangeText={setSearchText}
                 placeholderTextColor="#999"
@@ -127,16 +127,16 @@ const HomeScreen = ({ navigation }) => {
           <View style={styles.bannerContent}>
             <Text style={styles.bannerTitle}>SARAH BERNARD</Text>
             <Text style={styles.bannerSubtitle}>
-              Brighten every moment with the{'\n'}
-              perfect bloom.
+              Сделайте каждый момент ярче{'\n'}
+              с идеальным цветком.
             </Text>
             <TouchableOpacity style={styles.shopButton}>
-              <Text style={styles.shopButtonText}>Shop Now</Text>
+              <Text style={styles.shopButtonText}>В магазин</Text>
             </TouchableOpacity>
           </View>
         </ImageBackground>
 
-        <Text style={styles.sectionTitle}>Categories</Text>
+        <Text style={styles.sectionTitle}>Категории</Text>
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false}
@@ -154,7 +154,7 @@ const HomeScreen = ({ navigation }) => {
                   style={styles.categoryImage} 
                 />
               </View>
-              <Text style={styles.categoryName}>{category.name_en}</Text>
+              <Text style={styles.categoryName}>{category.name}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -177,12 +177,12 @@ const HomeScreen = ({ navigation }) => {
           style={styles.specialOfferBanner}
           imageStyle={{ borderRadius: 15 }}
         >
-          <Text style={styles.offerTitle}>Special Offer</Text>
-          <Text style={styles.offerSubtitle}>Get 25% off on your first order!</Text>
+          <Text style={styles.offerTitle}>Специальное предложение</Text>
+          <Text style={styles.offerSubtitle}>Скидка 25% на ваш первый заказ!</Text>
         </ImageBackground>
 
         <View style={styles.recommendedSection}>
-          <Text style={styles.sectionTitle}>Recommended For You</Text>
+          <Text style={styles.sectionTitle}>Рекомендовано для Вас</Text>
           <FlatList
             data={products}
             renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}

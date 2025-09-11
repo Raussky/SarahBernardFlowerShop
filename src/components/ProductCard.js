@@ -35,7 +35,7 @@ const ProductCard = ({ product, navigation }) => {
       </TouchableOpacity>
       <View style={styles.productInfo}>
         <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
-        <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name_en || 'Category'}</Text>
+        <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name || 'Категория'}</Text>
         <Text style={styles.productPrice}>₸{displayPrice.toLocaleString()}</Text>
       </View>
       <TouchableOpacity 

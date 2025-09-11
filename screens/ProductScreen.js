@@ -54,7 +54,7 @@ const ProductScreen = ({ navigation, route }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={28} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Product Details</Text>
+          <Text style={styles.headerTitle}>Детали товара</Text>
           <View style={{ width: 28 }} />
         </View>
 
@@ -84,7 +84,7 @@ const ProductScreen = ({ navigation, route }) => {
 
         <View style={styles.productInfo}>
           <View style={styles.detailsSection}>
-            <Text style={styles.sectionTitle}>Product details</Text>
+            <Text style={styles.sectionTitle}>Детали продукта</Text>
             <Text style={styles.description}>
               {product.description || 'Красивый букет для любого случая.'}
             </Text>
@@ -119,12 +119,12 @@ const ProductScreen = ({ navigation, route }) => {
 
       <View style={styles.bottomBar}>
         <View style={styles.priceContainer}>
-          <Text style={styles.totalLabel}>Total Price</Text>
+          <Text style={styles.totalLabel}>Итоговая цена</Text>
           <Text style={styles.totalPrice}>₸{(selectedVariant?.price || 0).toLocaleString()}</Text>
         </View>
         <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
           <Ionicons name="cart-outline" size={24} color="#fff" />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
+          <Text style={styles.addToCartText}>В корзину</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

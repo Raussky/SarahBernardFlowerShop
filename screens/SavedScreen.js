@@ -14,9 +14,9 @@ import ProductCard from '../src/components/ProductCard';
 
 const SavedScreen = ({ navigation }) => {
   const { saved } = useContext(CartContext);
-  const [activeTab, setActiveTab] = React.useState('All');
+  const [activeTab, setActiveTab] = React.useState('Все');
 
-  const tabs = ['All', 'Bouquets', 'Flowers', 'Indoor'];
+  const tabs = ['Все', 'Букеты', 'Цветы', 'Комнатные'];
 
   return (
     <SafeAreaView style={styles.container}>
