@@ -24,7 +24,7 @@ const CategoryScreen = ({ navigation, route }) => {
         setLoading(true);
         const { data, error } = await supabase
           .from('products')
-          .select('*, product_variants(*)')
+          .select('*, categories(name_en), product_variants(*)')
           .eq('category_id', category.id);
         
         if (error) throw error;

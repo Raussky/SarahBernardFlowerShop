@@ -35,7 +35,7 @@ const ProductCard = ({ product, navigation }) => {
       </TouchableOpacity>
       <View style={styles.productInfo}>
         <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
-        <Text style={styles.productDesc} numberOfLines={1}>{product.description || `Категория`}</Text>
+        <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name_en || 'Category'}</Text>
         <Text style={styles.productPrice}>₸{displayPrice.toLocaleString()}</Text>
       </View>
       <TouchableOpacity 
@@ -50,42 +50,42 @@ const ProductCard = ({ product, navigation }) => {
 
 const styles = StyleSheet.create({
   productCard: {
-    width: (width - 50) / 2,
+    width: (width - 60) / 2, // Increased gap between cards
     backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 15,
+    borderRadius: 15, // Slightly more rounded corners
+    marginBottom: 20, // Increased margin bottom
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 }, // A bit more shadow
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 5,
   },
   productImage: {
     width: '100%',
-    height: 150,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    height: 180, // Taller image
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
   },
   heartIcon: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0,0,0,0.35)',
     borderRadius: 20,
     padding: 5,
   },
   productInfo: {
-    padding: 10,
+    padding: 12,
   },
   productName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    marginBottom: 2,
+    marginBottom: 4,
   },
   productDesc: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 5,
+    fontSize: 13,
+    color: '#888', // Lighter color for description
+    marginBottom: 8,
   },
   productPrice: {
     fontSize: 16,
@@ -94,19 +94,20 @@ const styles = StyleSheet.create({
   },
   addButton: {
     position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: '#1e3a8a',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    bottom: 12,
+    right: 12,
+    backgroundColor: '#0F172A', // Dark navy blue from design
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   addButtonText: {
     color: '#fff',
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
+    lineHeight: 24, // Adjust for vertical centering
   },
 });
 

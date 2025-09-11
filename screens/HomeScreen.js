@@ -32,10 +32,10 @@ const HomeScreen = ({ navigation }) => {
         if (categoriesError) throw categoriesError;
         setCategories(categoriesData);
 
-        // Fetch products with variants
+        // Fetch products with variants and category name
         const { data: productsData, error: productsError } = await supabase
           .from('products')
-          .select('*, product_variants(*)')
+          .select('*, categories(name_en), product_variants(*)')
           .limit(8);
         if (productsError) throw productsError;
         setProducts(productsData);
