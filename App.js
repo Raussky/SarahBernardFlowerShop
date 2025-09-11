@@ -17,6 +17,7 @@ import ProfileScreen from './screens/ProfileScreen';
 // Import Providers
 import { ToastProvider } from './src/components/ToastProvider';
 import { CartProvider } from './src/context/CartContext';
+import { AuthProvider } from './src/context/AuthContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -83,18 +84,20 @@ function MainTabs() {
 
 export default function App() {
   return (
-    <CartProvider>
-      <ToastProvider>
-        <NavigationContainer>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen name="Product" component={ProductScreen} />
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Admin" component={AdminScreen} />
-            <Stack.Screen name="Category" component={CategoryScreen} />
-          </Stack.Navigator>
-        </NavigationContainer>
-      </ToastProvider>
-    </CartProvider>
+    <AuthProvider>
+      <CartProvider>
+        <ToastProvider>
+          <NavigationContainer>
+            <Stack.Navigator screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="Main" component={MainTabs} />
+              <Stack.Screen name="Product" component={ProductScreen} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Admin" component={AdminScreen} />
+              <Stack.Screen name="Category" component={CategoryScreen} />
+            </Stack.Navigator>
+          </NavigationContainer>
+        </ToastProvider>
+      </CartProvider>
+    </AuthProvider>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,57 +7,58 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CartContext } from '../src/context/CartContext';
 import { useToast } from '../src/components/ToastProvider';
+import { supabase } from '../src/integrations/supabase/client';
 
 const LoginScreen = ({ navigation }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [storeName, setStoreName] = useState('');
+  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
-  const { setIsAdmin } = useContext(CartContext);
   const { showToast } = useToast();
 
-  const handleAuth = async () => {
-    if (isLogin) {
-      if (email === 'admin@sarah.kz' && password === 'admin123') {
-        await AsyncStorage.setItem('isAdmin', 'true');
-        setIsAdmin(true);
-        showToast('Вход выполнен успешно!', 'success');
-        navigation.navigate('Admin');
-      } else {
-        showToast('Неверный email или пароль', 'error');
-      }
+  const handleLogin = async () => {
+    if (!email || !password) {
+      showToast('Заполните все поля', 'error');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      showToast(error.message, 'error');
     } else {
-      if (!email || !password || !confirmPassword || !storeName) {
-        showToast('Заполните все поля', 'error');
-        return;
-      }
-      
-      if (password !== confirmPassword) {
-        showToast('Пароли не совпадают', 'error');
-        return;
-      }
-      
-      const adminData = {
-        email,
-        password,
-        storeName,
-      };
-      
-      await AsyncStorage.setItem('adminData', JSON.stringify(adminData));
-      showToast('Аккаунт создан! Теперь войдите', 'success');
+      showToast('Вход выполнен успешно!', 'success');
+      navigation.navigate('Profile');
+    }
+    setLoading(false);
+  };
+
+  const handleSignUp = async () => {
+    if (!email || !password || !confirmPassword) {
+      showToast('Заполните все поля', 'error');
+      return;
+    }
+    if (password !== confirmPassword) {
+      showToast('Пароли не совпадают', 'error');
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) {
+      showToast(error.message, 'error');
+    } else {
+      showToast('Аккаунт создан! Проверьте почту для подтверждения.', 'success');
       setIsLogin(true);
     }
+    setLoading(false);
   };
 
   return (
@@ -84,21 +85,8 @@ const LoginScreen = ({ navigation }) => {
 
           <View style={styles.form}>
             <Text style={styles.formTitle}>
-              {isLogin ? 'Вход в систему' : 'Регистрация магазина'}
+              {isLogin ? 'Вход в систему' : 'Регистрация'}
             </Text>
-
-            {!isLogin && (
-              <View style={styles.inputContainer}>
-                <Ionicons name="business-outline" size={20} color="#999" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Название магазина"
-                  value={storeName}
-                  onChangeText={setStoreName}
-                  placeholderTextColor="#999"
-                />
-              </View>
-            )}
 
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={20} color="#999" style={styles.inputIcon} />
@@ -146,21 +134,19 @@ const LoginScreen = ({ navigation }) => {
               </View>
             )}
 
-            {isLogin && (
-              <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={styles.forgotPasswordText}>Забыли пароль?</Text>
-              </TouchableOpacity>
-            )}
-
-            <TouchableOpacity style={styles.submitButton} onPress={handleAuth}>
-              <Text style={styles.submitButtonText}>
-                {isLogin ? 'Войти' : 'Зарегистрировать магазин'}
-              </Text>
+            <TouchableOpacity style={styles.submitButton} onPress={isLogin ? handleLogin : handleSignUp} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>
+                  {isLogin ? 'Войти' : 'Зарегистрироваться'}
+                </Text>
+              )}
             </TouchableOpacity>
 
             <View style={styles.switchContainer}>
               <Text style={styles.switchText}>
-                {isLogin ? 'Новый магазин?' : 'Уже есть аккаунт?'}
+                {isLogin ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}
               </Text>
               <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
                 <Text style={styles.switchLink}>
@@ -168,13 +154,6 @@ const LoginScreen = ({ navigation }) => {
                 </Text>
               </TouchableOpacity>
             </View>
-
-            {isLogin && (
-              <View style={styles.demoAccount}>
-                <Text style={styles.demoText}>Демо доступ:</Text>
-                <Text style={styles.demoCredentials}>admin@sarah.kz / admin123</Text>
-              </View>
-            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -251,20 +230,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
-    marginBottom: 25,
-  },
-  forgotPasswordText: {
-    color: '#FF69B4',
-    fontSize: 14,
-  },
   submitButton: {
     backgroundColor: '#FF69B4',
     borderRadius: 25,
     paddingVertical: 15,
     alignItems: 'center',
     marginBottom: 20,
+    marginTop: 10,
   },
   submitButtonText: {
     color: '#fff',
@@ -284,22 +256,6 @@ const styles = StyleSheet.create({
   switchLink: {
     color: '#FF69B4',
     fontWeight: '600',
-  },
-  demoAccount: {
-    backgroundColor: '#FFE4E1',
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  demoText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 5,
-  },
-  demoCredentials: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
   },
 });
 

@@ -1,9 +1,23 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../src/context/AuthContext';
+import { useToast } from '../src/components/ToastProvider';
 
 const ProfileScreen = ({ navigation }) => {
+  const { user, signOut } = useAuth();
+  const { showToast } = useToast();
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      Alert.alert('Ошибка выхода', error.message);
+    } else {
+      showToast('Вы успешно вышли', 'info');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -13,21 +27,42 @@ const ProfileScreen = ({ navigation }) => {
       <View style={styles.content}>
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>SB</Text>
+            <Text style={styles.avatarText}>{user ? user.email.charAt(0).toUpperCase() : 'G'}</Text>
           </View>
-          <Text style={styles.storeName}>Sarah Bernard</Text>
+          <Text style={styles.storeName}>{user ? user.email : 'Гость'}</Text>
           <Text style={styles.storeDescription}>Магазин цветов</Text>
         </View>
 
         <View style={styles.menu}>
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Ionicons name="settings-outline" size={24} color="#FF69B4" />
-            <Text style={styles.menuText}>Админ панель</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
+          {user ? (
+            <>
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => navigation.navigate('Admin')}
+              >
+                <Ionicons name="settings-outline" size={24} color="#FF69B4" />
+                <Text style={styles.menuText}>Админ панель</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={handleSignOut}
+              >
+                <Ionicons name="log-out-outline" size={24} color="#FF69B4" />
+                <Text style={styles.menuText}>Выйти</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity 
+              style={styles.menuItem}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Ionicons name="log-in-outline" size={24} color="#FF69B4" />
+              <Text style={styles.menuText}>Войти / Регистрация</Text>
+              <Ionicons name="chevron-forward" size={20} color="#999" />
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="help-circle-outline" size={24} color="#FF69B4" />
@@ -86,7 +121,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   storeName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 5,
   },
