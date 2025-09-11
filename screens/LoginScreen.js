@@ -8,12 +8,13 @@ import {
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  Alert, // Keep Alert for system-level issues if needed, but for auth feedback, use toast
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CartContext } from '../App';
+import { useToast } from '../src/components/ToastProvider'; // New import
 
 const LoginScreen = ({ navigation }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -24,6 +25,7 @@ const LoginScreen = ({ navigation }) => {
   const [showPassword, setShowPassword] = useState(false);
   
   const { setIsAdmin } = useContext(CartContext);
+  const { showToast } = useToast(); // Use toast hook
 
   const handleAuth = async () => {
     if (isLogin) {
@@ -31,19 +33,20 @@ const LoginScreen = ({ navigation }) => {
       if (email === 'admin@sarah.kz' && password === 'admin123') {
         await AsyncStorage.setItem('isAdmin', 'true');
         setIsAdmin(true);
+        showToast('Вход выполнен успешно!', 'success'); // Replaced Alert with toast
         navigation.navigate('Admin');
       } else {
-        Alert.alert('Ошибка', 'Неверный email или пароль');
+        showToast('Неверный email или пароль', 'error'); // Replaced Alert with toast
       }
     } else {
       // Signup logic
       if (!email || !password || !confirmPassword || !storeName) {
-        Alert.alert('Ошибка', 'Заполните все поля');
+        showToast('Заполните все поля', 'error'); // Replaced Alert with toast
         return;
       }
       
       if (password !== confirmPassword) {
-        Alert.alert('Ошибка', 'Пароли не совпадают');
+        showToast('Пароли не совпадают', 'error'); // Replaced Alert with toast
         return;
       }
       
@@ -55,7 +58,7 @@ const LoginScreen = ({ navigation }) => {
       };
       
       await AsyncStorage.setItem('adminData', JSON.stringify(adminData));
-      Alert.alert('Успешно', 'Аккаунт создан! Теперь войдите');
+      showToast('Аккаунт создан! Теперь войдите', 'success'); // Replaced Alert with toast
       setIsLogin(true);
     }
   };

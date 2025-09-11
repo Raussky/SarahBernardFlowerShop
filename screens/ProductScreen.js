@@ -8,17 +8,19 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Dimensions,
-  Alert,
+  Alert, // Keep Alert for WhatsApp error, as it's a system-level issue
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../App';
 import * as Linking from 'expo-linking';
+import { useToast } from '../src/components/ToastProvider'; // New import
 
 const { width } = Dimensions.get('window');
 
 const ProductScreen = ({ navigation, route }) => {
   const { product } = route.params;
   const { addToCart, toggleSaved, saved } = useContext(CartContext);
+  const { showToast } = useToast(); // Use toast hook
   const [selectedSize, setSelectedSize] = useState(15);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -68,14 +70,14 @@ const ProductScreen = ({ navigation, route }) => {
       quantity: 1,
     };
     addToCart(item);
-    Alert.alert('Успешно', 'Товар добавлен в корзину');
+    showToast('Товар добавлен в корзину', 'success'); // Replaced Alert with toast
   };
 
   const handleWhatsAppOrder = () => {
     const message = `Здравствуйте! Хочу заказать:\n${product.name}\nРазмер: ${selectedSize} стеблей\nЦена: ₸${calculatePrice().toLocaleString()}`;
     const whatsappUrl = `whatsapp://send?phone=+77001234567&text=${encodeURIComponent(message)}`;
     Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве');
+      Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве'); // Keep Alert for system error
     });
   };
 

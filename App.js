@@ -15,6 +15,9 @@ import LoginScreen from './screens/LoginScreen';
 import AdminScreen from './screens/AdminScreen';
 import CategoryScreen from './screens/CategoryScreen';
 
+// Import ToastProvider
+import { ToastProvider } from './src/components/ToastProvider';
+
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
@@ -108,6 +111,11 @@ export default function App() {
     await AsyncStorage.setItem('cart', JSON.stringify(newCart));
   };
 
+  const clearCart = async () => {
+    setCart([]);
+    await AsyncStorage.removeItem('cart');
+  };
+
   const toggleSaved = async (item) => {
     let newSaved;
     if (saved.find(i => i.id === item.id)) {
@@ -125,19 +133,22 @@ export default function App() {
       saved, 
       addToCart, 
       removeFromCart, 
+      clearCart, // Added clearCart
       toggleSaved,
       isAdmin,
       setIsAdmin 
     }}>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen name="Product" component={ProductScreen} />
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Admin" component={AdminScreen} />
-          <Stack.Screen name="Category" component={CategoryScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <ToastProvider>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="Product" component={ProductScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Admin" component={AdminScreen} />
+            <Stack.Screen name="Category" component={CategoryScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </ToastProvider>
     </CartContext.Provider>
   );
 }
