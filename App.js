@@ -28,12 +28,12 @@ function MainTabs() {
       screenOptions={{
         tabBarStyle: {
           position: 'absolute',
-          bottom: 25,
-          left: 20,
-          right: 20,
+          bottom: 0,
+          left: 5,
+          right: 5,
           backgroundColor: '#fff',
-          borderRadius: 15,
-          height: 60,
+          borderRadius: 35,
+          height:80,
           shadowColor: '#000',
           shadowOffset: {
             width: 0,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, a from 'react';
 import {
   View,
   Text,
@@ -11,16 +11,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 
 const HomeScreen = ({ navigation }) => {
-  const [searchText, setSearchText] = useState('');
-  const [categories, setCategories] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = a.useState('');
+  const [categories, setCategories] = a.useState([]);
+  const [products, setProducts] = a.useState([]);
+  const [loading, setLoading] = a.useState(true);
 
-  useEffect(() => {
+  a.useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -59,36 +60,42 @@ const HomeScreen = ({ navigation }) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
+      <StatusBar style="light" />
+      <SafeAreaView style={styles.headerSafeArea} edges={['top']}>
         <View style={styles.header}>
-          <View style={styles.locationRow}>
-            <Ionicons name="location-outline" size={20} color="#FF69B4" />
-            <Text style={styles.location}>Актау</Text>
-            <Ionicons name="chevron-down" size={20} color="#666" />
-          </View>
-          
-          <View style={styles.headerIcons}>
-            <TouchableOpacity>
-              <Ionicons name="notifications-outline" size={24} color="#333" />
+          <View style={styles.headerTopRow}>
+            <View>
+              <Text style={styles.locationLabel}>Локация</Text>
+              <TouchableOpacity style={styles.locationRow}>
+                <Ionicons name="location" size={20} color="#fff" />
+                <Text style={styles.locationText}>Актау</Text>
+                <Ionicons name="chevron-down" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.notificationButton}>
+              <Ionicons name="notifications" size={24} color="#333" />
             </TouchableOpacity>
+          </View>
+          <View style={styles.headerBottomRow}>
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={20} color="#999" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search here..."
+                value={searchText}
+                onChangeText={setSearchText}
+                placeholderTextColor="#999"
+              />
+            </View>
             <TouchableOpacity style={styles.filterButton}>
               <Ionicons name="options-outline" size={24} color="#333" />
             </TouchableOpacity>
           </View>
         </View>
+      </SafeAreaView>
 
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#999" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search here..."
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholderTextColor="#999"
-          />
-        </View>
-
+      <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.banner}>
           <View style={styles.bannerContent}>
             <Text style={styles.bannerTitle}>SARAH BERNARD</Text>
@@ -135,7 +142,7 @@ const HomeScreen = ({ navigation }) => {
           />
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -150,46 +157,70 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#fff',
   },
+  headerSafeArea: {
+    backgroundColor: '#FF69B4',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
   header: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
+    marginBottom: 15,
+  },
+  locationLabel: {
+    color: '#fff',
+    fontSize: 12,
+    marginBottom: 2,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 5,
   },
-  location: {
+  locationText: {
+    color: '#fff',
     fontSize: 16,
-    fontWeight: '500',
-    marginHorizontal: 5,
+    fontWeight: 'bold',
   },
-  headerIcons: {
-    flexDirection: 'row',
-    gap: 15,
+  notificationButton: {
+    backgroundColor: '#fff',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  filterButton: {
-    backgroundColor: '#f5f5f5',
-    padding: 5,
-    borderRadius: 8,
-  },
-  searchContainer: {
+  headerBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    marginHorizontal: 20,
+    gap: 10,
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
     paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginBottom: 20,
+    height: 48,
+    borderRadius: 12,
   },
   searchInput: {
     flex: 1,
     marginLeft: 10,
     fontSize: 16,
+  },
+  filterButton: {
+    backgroundColor: '#fff',
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   banner: {
     backgroundColor: '#FFB6C1',
@@ -198,6 +229,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 25,
     minHeight: 150,
+    marginTop: 20,
   },
   bannerContent: {
     flex: 1,
