@@ -1,141 +1,197 @@
-import React, { useContext, useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   Image,
   TouchableOpacity,
   SafeAreaView,
-  ScrollView,
+  Dimensions,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../App';
+import * as Linking from 'expo-linking';
+
+const { width } = Dimensions.get('window');
 
 const ProductScreen = ({ navigation, route }) => {
   const { product } = route.params;
   const { addToCart, toggleSaved, saved } = useContext(CartContext);
-  const [selectedSize, setSelectedSize] = useState('M');
-  
-  const isSaved = saved.find(item => item.id === product.id);
+  const [selectedSize, setSelectedSize] = useState(15);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  const isSaved = saved.find(i => i.id === product.id);
 
   const sizes = [
-    { id: 'S', name: 'Маленький', price: product.price || 5000 },
-    { id: 'M', name: 'Средний', price: (product.price || 5000) * 1.5 },
-    { id: 'L', name: 'Большой', price: (product.price || 5000) * 2 },
+    { stems: 10, price: 10900 },
+    { stems: 15, price: 16350 },
+    { stems: 25, price: 27250 },
+    { stems: 40, price: 43600 },
+    { stems: '40+', price: 50000 },
   ];
 
-  const selectedSizeData = sizes.find(s => s.id === selectedSize);
+  const additionalProducts = [
+    {
+      id: 101,
+      name: 'Red Velvet Bouquet',
+      price: 19500,
+      image: 'https://via.placeholder.com/150/FF69B4/FFFFFF?text=Velvet',
+    },
+    {
+      id: 102,
+      name: 'Red & White Royal B...',
+      price: 14599,
+      image: 'https://via.placeholder.com/150/FFB6C1/FFFFFF?text=Royal',
+    },
+  ];
+
+  const images = [
+    product.image,
+    'https://via.placeholder.com/400/FFB6C1/FFFFFF?text=Image2',
+    'https://via.placeholder.com/400/FFC0CB/FFFFFF?text=Image3',
+    'https://via.placeholder.com/400/FFE4E1/FFFFFF?text=Image4',
+    'https://via.placeholder.com/400/FFF0F5/FFFFFF?text=Image5',
+  ];
+
+  const calculatePrice = () => {
+    const sizePrice = sizes.find(s => s.stems === selectedSize)?.price || sizes[1].price;
+    return sizePrice;
+  };
 
   const handleAddToCart = () => {
-    const productWithSize = {
+    const item = {
       ...product,
       size: selectedSize,
-      price: selectedSizeData.price,
-      name: `${product.name} (${selectedSizeData.name})`
+      price: calculatePrice(),
+      quantity: 1,
     };
-    
-    addToCart(productWithSize);
-    Alert.alert('Добавлено!', 'Товар добавлен в корзину');
+    addToCart(item);
+    Alert.alert('Успешно', 'Товар добавлен в корзину');
+  };
+
+  const handleWhatsAppOrder = () => {
+    const message = `Здравствуйте! Хочу заказать:\n${product.name}\nРазмер: ${selectedSize} стеблей\nЦена: ₸${calculatePrice().toLocaleString()}`;
+    const whatsappUrl = `whatsapp://send?phone=+77001234567&text=${encodeURIComponent(message)}`;
+    Linking.openURL(whatsappUrl).catch(() => {
+      Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве');
+    });
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => toggleSaved(product)}>
-          <Ionicons 
-            name={isSaved ? "heart" : "heart-outline"} 
-            size={24} 
-            color="#FF69B4" 
-          />
-        </TouchableOpacity>
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={28} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Basket</Text>
+          <View style={{ width: 28 }} />
+        </View>
 
-      <ScrollView style={styles.content}>
-        <Image 
-          source={{ uri: product.image || 'https://via.placeholder.com/400/FFB6C1/FFFFFF?text=Flower' }} 
-          style={styles.productImage} 
-        />
+        {/* Product Title */}
+        <Text style={styles.productTitle}>Белая Роза</Text>
 
+        {/* Image Gallery */}
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: images[currentImageIndex] }} style={styles.mainImage} />
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.thumbnailContainer}
+          >
+            {images.map((img, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => setCurrentImageIndex(index)}
+                style={[
+                  styles.thumbnail,
+                  currentImageIndex === index && styles.activeThumbnail
+                ]}
+              >
+                <Image source={{ uri: img }} style={styles.thumbnailImage} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Product Info */}
         <View style={styles.productInfo}>
-          <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productDescription}>
-            {product.description || 'Красивый букет цветов высшего качества. Идеально подходит для подарка.'}
-          </Text>
-
-          <View style={styles.ratingContainer}>
-            <View style={styles.stars}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Ionicons
-                  key={star}
-                  name="star"
-                  size={16}
-                  color={star <= 4 ? "#FFD700" : "#DDD"}
-                />
-              ))}
-            </View>
-            <Text style={styles.rating}>4.8 (124 отзыва)</Text>
+          <Text style={styles.productName}>White Chrysanthemums and Purple Roses</Text>
+          
+          <View style={styles.detailsSection}>
+            <Text style={styles.sectionTitle}>Product details</Text>
+            <Text style={styles.description}>
+              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim.
+            </Text>
+            <TouchableOpacity>
+              <Text style={styles.readMore}>Read more.</Text>
+            </TouchableOpacity>
           </View>
 
-          <View style={styles.sizesContainer}>
-            <Text style={styles.sizeTitle}>Выберите размер:</Text>
-            <View style={styles.sizes}>
+          {/* Size Selection */}
+          <View style={styles.sizeSection}>
+            <Text style={styles.sectionTitle}>Sizes (Stems)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {sizes.map((size) => (
                 <TouchableOpacity
-                  key={size.id}
+                  key={size.stems}
+                  onPress={() => setSelectedSize(size.stems)}
                   style={[
                     styles.sizeButton,
-                    selectedSize === size.id && styles.selectedSize
+                    selectedSize === size.stems && styles.selectedSize
                   ]}
-                  onPress={() => setSelectedSize(size.id)}
                 >
                   <Text style={[
                     styles.sizeText,
-                    selectedSize === size.id && styles.selectedSizeText
+                    selectedSize === size.stems && styles.selectedSizeText
                   ]}>
-                    {size.name}
-                  </Text>
-                  <Text style={[
-                    styles.sizePrice,
-                    selectedSize === size.id && styles.selectedSizeText
-                  ]}>
-                    ₸{size.price.toLocaleString()}
+                    {size.stems}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
 
-          <View style={styles.details}>
-            <Text style={styles.detailsTitle}>Детали:</Text>
-            <View style={styles.detailItem}>
-              <Ionicons name="flower-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>Свежие цветы</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="car-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>Быстрая доставка</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Ionicons name="shield-checkmark-outline" size={16} color="#666" />
-              <Text style={styles.detailText}>Гарантия качества</Text>
-            </View>
+          {/* Add to Order Section */}
+          <View style={styles.addToOrderSection}>
+            <Text style={styles.sectionTitle}>Добавить к заказу?</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {additionalProducts.map((item) => (
+                <View key={item.id} style={styles.additionalProduct}>
+                  <Image source={{ uri: item.image }} style={styles.additionalImage} />
+                  <TouchableOpacity 
+                    style={styles.heartSmall}
+                    onPress={() => toggleSaved(item)}
+                  >
+                    <Ionicons name="heart-outline" size={20} color="#FF69B4" />
+                  </TouchableOpacity>
+                  <Text style={styles.additionalName}>{item.name}</Text>
+                  <Text style={styles.additionalBrand}>Men's Fashion</Text>
+                  <View style={styles.additionalPriceRow}>
+                    <Text style={styles.additionalPrice}>₸{item.price.toLocaleString()}</Text>
+                    <TouchableOpacity style={styles.addSmallButton}>
+                      <Text style={styles.addSmallText}>+</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
         </View>
       </ScrollView>
 
-      <View style={styles.footer}>
+      {/* Bottom Bar */}
+      <View style={styles.bottomBar}>
         <View style={styles.priceContainer}>
-          <Text style={styles.priceLabel}>Цена:</Text>
-          <Text style={styles.price}>₸{selectedSizeData.price.toLocaleString()}</Text>
+          <Text style={styles.totalLabel}>Total Price</Text>
+          <Text style={styles.totalPrice}>₸{calculatePrice().toLocaleString()}</Text>
         </View>
-        
         <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
-          <Ionicons name="basket-outline" size={20} color="#fff" />
-          <Text style={styles.addToCartText}>Добавить в корзину</Text>
+          <Ionicons name="cart-outline" size={24} color="#fff" />
+          <Text style={styles.addToCartText}>Add to Cart</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -152,137 +208,185 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 15,
+    paddingVertical: 15,
   },
-  content: {
-    flex: 1,
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
   },
-  productImage: {
-    width: '100%',
-    height: 300,
-    resizeMode: 'cover',
-  },
-  productInfo: {
-    padding: 20,
-  },
-  productName: {
+  productTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  imageContainer: {
+    marginBottom: 20,
+  },
+  mainImage: {
+    width: width - 40,
+    height: width - 40,
+    alignSelf: 'center',
+    borderRadius: 10,
     marginBottom: 10,
   },
-  productDescription: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 24,
+  thumbnailContainer: {
+    paddingHorizontal: 20,
+  },
+  thumbnail: {
+    marginRight: 10,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    borderRadius: 8,
+  },
+  activeThumbnail: {
+    borderColor: '#FF69B4',
+  },
+  thumbnailImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 6,
+  },
+  productInfo: {
+    paddingHorizontal: 20,
+  },
+  productName: {
+    fontSize: 20,
+    fontWeight: 'bold',
     marginBottom: 15,
   },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-    gap: 10,
-  },
-  stars: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  rating: {
-    fontSize: 14,
-    color: '#666',
-  },
-  sizesContainer: {
+  detailsSection: {
     marginBottom: 20,
   },
-  sizeTitle: {
-    fontSize: 18,
+  sectionTitle: {
+    fontSize: 16,
     fontWeight: '600',
     marginBottom: 10,
   },
-  sizes: {
-    flexDirection: 'row',
-    gap: 10,
+  description: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  readMore: {
+    color: '#FF69B4',
+    marginTop: 5,
+  },
+  sizeSection: {
+    marginBottom: 25,
   },
   sizeButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+    marginRight: 10,
   },
   selectedSize: {
-    borderColor: '#FF69B4',
     backgroundColor: '#FF69B4',
   },
   sizeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 2,
-  },
-  sizePrice: {
-    fontSize: 12,
+    fontSize: 16,
     color: '#666',
   },
   selectedSizeText: {
     color: '#fff',
+    fontWeight: 'bold',
   },
-  details: {
-    marginBottom: 20,
+  addToOrderSection: {
+    marginBottom: 100,
   },
-  detailsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+  additionalProduct: {
+    width: 150,
+    marginRight: 15,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
+    padding: 10,
+  },
+  additionalImage: {
+    width: '100%',
+    height: 130,
+    borderRadius: 8,
     marginBottom: 10,
   },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
+  heartSmall: {
+    position: 'absolute',
+    top: 15,
+    right: 15,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 5,
   },
-  detailText: {
+  additionalName: {
     fontSize: 14,
-    color: '#666',
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  footer: {
+  additionalBrand: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 5,
+  },
+  additionalPriceRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  additionalPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  addSmallButton: {
+    backgroundColor: '#1e3a8a',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addSmallText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-    backgroundColor: '#fff',
-    gap: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   priceContainer: {
     flex: 1,
   },
-  priceLabel: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
+  totalLabel: {
+    fontSize: 12,
+    color: '#999',
   },
-  price: {
+  totalPrice: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FF69B4',
   },
   addToCartButton: {
     backgroundColor: '#FF69B4',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 25,
-    gap: 8,
+    gap: 10,
   },
   addToCartText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });
 

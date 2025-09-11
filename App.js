@@ -1,205 +1,141 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
+import { createStackNavigator } from '@react-navigation/stack';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
 
 // Import screens
 import HomeScreen from './screens/HomeScreen';
 import SavedScreen from './screens/SavedScreen';
 import BasketScreen from './screens/BasketScreen';
-import ProfileScreen from './screens/ProfileScreen';
-import CategoryScreen from './screens/CategoryScreen';
 import ProductScreen from './screens/ProductScreen';
 import LoginScreen from './screens/LoginScreen';
 import AdminScreen from './screens/AdminScreen';
-import SearchScreen from './screens/SearchScreen';
+import CategoryScreen from './screens/CategoryScreen';
 
-// Create contexts
-export const CartContext = createContext();
-
-const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+const Stack = createStackNavigator();
 
-function TabNavigator() {
+// Cart Context
+export const CartContext = React.createContext();
+
+function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        tabBarIcon: ({ focused, color, size }) => {
-          let iconName;
-          
-          if (route.name === 'Home') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === 'Saved') {
-            iconName = focused ? 'heart' : 'heart-outline';
-          } else if (route.name === 'Basket') {
-            iconName = focused ? 'basket' : 'basket-outline';
-          } else if (route.name === 'Profile') {
-            iconName = focused ? 'person' : 'person-outline';
-          }
-          
-          return <Ionicons name={iconName} size={size} color={color} />;
+      screenOptions={{
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#f0f0f0',
+          height: 60,
+          paddingBottom: 5,
         },
         tabBarActiveTintColor: '#FF69B4',
-        tabBarInactiveTintColor: 'gray',
+        tabBarInactiveTintColor: '#999',
         headerShown: false,
-      })}
+      }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Saved" component={SavedScreen} />
-      <Tab.Screen name="Basket" component={BasketScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="home-outline" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Saved" 
+        component={SavedScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="heart-outline" size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen 
+        name="Basket" 
+        component={BasketScreen}
+        options={{
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="cart-outline" size={24} color={color} />
+          ),
+        }}
+      />
     </Tab.Navigator>
   );
 }
 
 export default function App() {
-  const [cartItems, setCartItems] = useState([]);
+  const [cart, setCart] = useState([]);
   const [saved, setSaved] = useState([]);
-  const [products, setProducts] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Load data on app start
   useEffect(() => {
-    loadData();
+    loadCart();
+    loadSaved();
   }, []);
 
-  const loadData = async () => {
+  const loadCart = async () => {
     try {
-      const savedCart = await AsyncStorage.getItem('cartItems');
-      const savedFavorites = await AsyncStorage.getItem('saved');
-      const savedProducts = await AsyncStorage.getItem('products');
-      const adminStatus = await AsyncStorage.getItem('isAdmin');
-      
-      if (savedCart) setCartItems(JSON.parse(savedCart));
-      if (savedFavorites) setSaved(JSON.parse(savedFavorites));
-      if (savedProducts) setProducts(JSON.parse(savedProducts));
-      if (adminStatus === 'true') setIsAdmin(true);
+      const cartData = await AsyncStorage.getItem('cart');
+      if (cartData) setCart(JSON.parse(cartData));
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading cart:', error);
     }
   };
 
-  const addToCart = async (product) => {
-    const existingItem = cartItems.find(item => item.id === product.id);
-    
-    let updatedCart;
-    if (existingItem) {
-      updatedCart = cartItems.map(item => 
-        item.id === product.id 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      );
+  const loadSaved = async () => {
+    try {
+      const savedData = await AsyncStorage.getItem('saved');
+      if (savedData) setSaved(JSON.parse(savedData));
+    } catch (error) {
+      console.error('Error loading saved:', error);
+    }
+  };
+
+  const addToCart = async (item) => {
+    const newCart = [...cart, item];
+    setCart(newCart);
+    await AsyncStorage.setItem('cart', JSON.stringify(newCart));
+  };
+
+  const removeFromCart = async (itemId) => {
+    const newCart = cart.filter(item => item.id !== itemId);
+    setCart(newCart);
+    await AsyncStorage.setItem('cart', JSON.stringify(newCart));
+  };
+
+  const toggleSaved = async (item) => {
+    let newSaved;
+    if (saved.find(i => i.id === item.id)) {
+      newSaved = saved.filter(i => i.id !== item.id);
     } else {
-      updatedCart = [...cartItems, { ...product, quantity: 1 }];
+      newSaved = [...saved, item];
     }
-    
-    setCartItems(updatedCart);
-    await AsyncStorage.setItem('cartItems', JSON.stringify(updatedCart));
-  };
-
-  const removeFromCart = async (productId) => {
-    const updatedCart = cartItems.filter(item => item.id !== productId);
-    setCartItems(updatedCart);
-    await AsyncStorage.setItem('cartItems', JSON.stringify(updatedCart));
-  };
-
-  const updateQuantity = async (productId, newQuantity) => {
-    if (newQuantity === 0) {
-      removeFromCart(productId);
-      return;
-    }
-    
-    const updatedCart = cartItems.map(item => 
-      item.id === productId 
-        ? { ...item, quantity: newQuantity }
-        : item
-    );
-    
-    setCartItems(updatedCart);
-    await AsyncStorage.setItem('cartItems', JSON.stringify(updatedCart));
-  };
-
-  const toggleSaved = async (product) => {
-    const isAlreadySaved = saved.find(item => item.id === product.id);
-    
-    let updatedSaved;
-    if (isAlreadySaved) {
-      updatedSaved = saved.filter(item => item.id !== product.id);
-    } else {
-      updatedSaved = [...saved, product];
-    }
-    
-    setSaved(updatedSaved);
-    await AsyncStorage.setItem('saved', JSON.stringify(updatedSaved));
-  };
-
-  const addProduct = async (product) => {
-    const newProduct = {
-      ...product,
-      id: Date.now(),
-    };
-    const updatedProducts = [...products, newProduct];
-    setProducts(updatedProducts);
-    await AsyncStorage.setItem('products', JSON.stringify(updatedProducts));
-  };
-
-  const updateProduct = async (productId, updatedProduct) => {
-    const updatedProducts = products.map(product => 
-      product.id === productId ? { ...product, ...updatedProduct } : product
-    );
-    setProducts(updatedProducts);
-    await AsyncStorage.setItem('products', JSON.stringify(updatedProducts));
-  };
-
-  const deleteProduct = async (productId) => {
-    const updatedProducts = products.filter(product => product.id !== productId);
-    setProducts(updatedProducts);
-    await AsyncStorage.setItem('products', JSON.stringify(updatedProducts));
-  };
-
-  const clearCart = async () => {
-    setCartItems([]);
-    await AsyncStorage.removeItem('cartItems');
-  };
-
-  const getCartTotal = () => {
-    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
-  };
-
-  const getCartItemsCount = () => {
-    return cartItems.reduce((total, item) => total + item.quantity, 0);
-  };
-
-  const contextValue = {
-    cartItems,
-    saved,
-    products,
-    isAdmin,
-    addToCart,
-    removeFromCart,
-    updateQuantity,
-    toggleSaved,
-    addProduct,
-    updateProduct,
-    deleteProduct,
-    clearCart,
-    getCartTotal,
-    getCartItemsCount,
-    setIsAdmin,
+    setSaved(newSaved);
+    await AsyncStorage.setItem('saved', JSON.stringify(newSaved));
   };
 
   return (
-    <CartContext.Provider value={contextValue}>
+    <CartContext.Provider value={{ 
+      cart, 
+      saved, 
+      addToCart, 
+      removeFromCart, 
+      toggleSaved,
+      isAdmin,
+      setIsAdmin 
+    }}>
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainTabs" component={TabNavigator} />
-          <Stack.Screen name="Category" component={CategoryScreen} />
+          <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen name="Product" component={ProductScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Admin" component={AdminScreen} />
-          <Stack.Screen name="Search" component={SearchScreen} />
+          <Stack.Screen name="Category" component={CategoryScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </CartContext.Provider>

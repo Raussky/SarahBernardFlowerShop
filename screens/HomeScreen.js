@@ -1,14 +1,14 @@
-import React, { useContext, useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   Image,
+  SafeAreaView,
   FlatList,
-  TextInput,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,192 +17,190 @@ import { CartContext } from '../App';
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
-  const { getCartItemsCount } = useContext(CartContext);
   const [searchText, setSearchText] = useState('');
+  const { toggleSaved, saved } = useContext(CartContext);
 
   const categories = [
-    { id: 1, name: 'Roses', nameRu: 'Розы', icon: '🌹' },
-    { id: 2, name: 'Lilies', nameRu: 'Лилии', icon: '🌺' },
-    { id: 3, name: 'Tulips', nameRu: 'Тюльпаны', icon: '🌷' },
-    { id: 4, name: 'Daisies', nameRu: 'Ромашки', icon: '🌼' },
-    { id: 5, name: 'Bouquets', nameRu: 'Букеты', icon: '💐' },
-    { id: 6, name: 'Gifts', nameRu: 'Подарки', icon: '🎁' },
+    { id: 1, name: 'Roses', icon: '🌹', nameRu: 'Розы' },
+    { id: 2, name: 'Lilies', icon: '🌺', nameRu: 'Лилии' },
+    { id: 3, name: 'Tulips', icon: '🌷', nameRu: 'Тюльпаны' },
+    { id: 4, name: 'Daisies', icon: '🌼', nameRu: 'Ромашки' },
   ];
 
-  const featuredProducts = [
+  const products = [
     {
       id: 1,
-      name: 'Красные розы букет',
-      price: 15000,
-      image: 'https://via.placeholder.com/300/FF69B4/FFFFFF?text=Red+Roses',
-      rating: 4.8,
-      reviews: 124,
+      name: 'Red Velvet Bouquet',
+      nameRu: 'Красный бархат',
+      price: 19500,
+      image: 'https://via.placeholder.com/200/FF69B4/FFFFFF?text=Bouquet',
+      category: 'bouquets',
+      description: "Men's Fashion"
     },
     {
       id: 2,
-      name: 'Белые лилии',
-      price: 12000,
-      image: 'https://via.placeholder.com/300/FFB6C1/FFFFFF?text=White+Lilies',
-      rating: 4.9,
-      reviews: 89,
-    },
-    {
-      id: 3,
-      name: 'Весенний микс',
-      price: 18000,
-      image: 'https://via.placeholder.com/300/FFC0CB/FFFFFF?text=Spring+Mix',
-      rating: 4.7,
-      reviews: 156,
+      name: 'Red & White Royal Bouquet',
+      nameRu: 'Королевский букет',
+      price: 14599,
+      image: 'https://via.placeholder.com/200/FFB6C1/FFFFFF?text=Royal',
+      category: 'bouquets',
+      description: '2018 - White'
     },
   ];
 
-  const renderCategory = ({ item }) => (
-    <TouchableOpacity
-      style={styles.categoryCard}
-      onPress={() => navigation.navigate('Category', { category: item })}
-    >
-      <View style={styles.categoryIcon}>
-        <Text style={styles.categoryEmoji}>{item.icon}</Text>
-      </View>
-      <Text style={styles.categoryName}>{item.nameRu}</Text>
-    </TouchableOpacity>
-  );
-
-  const renderFeaturedProduct = ({ item }) => (
-    <TouchableOpacity
-      style={styles.featuredCard}
-      onPress={() => navigation.navigate('Product', { product: item })}
-    >
-      <Image source={{ uri: item.image }} style={styles.featuredImage} />
-      <View style={styles.featuredInfo}>
-        <Text style={styles.featuredName} numberOfLines={2}>{item.name}</Text>
-        <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={16} color="#FFD700" />
-          <Text style={styles.rating}>{item.rating}</Text>
-          <Text style={styles.reviews}>({item.reviews})</Text>
+  const renderProduct = ({ item }) => {
+    const isSaved = saved.find(i => i.id === item.id);
+    
+    return (
+      <TouchableOpacity 
+        style={styles.productCard}
+        onPress={() => navigation.navigate('Product', { product: item })}
+      >
+        <Image source={{ uri: item.image }} style={styles.productImage} />
+        <TouchableOpacity 
+          style={styles.heartIcon}
+          onPress={() => toggleSaved(item)}
+        >
+          <Ionicons 
+            name={isSaved ? "heart" : "heart-outline"} 
+            size={24} 
+            color={isSaved ? "#FF69B4" : "#fff"} 
+          />
+        </TouchableOpacity>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productDesc}>{item.description}</Text>
+          <Text style={styles.productPrice}>₸{item.price.toLocaleString()}</Text>
         </View>
-        <Text style={styles.featuredPrice}>₸{item.price.toLocaleString()}</Text>
-      </View>
-      <TouchableOpacity style={styles.heartButton}>
-        <Ionicons name="heart-outline" size={20} color="#FF69B4" />
+        <TouchableOpacity style={styles.addButton}>
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Добро пожаловать!</Text>
-          <Text style={styles.storeName}>Sarah Bernard</Text>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={20} color="#FF69B4" />
+            <Text style={styles.location}>Актау</Text>
+            <Ionicons name="chevron-down" size={20} color="#666" />
+          </View>
+          
+          <View style={styles.headerIcons}>
+            <TouchableOpacity>
+              <Ionicons name="notifications-outline" size={24} color="#333" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.filterButton}>
+              <Ionicons name="options-outline" size={24} color="#333" />
+            </TouchableOpacity>
+          </View>
         </View>
-        <View style={styles.headerIcons}>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={() => navigation.navigate('Search')}
-          >
-            <Ionicons name="search-outline" size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.iconButton}
-            onPress={() => navigation.navigate('Basket')}
-          >
-            <Ionicons name="basket-outline" size={24} color="#333" />
-            {getCartItemsCount() > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{getCartItemsCount()}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      <ScrollView style={styles.content}>
         {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={20} color="#999" />
+          <Ionicons name="search" size={20} color="#999" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Поиск цветов..."
+            placeholder="Search here..."
             value={searchText}
             onChangeText={setSearchText}
             placeholderTextColor="#999"
-            onFocus={() => navigation.navigate('Search')}
           />
-          <TouchableOpacity>
-            <Ionicons name="mic-outline" size={20} color="#999" />
-          </TouchableOpacity>
         </View>
 
-        {/* Promo Banner */}
-        <View style={styles.promoBanner}>
-          <View style={styles.promoContent}>
-            <Text style={styles.promoTitle}>Весенняя скидка</Text>
-            <Text style={styles.promoSubtitle}>До 30% на все букеты</Text>
-            <TouchableOpacity style={styles.promoButton}>
-              <Text style={styles.promoButtonText}>Смотреть</Text>
+        {/* Banner */}
+        <View style={styles.banner}>
+          <View style={styles.bannerContent}>
+            <Text style={styles.bannerTitle}>SARAH BERNARD</Text>
+            <Text style={styles.bannerSubtitle}>
+              Brighten every moment with the{'\n'}
+              perfect bloom. Explore stunning{'\n'}
+              flowers for every occasion.
+            </Text>
+            <TouchableOpacity style={styles.shopButton}>
+              <Text style={styles.shopButtonText}>Shop Now</Text>
             </TouchableOpacity>
           </View>
-          <Image
-            source={{ uri: 'https://via.placeholder.com/120/FF69B4/FFFFFF?text=🌸' }}
-            style={styles.promoImage}
-          />
         </View>
 
         {/* Categories */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Категории</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>Все</Text>
+        <Text style={styles.sectionTitle}>Categories</Text>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoriesContainer}
+        >
+          {categories.map(category => (
+            <TouchableOpacity 
+              key={category.id} 
+              style={styles.categoryItem}
+              onPress={() => navigation.navigate('Category', { category })}
+            >
+              <View style={styles.categoryIcon}>
+                <Text style={styles.categoryEmoji}>{category.icon}</Text>
+              </View>
+              <Text style={styles.categoryName}>{category.name}</Text>
             </TouchableOpacity>
-          </View>
-          <FlatList
-            data={categories}
-            renderItem={renderCategory}
-            keyExtractor={item => item.id.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesContainer}
-          />
-        </View>
+          ))}
+        </ScrollView>
 
-        {/* Featured Products */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Рекомендуемые</Text>
-            <TouchableOpacity>
-              <Text style={styles.seeAll}>Все</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={featuredProducts}
-            renderItem={renderFeaturedProduct}
-            keyExtractor={item => item.id.toString()}
-            horizontal
+        {/* Recommended Products */}
+        <View style={styles.recommendedSection}>
+          <Text style={styles.sectionTitle}>Recommended For You</Text>
+          
+          {/* Filter Tabs */}
+          <ScrollView 
+            horizontal 
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.featuredContainer}
-          />
-        </View>
-
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity 
-            style={styles.quickAction}
-            onPress={() => navigation.navigate('Login')}
+            style={styles.filterTabs}
           >
-            <Ionicons name="settings-outline" size={24} color="#FF69B4" />
-            <Text style={styles.quickActionText}>Админ панель</Text>
+            {['All', 'Bouquets', 'Flowers', 'Indoor'].map((tab, index) => (
+              <TouchableOpacity 
+                key={index}
+                style={[styles.filterTab, index === 1 && styles.activeTab]}
+              >
+                <Text style={[styles.filterTabText, index === 1 && styles.activeTabText]}>
+                  {tab}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Products Grid */}
+          <FlatList
+            data={products}
+            renderItem={renderProduct}
+            keyExtractor={item => item.id.toString()}
+            numColumns={2}
+            columnWrapperStyle={styles.productRow}
+            scrollEnabled={false}
+          />
+        </View>
+
+        {/* Special Offer */}
+        <View style={styles.specialOffer}>
+          <Text style={styles.offerTitle}>Special Offer</Text>
+          <Text style={styles.offerText}>Get 20% off on orders above ₸50</Text>
+          <TouchableOpacity style={styles.claimButton}>
+            <Text style={styles.claimButtonText}>Claim Now</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.quickAction}>
-            <Ionicons name="help-circle-outline" size={24} color="#FF69B4" />
-            <Text style={styles.quickActionText}>Помощь</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.quickAction}>
-            <Ionicons name="call-outline" size={24} color="#FF69B4" />
-            <Text style={styles.quickActionText}>Связаться</Text>
-          </TouchableOpacity>
+        </View>
+
+        {/* More Products */}
+        <View style={styles.recommendedSection}>
+          <Text style={styles.sectionTitle}>Recommended For You</Text>
+          <FlatList
+            data={products}
+            renderItem={renderProduct}
+            keyExtractor={item => `${item.id}-2`}
+            numColumns={2}
+            columnWrapperStyle={styles.productRow}
+            scrollEnabled={false}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -220,221 +218,220 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: 15,
   },
-  greeting: {
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  location: {
     fontSize: 16,
-    color: '#666',
-  },
-  storeName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 2,
+    fontWeight: '500',
+    marginHorizontal: 5,
   },
   headerIcons: {
     flexDirection: 'row',
     gap: 15,
   },
-  iconButton: {
-    position: 'relative',
-  },
-  badge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#FF69B4',
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  content: {
-    flex: 1,
+  filterButton: {
+    backgroundColor: '#f5f5f5',
+    padding: 5,
+    borderRadius: 8,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
     marginHorizontal: 20,
-    marginBottom: 20,
     paddingHorizontal: 15,
     paddingVertical: 12,
-    borderRadius: 25,
-    gap: 10,
+    borderRadius: 10,
+    marginBottom: 20,
   },
   searchInput: {
     flex: 1,
+    marginLeft: 10,
     fontSize: 16,
-    color: '#333',
   },
-  promoBanner: {
-    flexDirection: 'row',
-    backgroundColor: '#FFE4E1',
+  banner: {
+    backgroundColor: '#FFB6C1',
     marginHorizontal: 20,
-    marginBottom: 25,
     borderRadius: 15,
     padding: 20,
-    overflow: 'hidden',
+    marginBottom: 25,
+    minHeight: 150,
   },
-  promoContent: {
+  bannerContent: {
     flex: 1,
   },
-  promoTitle: {
-    fontSize: 20,
+  bannerTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
+    color: '#fff',
+    marginBottom: 10,
   },
-  promoSubtitle: {
+  bannerSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#fff',
     marginBottom: 15,
+    lineHeight: 20,
   },
-  promoButton: {
-    backgroundColor: '#FF69B4',
+  shopButton: {
+    backgroundColor: '#fff',
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderRadius: 20,
     alignSelf: 'flex-start',
   },
-  promoButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  promoImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  section: {
-    marginBottom: 25,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 15,
+  shopButtonText: {
+    color: '#FF69B4',
+    fontWeight: 'bold',
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-  },
-  seeAll: {
-    fontSize: 14,
-    color: '#FF69B4',
-    fontWeight: '600',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginHorizontal: 20,
+    marginBottom: 15,
   },
   categoriesContainer: {
     paddingHorizontal: 20,
-    gap: 15,
+    marginBottom: 25,
   },
-  categoryCard: {
+  categoryItem: {
     alignItems: 'center',
-    width: 80,
+    marginRight: 20,
   },
   categoryIcon: {
-    width: 60,
-    height: 60,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: '#FFE4E1',
-    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   categoryEmoji: {
-    fontSize: 24,
+    fontSize: 30,
   },
   categoryName: {
     fontSize: 12,
-    textAlign: 'center',
     color: '#666',
   },
-  featuredContainer: {
-    paddingHorizontal: 20,
-    gap: 15,
+  recommendedSection: {
+    marginBottom: 20,
   },
-  featuredCard: {
-    width: width * 0.6,
+  filterTabs: {
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  filterTab: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    marginRight: 10,
+    borderRadius: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  activeTab: {
+    backgroundColor: '#FF69B4',
+  },
+  filterTabText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  activeTabText: {
+    color: '#fff',
+  },
+  productRow: {
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+  },
+  productCard: {
+    width: (width - 50) / 2,
     backgroundColor: '#fff',
     borderRadius: 12,
+    marginBottom: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  featuredImage: {
+  productImage: {
     width: '100%',
-    height: 140,
+    height: 150,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
   },
-  featuredInfo: {
-    padding: 12,
-  },
-  featuredName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 5,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 3,
-  },
-  rating: {
-    fontSize: 12,
-    color: '#666',
-  },
-  reviews: {
-    fontSize: 12,
-    color: '#999',
-  },
-  featuredPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FF69B4',
-  },
-  heartButton: {
+  heartIcon: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: '#fff',
-    borderRadius: 15,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
     padding: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: '#f9f9f9',
-    marginTop: 20,
+  productInfo: {
+    padding: 10,
   },
-  quickAction: {
-    alignItems: 'center',
-    gap: 8,
+  productName: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
   },
-  quickActionText: {
+  productDesc: {
     fontSize: 12,
-    color: '#666',
-    textAlign: 'center',
+    color: '#999',
+    marginBottom: 5,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: '#1e3a8a',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  specialOffer: {
+    backgroundColor: '#FF69B4',
+    marginHorizontal: 20,
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 25,
+    alignItems: 'center',
+  },
+  offerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 5,
+  },
+  offerText: {
+    fontSize: 14,
+    color: '#fff',
+    marginBottom: 15,
+  },
+  claimButton: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 25,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  claimButtonText: {
+    color: '#FF69B4',
+    fontWeight: 'bold',
   },
 });
 
