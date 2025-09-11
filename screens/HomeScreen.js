@@ -1,4 +1,4 @@
-import React, a from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,12 +16,12 @@ import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 
 const HomeScreen = ({ navigation }) => {
-  const [searchText, setSearchText] = a.useState('');
-  const [categories, setCategories] = a.useState([]);
-  const [products, setProducts] = a.useState([]);
-  const [loading, setLoading] = a.useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  a.useEffect(() => {
+  useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
