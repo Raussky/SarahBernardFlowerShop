@@ -1,7 +1,7 @@
 import React, { useContext, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { CartContext } from '../src/context/CartContext';
+import { CartContext } from '../context/CartContext';
 
 const { width } = Dimensions.get('window');
 
