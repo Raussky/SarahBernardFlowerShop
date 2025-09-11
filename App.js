@@ -27,12 +27,22 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={{
         tabBarStyle: {
+          position: 'absolute',
+          bottom: 25,
+          left: 20,
+          right: 20,
           backgroundColor: '#fff',
-          borderTopWidth: 0, // Remove top border
+          borderRadius: 15,
           height: 60,
-          paddingBottom: 5,
-          elevation: 0, // for Android
-          shadowOpacity: 0, // for iOS
+          shadowColor: '#000',
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+          elevation: 5,
+          borderTopWidth: 0,
         },
         tabBarActiveTintColor: '#FF69B4',
         tabBarInactiveTintColor: '#999',
