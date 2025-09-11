@@ -239,8 +239,10 @@ const BasketScreen = ({ navigation }) => {
 
         {cart.length === 0 ? (
           <View style={styles.emptyCart}>
-            <Ionicons name="cart-outline" size={100} color="#ddd" />
-            <Text style={styles.emptyText}>Корзина пуста</Text>
+            <Ionicons name="cart-outline" size={100} color="#FF69B4" />
+            <Text style={styles.emptyText}>
+              Ваша корзина пуста. Добавьте что-нибудь красивое!
+            </Text>
             <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Home')}>
               <Text style={styles.shopButtonText}>Перейти к покупкам</Text>
             </TouchableOpacity>
@@ -289,7 +291,7 @@ const styles = StyleSheet.create({
   clearButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFE4E1', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   clearButtonText: { color: '#FF69B4', marginLeft: 5, fontWeight: '600' },
   emptyCart: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 18, color: '#999', marginTop: 20, marginBottom: 30 },
+  emptyText: { fontSize: 18, color: '#999', marginTop: 20, marginBottom: 30, textAlign: 'center', paddingHorizontal: 40 },
   shopButton: { backgroundColor: '#FF69B4', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 },
   shopButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   listContainer: { 

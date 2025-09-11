@@ -54,8 +54,10 @@ const SavedScreen = ({ navigation }) => {
         />
       ) : (
         <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={100} color="#ddd" />
-          <Text style={styles.emptyText}>У вас пока нет избранных товаров.</Text>
+          <Ionicons name="heart-outline" size={100} color="#FF69B4" />
+          <Text style={styles.emptyText}>
+            Здесь пока пусто. Добавьте товары, которые вам нравятся, чтобы они всегда были под рукой!
+          </Text>
           <TouchableOpacity 
             style={styles.shopButton}
             onPress={() => navigation.navigate('Home')}
