@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
-  Animated, // Import Animated
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,14 +30,15 @@ const ProductScreen = ({ navigation, route }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [recommended, setRecommended] = useState([]);
 
-  // Animation for add to cart button
   const addToCartButtonScale = useRef(new Animated.Value(1)).current;
+
   const handleAddToCartPressIn = () => {
     Animated.spring(addToCartButtonScale, {
       toValue: 0.95,
       useNativeDriver: true,
     }).start();
   };
+
   const handleAddToCartPressOut = () => {
     Animated.spring(addToCartButtonScale, {
       toValue: 1,
@@ -63,8 +64,6 @@ const ProductScreen = ({ navigation, route }) => {
     fetchRecommended();
   }, [product.id]);
 
-  // Use only the product's main image for now. If multiple images are needed,
-  // a new table for product images would be required in Supabase.
   const images = [product.image]; 
 
   const handleAddToCart = () => {
@@ -79,7 +78,7 @@ const ProductScreen = ({ navigation, route }) => {
       image: product.image,
       size: selectedVariant.size,
       price: selectedVariant.price,
-      variantId: selectedVariant.id, // Pass variant ID for order items
+      variantId: selectedVariant.id,
     };
     addToCart(item);
     showToast('Товар добавлен в корзину', 'success');
@@ -95,7 +94,7 @@ const ProductScreen = ({ navigation, route }) => {
             image: item.image,
             size: variant.size,
             price: variant.price,
-            variantId: variant.id, // Pass variant ID for order items
+            variantId: variant.id,
         };
         addToCart(cartItem);
         showToast(`${item.name || item.name_ru} добавлен в корзину`, 'success');
@@ -119,7 +118,7 @@ const ProductScreen = ({ navigation, route }) => {
 
         <View style={styles.imageContainer}>
           <Image source={{ uri: images[currentImageIndex] }} style={styles.mainImage} />
-          {images.length > 1 && ( // Only show thumbnails if there's more than one image
+          {images.length > 1 && (
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
@@ -199,14 +198,14 @@ const ProductScreen = ({ navigation, route }) => {
           <Text style={styles.totalLabel}>Итоговая цена</Text>
           <Text style={styles.totalPrice}>₸{(selectedVariant?.price || 0).toLocaleString()}</Text>
         </View>
-        <Animated.View style={[styles.addToCartButtonWrapper, { transform: [{ scale: addToCartButtonScale }] }]}>
-          <TouchableOpacity 
-            style={StyleSheet.absoluteFill} // Make TouchableOpacity cover the whole Animated.View
-            onPress={handleAddToCart}
-            onPressIn={handleAddToCartPressIn}
-            onPressOut={handleAddToCartPressOut}
-            activeOpacity={1} // Control opacity via Animated.View
-          >
+        <TouchableOpacity
+          style={styles.addToCartButtonWrapper}
+          onPress={handleAddToCart}
+          onPressIn={handleAddToCartPressIn}
+          onPressOut={handleAddToCartPressOut}
+          activeOpacity={0.8}
+        >
+          <Animated.View style={{ transform: [{ scale: addToCartButtonScale }] }}>
             <LinearGradient
               colors={['#FFC0CB', '#FF69B4']}
               style={styles.addToCartButton}
@@ -216,8 +215,8 @@ const ProductScreen = ({ navigation, route }) => {
               <Ionicons name="cart-outline" size={24} color="#fff" />
               <Text style={styles.addToCartText}>В корзину</Text>
             </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
+          </Animated.View>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
