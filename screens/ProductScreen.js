@@ -7,77 +7,44 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../src/context/CartContext';
-import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
 
 const { width } = Dimensions.get('window');
 
 const ProductScreen = ({ navigation, route }) => {
   const { product } = route.params;
-  const { addToCart, toggleSaved, saved } = useContext(CartContext);
+  const { addToCart } = useContext(CartContext);
   const { showToast } = useToast();
-  const [selectedSize, setSelectedSize] = useState(15);
+  
+  const variants = product.product_variants || [];
+  const [selectedVariant, setSelectedVariant] = useState(variants.length > 0 ? variants[0] : null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  const isSaved = saved.find(i => i.id === product.id);
-
-  const sizes = [
-    { stems: 10, price: 10900 },
-    { stems: 15, price: 16350 },
-    { stems: 25, price: 27250 },
-    { stems: 40, price: 43600 },
-    { stems: '40+', price: 50000 },
-  ];
-
-  const additionalProducts = [
-    {
-      id: 101,
-      name: 'Red Velvet Bouquet',
-      price: 19500,
-      image: 'https://via.placeholder.com/150/FF69B4/FFFFFF?text=Velvet',
-    },
-    {
-      id: 102,
-      name: 'Red & White Royal B...',
-      price: 14599,
-      image: 'https://via.placeholder.com/150/FFB6C1/FFFFFF?text=Royal',
-    },
-  ];
 
   const images = [
     product.image,
     'https://via.placeholder.com/400/FFB6C1/FFFFFF?text=Image2',
     'https://via.placeholder.com/400/FFC0CB/FFFFFF?text=Image3',
-    'https://via.placeholder.com/400/FFE4E1/FFFFFF?text=Image4',
-    'https://via.placeholder.com/400/FFF0F5/FFFFFF?text=Image5',
   ];
 
-  const calculatePrice = () => {
-    const sizePrice = sizes.find(s => s.stems === selectedSize)?.price || sizes[1].price;
-    return sizePrice;
-  };
-
   const handleAddToCart = () => {
+    if (!selectedVariant) {
+      showToast('Выберите вариант товара', 'error');
+      return;
+    }
     const item = {
-      ...product,
-      size: selectedSize,
-      price: calculatePrice(),
+      id: product.id,
+      name: product.name,
+      nameRu: product.name_ru,
+      image: product.image,
+      size: selectedVariant.size,
+      price: selectedVariant.price,
     };
     addToCart(item);
     showToast('Товар добавлен в корзину', 'success');
-  };
-
-  const handleWhatsAppOrder = () => {
-    const message = `Здравствуйте! Хочу заказать:\n${product.name}\nРазмер: ${selectedSize} стеблей\nЦена: ₸${calculatePrice().toLocaleString()}`;
-    const whatsappUrl = `whatsapp://send?phone=+77001234567&text=${encodeURIComponent(message)}`;
-    Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве');
-    });
   };
 
   return (
@@ -91,7 +58,7 @@ const ProductScreen = ({ navigation, route }) => {
           <View style={{ width: 28 }} />
         </View>
 
-        <Text style={styles.productTitle}>{product.name || product.nameRu}</Text>
+        <Text style={styles.productTitle}>{product.name || product.name_ru}</Text>
 
         <View style={styles.imageContainer}>
           <Image source={{ uri: images[currentImageIndex] }} style={styles.mainImage} />
@@ -116,72 +83,44 @@ const ProductScreen = ({ navigation, route }) => {
         </View>
 
         <View style={styles.productInfo}>
-          <Text style={styles.productName}>White Chrysanthemums and Purple Roses</Text>
-          
           <View style={styles.detailsSection}>
             <Text style={styles.sectionTitle}>Product details</Text>
             <Text style={styles.description}>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim.
+              {product.description || 'Красивый букет для любого случая.'}
             </Text>
-            <TouchableOpacity>
-              <Text style={styles.readMore}>Read more.</Text>
-            </TouchableOpacity>
           </View>
 
-          <View style={styles.sizeSection}>
-            <Text style={styles.sectionTitle}>Sizes (Stems)</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {sizes.map((size) => (
-                <TouchableOpacity
-                  key={size.stems}
-                  onPress={() => setSelectedSize(size.stems)}
-                  style={[
-                    styles.sizeButton,
-                    selectedSize === size.stems && styles.selectedSize
-                  ]}
-                >
-                  <Text style={[
-                    styles.sizeText,
-                    selectedSize === size.stems && styles.selectedSizeText
-                  ]}>
-                    {size.stems}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          <View style={styles.addToOrderSection}>
-            <Text style={styles.sectionTitle}>Добавить к заказу?</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {additionalProducts.map((item) => (
-                <View key={item.id} style={styles.additionalProduct}>
-                  <Image source={{ uri: item.image }} style={styles.additionalImage} />
-                  <TouchableOpacity 
-                    style={styles.heartSmall}
-                    onPress={() => toggleSaved(item)}
+          {variants.length > 0 && (
+            <View style={styles.sizeSection}>
+              <Text style={styles.sectionTitle}>Варианты</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {variants.map((variant) => (
+                  <TouchableOpacity
+                    key={variant.id}
+                    onPress={() => setSelectedVariant(variant)}
+                    style={[
+                      styles.sizeButton,
+                      selectedVariant?.id === variant.id && styles.selectedSize
+                    ]}
                   >
-                    <Ionicons name="heart-outline" size={20} color="#FF69B4" />
+                    <Text style={[
+                      styles.sizeText,
+                      selectedVariant?.id === variant.id && styles.selectedSizeText
+                    ]}>
+                      {variant.size}
+                    </Text>
                   </TouchableOpacity>
-                  <Text style={styles.additionalName}>{item.name}</Text>
-                  <Text style={styles.additionalBrand}>Men's Fashion</Text>
-                  <View style={styles.additionalPriceRow}>
-                    <Text style={styles.additionalPrice}>₸{item.price.toLocaleString()}</Text>
-                    <TouchableOpacity style={styles.addSmallButton}>
-                      <Text style={styles.addSmallText}>+</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
       </ScrollView>
 
       <View style={styles.bottomBar}>
         <View style={styles.priceContainer}>
           <Text style={styles.totalLabel}>Total Price</Text>
-          <Text style={styles.totalPrice}>₸{calculatePrice().toLocaleString()}</Text>
+          <Text style={styles.totalPrice}>₸{(selectedVariant?.price || 0).toLocaleString()}</Text>
         </View>
         <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
           <Ionicons name="cart-outline" size={24} color="#fff" />
@@ -244,11 +183,7 @@ const styles = StyleSheet.create({
   },
   productInfo: {
     paddingHorizontal: 20,
-  },
-  productName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
+    paddingBottom: 100,
   },
   detailsSection: {
     marginBottom: 20,
@@ -262,10 +197,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-  },
-  readMore: {
-    color: '#FF69B4',
-    marginTop: 5,
   },
   sizeSection: {
     marginBottom: 25,
@@ -286,62 +217,6 @@ const styles = StyleSheet.create({
   },
   selectedSizeText: {
     color: '#fff',
-    fontWeight: 'bold',
-  },
-  addToOrderSection: {
-    marginBottom: 100,
-  },
-  additionalProduct: {
-    width: 150,
-    marginRight: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 10,
-  },
-  additionalImage: {
-    width: '100%',
-    height: 130,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  heartSmall: {
-    position: 'absolute',
-    top: 15,
-    right: 15,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 5,
-  },
-  additionalName: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  additionalBrand: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 5,
-  },
-  additionalPriceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  additionalPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  addSmallButton: {
-    backgroundColor: '#1e3a8a',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addSmallText: {
-    color: '#fff',
-    fontSize: 18,
     fontWeight: 'bold',
   },
   bottomBar: {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,17 +7,56 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { PRODUCTS, CATEGORIES } from '../data/products';
+import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 
 const HomeScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const categories = CATEGORIES.slice(0, 4);
-  const products = PRODUCTS.slice(0, 4);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        // Fetch categories
+        const { data: categoriesData, error: categoriesError } = await supabase
+          .from('categories')
+          .select('*')
+          .limit(4);
+        if (categoriesError) throw categoriesError;
+        setCategories(categoriesData);
+
+        // Fetch products with variants
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('*, product_variants(*)')
+          .limit(8);
+        if (productsError) throw productsError;
+        setProducts(productsData);
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color="#FF69B4" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -79,55 +118,17 @@ const HomeScreen = ({ navigation }) => {
               <View style={styles.categoryIcon}>
                 <Text style={styles.categoryEmoji}>{category.icon}</Text>
               </View>
-              <Text style={styles.categoryName}>{category.nameEn}</Text>
+              <Text style={styles.categoryName}>{category.name_en}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
         <View style={styles.recommendedSection}>
           <Text style={styles.sectionTitle}>Recommended For You</Text>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterTabs}
-          >
-            {['All', 'Bouquets', 'Flowers', 'Indoor'].map((tab, index) => (
-              <TouchableOpacity 
-                key={index}
-                style={[styles.filterTab, index === 1 && styles.activeTab]}
-              >
-                <Text style={[styles.filterTabText, index === 1 && styles.activeTabText]}>
-                  {tab}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
           <FlatList
             data={products}
             renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
             keyExtractor={item => item.id.toString()}
-            numColumns={2}
-            columnWrapperStyle={styles.productRow}
-            scrollEnabled={false}
-          />
-        </View>
-
-        <View style={styles.specialOffer}>
-          <Text style={styles.offerTitle}>Special Offer</Text>
-          <Text style={styles.offerText}>Get 20% off on orders above ₸50</Text>
-          <TouchableOpacity style={styles.claimButton}>
-            <Text style={styles.claimButtonText}>Claim Now</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.recommendedSection}>
-          <Text style={styles.sectionTitle}>More For You</Text>
-          <FlatList
-            data={products.slice().reverse()}
-            renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
-            keyExtractor={item => `${item.id}-2`}
             numColumns={2}
             columnWrapperStyle={styles.productRow}
             scrollEnabled={false}
@@ -141,6 +142,12 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
   },
   header: {
@@ -251,59 +258,9 @@ const styles = StyleSheet.create({
   recommendedSection: {
     marginBottom: 20,
   },
-  filterTabs: {
-    paddingHorizontal: 20,
-    marginBottom: 15,
-  },
-  filterTab: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-  },
-  activeTab: {
-    backgroundColor: '#FF69B4',
-  },
-  filterTabText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  activeTabText: {
-    color: '#fff',
-  },
   productRow: {
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-  },
-  specialOffer: {
-    backgroundColor: '#FF69B4',
-    marginHorizontal: 20,
-    borderRadius: 15,
-    padding: 20,
-    marginBottom: 25,
-    alignItems: 'center',
-  },
-  offerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 5,
-  },
-  offerText: {
-    fontSize: 14,
-    color: '#fff',
-    marginBottom: 15,
-  },
-  claimButton: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
-  claimButtonText: {
-    color: '#FF69B4',
-    fontWeight: 'bold',
   },
 });
 

@@ -9,6 +9,11 @@ const ProductCard = ({ product, navigation }) => {
   const { toggleSaved, saved } = useContext(CartContext);
   const isSaved = saved.find(i => i.id === product.id);
 
+  // Use the price from the first variant as the display price
+  const displayPrice = product.product_variants && product.product_variants.length > 0
+    ? product.product_variants[0].price
+    : 0;
+
   return (
     <TouchableOpacity 
       style={styles.productCard}
@@ -18,7 +23,7 @@ const ProductCard = ({ product, navigation }) => {
       <TouchableOpacity 
         style={styles.heartIcon}
         onPress={(e) => {
-          e.stopPropagation(); // Предотвращаем переход на другую страницу
+          e.stopPropagation();
           toggleSaved(product);
         }}
       >
@@ -29,9 +34,9 @@ const ProductCard = ({ product, navigation }) => {
         />
       </TouchableOpacity>
       <View style={styles.productInfo}>
-        <Text style={styles.productName} numberOfLines={1}>{product.name || product.nameRu}</Text>
-        <Text style={styles.productDesc}>{product.description || `Категория: ${product.category}`}</Text>
-        <Text style={styles.productPrice}>₸{product.price.toLocaleString()}</Text>
+        <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
+        <Text style={styles.productDesc} numberOfLines={1}>{product.description || `Категория`}</Text>
+        <Text style={styles.productPrice}>₸{displayPrice.toLocaleString()}</Text>
       </View>
       <TouchableOpacity 
         style={styles.addButton} 

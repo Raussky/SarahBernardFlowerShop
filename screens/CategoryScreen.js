@@ -1,29 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { PRODUCTS } from '../data/products';
+import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 
 const CategoryScreen = ({ navigation, route }) => {
   const { category } = route.params;
-  const [selectedSubCategory, setSelectedSubCategory] = useState('all');
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const products = PRODUCTS.filter(p => p.category === category.id);
+  useEffect(() => {
+    const fetchProducts = async () => {
+      if (!category?.id) return;
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('products')
+          .select('*, product_variants(*)')
+          .eq('category_id', category.id);
+        
+        if (error) throw error;
+        setProducts(data);
+      } catch (error) {
+        console.error("Error fetching products for category:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const subCategories = [
-    { id: 'all', name: 'Все' },
-    { id: 'popular', name: 'Популярные' },
-    { id: 'new', name: 'Новинки' },
-    { id: 'sale', name: 'Скидки' },
-  ];
+    fetchProducts();
+  }, [category]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color="#FF69B4" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -31,7 +53,7 @@ const CategoryScreen = ({ navigation, route }) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{category.name || category.nameEn}</Text>
+        <Text style={styles.headerTitle}>{category.name || category.name_en}</Text>
         <TouchableOpacity>
           <Ionicons name="filter-outline" size={24} color="#333" />
         </TouchableOpacity>
@@ -42,33 +64,9 @@ const CategoryScreen = ({ navigation, route }) => {
           <Text style={styles.categoryEmoji}>{category.icon}</Text>
         </View>
         <Text style={styles.categoryDescription}>
-          Выберите из нашей коллекции {category.name?.toLowerCase() || category.nameEn.toLowerCase()}
+          Выберите из нашей коллекции {category.name?.toLowerCase() || category.name_en.toLowerCase()}
         </Text>
       </View>
-
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.subCategoriesContainer}
-      >
-        {subCategories.map((sub) => (
-          <TouchableOpacity
-            key={sub.id}
-            style={[
-              styles.subCategoryButton,
-              selectedSubCategory === sub.id && styles.activeSubCategory
-            ]}
-            onPress={() => setSelectedSubCategory(sub.id)}
-          >
-            <Text style={[
-              styles.subCategoryText,
-              selectedSubCategory === sub.id && styles.activeSubCategoryText
-            ]}>
-              {sub.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
 
       <View style={styles.sortBar}>
         <Text style={styles.productCount}>{products.length} товаров</Text>
@@ -94,6 +92,12 @@ const CategoryScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
   },
   header: {
@@ -130,29 +134,6 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     paddingHorizontal: 40,
-  },
-  subCategoriesContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 15,
-    maxHeight: 50,
-  },
-  subCategoryButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    marginRight: 10,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-  },
-  activeSubCategory: {
-    backgroundColor: '#FF69B4',
-  },
-  subCategoryText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  activeSubCategoryText: {
-    color: '#fff',
-    fontWeight: '600',
   },
   sortBar: {
     flexDirection: 'row',
