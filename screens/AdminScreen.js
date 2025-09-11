@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,33 +7,86 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
+import { supabase } from '../src/integrations/supabase/client';
 
 const AdminScreen = ({ navigation }) => {
-  const [products, setProducts] = useState([
-    { id: 1, name: 'Розы китай', price: 500 },
-    { id: 2, name: 'Роза голландия', price: 700 },
-    { id: 3, name: 'Роза микс', price: 600 },
-  ]);
-
-  const [newProduct, setNewProduct] = useState({ name: '', price: '' });
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', category_id: null });
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
 
-  const handleAddProduct = () => {
-    if (newProduct.name && newProduct.price) {
-      setProducts([...products, {
-        id: Date.now(),
-        name: newProduct.name,
-        price: parseInt(newProduct.price)
-      }]);
-      setNewProduct({ name: '', price: '' });
-      showToast('Товар добавлен', 'success');
-    } else {
-      showToast('Заполните все поля', 'error');
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('*, product_variants(*)')
+        .order('created_at', { ascending: false });
+      if (productsError) throw productsError;
+      setProducts(productsData);
+
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from('categories')
+        .select('*');
+      if (categoriesError) throw categoriesError;
+      setCategories(categoriesData);
+
+    } catch (error) {
+      showToast(error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddProduct = async () => {
+    if (!newProduct.name || !newProduct.price || !newProduct.category_id) {
+      showToast('Заполните все поля и выберите категорию', 'error');
+      return;
+    }
+
+    try {
+      // 1. Insert into products table
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .insert({
+          name: newProduct.name,
+          name_ru: newProduct.name,
+          category_id: newProduct.category_id,
+          image: 'https://via.placeholder.com/200/FF69B4/FFFFFF?text=New'
+        })
+        .select()
+        .single();
+
+      if (productError) throw productError;
+
+      // 2. Insert into product_variants table
+      const { error: variantError } = await supabase
+        .from('product_variants')
+        .insert({
+          product_id: productData.id,
+          size: 'шт.', // Default size
+          price: parseFloat(newProduct.price),
+        });
+
+      if (variantError) throw variantError;
+
+      showToast('Товар успешно добавлен', 'success');
+      setNewProduct({ name: '', price: '', category_id: null });
+      fetchData(); // Refetch data to show the new product
+
+    } catch (error) {
+      showToast(error.message, 'error');
     }
   };
 
@@ -43,13 +96,32 @@ const AdminScreen = ({ navigation }) => {
       'Это действие нельзя отменить',
       [
         { text: 'Отмена', style: 'cancel' },
-        { text: 'Удалить', onPress: () => {
-          setProducts(products.filter(p => p.id !== id));
-          showToast('Товар удален', 'success');
-        }}
+        { text: 'Удалить', onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id);
+              
+              if (error) throw error;
+
+              setProducts(products.filter(p => p.id !== id));
+              showToast('Товар удален', 'success');
+            } catch (error) {
+              showToast(error.message, 'error');
+            }
+          }}
       ]
     );
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color="#FF69B4" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -80,6 +152,26 @@ const AdminScreen = ({ navigation }) => {
             onChangeText={(text) => setNewProduct({...newProduct, price: text})}
             keyboardType="numeric"
           />
+          
+          <Text style={styles.categoryLabel}>Категория</Text>
+          <View style={styles.categorySelector}>
+            {categories.map(cat => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.categoryButton,
+                  newProduct.category_id === cat.id && styles.selectedCategoryButton
+                ]}
+                onPress={() => setNewProduct({...newProduct, category_id: cat.id})}
+              >
+                <Text style={[
+                  styles.categoryButtonText,
+                  newProduct.category_id === cat.id && styles.selectedCategoryButtonText
+                ]}>{cat.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           <TouchableOpacity style={styles.addButton} onPress={handleAddProduct}>
             <Text style={styles.addButtonText}>Добавить</Text>
           </TouchableOpacity>
@@ -92,7 +184,9 @@ const AdminScreen = ({ navigation }) => {
             <View key={product.id} style={styles.productItem}>
               <View style={styles.productInfo}>
                 <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productPrice}>₸{product.price}</Text>
+                <Text style={styles.productPrice}>
+                  ₸{product.product_variants[0]?.price || 'N/A'}
+                </Text>
               </View>
               <TouchableOpacity onPress={() => handleDeleteProduct(product.id)}>
                 <Ionicons name="trash-outline" size={20} color="#FF69B4" />
@@ -137,6 +231,12 @@ const AdminScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
   },
   header: {
@@ -236,6 +336,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginTop: 5,
+  },
+  categoryLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  categorySelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 15,
+  },
+  categoryButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  selectedCategoryButton: {
+    backgroundColor: '#FF69B4',
+    borderColor: '#FF69B4',
+  },
+  categoryButtonText: {
+    color: '#333',
+    fontWeight: '500',
+  },
+  selectedCategoryButtonText: {
+    color: '#fff',
   },
 });
 
