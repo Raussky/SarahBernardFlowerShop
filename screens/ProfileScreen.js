@@ -6,7 +6,7 @@ import { useAuth } from '../src/context/AuthContext';
 import { useToast } from '../src/components/ToastProvider';
 
 const ProfileScreen = ({ navigation }) => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { showToast } = useToast();
 
   const handleSignOut = async () => {
@@ -18,6 +18,14 @@ const ProfileScreen = ({ navigation }) => {
     }
   };
 
+  const displayName = profile?.first_name && profile?.last_name 
+    ? `${profile.first_name} ${profile.last_name}` 
+    : user?.email || 'Гость';
+  
+  const displayAvatarLetter = profile?.first_name 
+    ? profile.first_name.charAt(0).toUpperCase() 
+    : user?.email?.charAt(0).toUpperCase() || 'G';
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -27,9 +35,9 @@ const ProfileScreen = ({ navigation }) => {
       <View style={styles.content}>
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user ? user.email.charAt(0).toUpperCase() : 'G'}</Text>
+            <Text style={styles.avatarText}>{displayAvatarLetter}</Text>
           </View>
-          <Text style={styles.storeName}>{user ? user.email : 'Гость'}</Text>
+          <Text style={styles.storeName}>{displayName}</Text>
           <Text style={styles.storeDescription}>Магазин цветов</Text>
         </View>
 

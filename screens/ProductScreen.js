@@ -45,11 +45,9 @@ const ProductScreen = ({ navigation, route }) => {
     fetchRecommended();
   }, [product.id]);
 
-  const images = [
-    product.image,
-    'https://via.placeholder.com/400/FFB6C1/FFFFFF?text=Image2',
-    'https://via.placeholder.com/400/FFC0CB/FFFFFF?text=Image3',
-  ];
+  // Use only the product's main image for now. If multiple images are needed,
+  // a new table for product images would be required in Supabase.
+  const images = [product.image]; 
 
   const handleAddToCart = () => {
     if (!selectedVariant) {
@@ -63,6 +61,7 @@ const ProductScreen = ({ navigation, route }) => {
       image: product.image,
       size: selectedVariant.size,
       price: selectedVariant.price,
+      variantId: selectedVariant.id, // Pass variant ID for order items
     };
     addToCart(item);
     showToast('Товар добавлен в корзину', 'success');
@@ -78,6 +77,7 @@ const ProductScreen = ({ navigation, route }) => {
             image: item.image,
             size: variant.size,
             price: variant.price,
+            variantId: variant.id, // Pass variant ID for order items
         };
         addToCart(cartItem);
         showToast(`${item.name || item.name_ru} добавлен в корзину`, 'success');
@@ -101,24 +101,26 @@ const ProductScreen = ({ navigation, route }) => {
 
         <View style={styles.imageContainer}>
           <Image source={{ uri: images[currentImageIndex] }} style={styles.mainImage} />
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.thumbnailContainer}
-          >
-            {images.map((img, index) => (
-              <TouchableOpacity
-                key={index}
-                onPress={() => setCurrentImageIndex(index)}
-                style={[
-                  styles.thumbnail,
-                  currentImageIndex === index && styles.activeThumbnail
-                ]}
-              >
-                <Image source={{ uri: img }} style={styles.thumbnailImage} />
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          {images.length > 1 && ( // Only show thumbnails if there's more than one image
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.thumbnailContainer}
+            >
+              {images.map((img, index) => (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => setCurrentImageIndex(index)}
+                  style={[
+                    styles.thumbnail,
+                    currentImageIndex === index && styles.activeThumbnail
+                  ]}
+                >
+                  <Image source={{ uri: img }} style={styles.thumbnailImage} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         <View style={styles.productInfo}>

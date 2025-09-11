@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,20 +14,36 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../src/context/CartContext';
+import { AuthContext } from '../src/context/AuthContext';
 import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
 import { DELIVERY_COST, WHATSAPP_PHONE } from '../src/config/constants';
+import { supabase } from '../src/integrations/supabase/client'; // Import supabase client
 
 const BasketScreen = ({ navigation }) => {
   const { cart, clearCart, updateItemQuantity, removeFromCart } = useContext(CartContext);
+  const { user, profile } = useContext(AuthContext);
   const { showToast } = useToast();
 
   const [deliveryMethod, setDeliveryMethod] = useState('delivery');
   const [paymentMethod, setPaymentMethod] = useState('kaspi');
-  const [customerName, setCustomerName] = useState('Рауан');
-  const [customerPhone, setCustomerPhone] = useState('87089217812');
-  const [customerAddress, setCustomerAddress] = useState('17-44-42');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
   const [orderComment, setOrderComment] = useState('');
+
+  useEffect(() => {
+    if (profile) {
+      setCustomerName(profile.first_name || '');
+      // Assuming phone number might be in user metadata or a profile field
+      // For now, let's keep it empty or try to get from user.phone if available
+      // setCustomerPhone(user.phone || ''); 
+      // setCustomerAddress(profile.address || ''); // If you add an address field to profile
+    } else if (user) {
+      // If no profile but user is logged in, use email for name or leave empty
+      setCustomerName(user.email || '');
+    }
+  }, [profile, user]);
 
   const getSubtotal = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -53,36 +69,89 @@ const BasketScreen = ({ navigation }) => {
     );
   };
 
-  const handleWhatsAppOrder = () => {
+  const handleWhatsAppOrder = async () => {
     if (!customerName || !customerPhone || (deliveryMethod === 'delivery' && !customerAddress)) {
       showToast('Пожалуйста, заполните все обязательные поля для заказа.', 'error');
       return;
     }
 
-    const orderDetails = cart.map(item => 
-      `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
-    ).join('\n');
-    
-    const message = `*Новый заказ*\n\n` +
-                    `*Имя:* ${customerName}\n` +
-                    `*Телефон:* ${customerPhone}\n` +
-                    `*Способ получения:* ${deliveryMethod === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
-                    (deliveryMethod === 'delivery' && customerAddress ? `*Адрес:* ${customerAddress}\n` : '') +
-                    `*Способ оплаты:* ${paymentMethod === 'kaspi' ? 'Kaspi Перевод' : 'Наличными'}\n` +
-                    (orderComment ? `*Комментарий:* ${orderComment}\n` : '') +
-                    `\n*Товары:*\n${orderDetails}\n\n` +
-                    `*Подытог:* ${getSubtotal().toLocaleString()} ₸\n` +
-                    `*Доставка:* ${deliveryMethod === 'delivery' ? DELIVERY_COST.toLocaleString() : 0} ₸\n` +
-                    `*Итого к оплате:* ${getTotalPrice().toLocaleString()} ₸`;
+    if (cart.length === 0) {
+      showToast('Ваша корзина пуста.', 'error');
+      return;
+    }
 
-    const whatsappUrl = `whatsapp://send?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(message)}`;
-    
-    Linking.openURL(whatsappUrl).then(() => {
-      showToast('Заказ отправлен в WhatsApp!', 'success');
-      clearCart();
-    }).catch(() => {
-      Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве');
-    });
+    const subtotal = getSubtotal();
+    const total = getTotalPrice();
+
+    try {
+      // 1. Insert order into Supabase
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user?.id || null, // null if guest user
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          customer_address: deliveryMethod === 'delivery' ? customerAddress : null,
+          delivery_method: deliveryMethod,
+          payment_method: paymentMethod,
+          order_comment: orderComment,
+          total_price: total,
+          status: 'pending',
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // 2. Insert order items into Supabase
+      const orderItems = cart.map(item => ({
+        order_id: orderData.id,
+        product_id: item.id,
+        product_variant_id: item.variantId, // Assuming variantId is available in cart item
+        product_name: item.name || item.nameRu,
+        product_image: item.image,
+        variant_size: item.size,
+        quantity: item.quantity,
+        price_at_purchase: item.price,
+      }));
+
+      const { error: orderItemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (orderItemsError) throw orderItemsError;
+
+      // 3. Send WhatsApp message
+      const orderDetails = cart.map(item => 
+        `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
+      ).join('\n');
+      
+      const message = `*Новый заказ #${orderData.id}*\n\n` +
+                      `*Имя:* ${customerName}\n` +
+                      `*Телефон:* ${customerPhone}\n` +
+                      `*Способ получения:* ${deliveryMethod === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
+                      (deliveryMethod === 'delivery' && customerAddress ? `*Адрес:* ${customerAddress}\n` : '') +
+                      `*Способ оплаты:* ${paymentMethod === 'kaspi' ? 'Kaspi Перевод' : 'Наличными'}\n` +
+                      (orderComment ? `*Комментарий:* ${orderComment}\n` : '') +
+                      `\n*Товары:*\n${orderDetails}\n\n` +
+                      `*Подытог:* ${subtotal.toLocaleString()} ₸\n` +
+                      `*Доставка:* ${deliveryMethod === 'delivery' ? DELIVERY_COST.toLocaleString() : 0} ₸\n` +
+                      `*Итого к оплате:* ${total.toLocaleString()} ₸`;
+
+      const whatsappUrl = `whatsapp://send?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(message)}`;
+      
+      Linking.openURL(whatsappUrl).then(() => {
+        showToast('Заказ отправлен в WhatsApp и сохранен!', 'success');
+        clearCart();
+      }).catch(() => {
+        Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве, но заказ сохранен.');
+        clearCart();
+      });
+
+    } catch (error) {
+      console.error("Error placing order:", error);
+      showToast(`Ошибка при оформлении заказа: ${error.message}`, 'error');
+    }
   };
 
   const renderCartItem = ({ item }) => (

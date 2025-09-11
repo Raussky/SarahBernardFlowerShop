@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import {
   View,
   Text,
@@ -14,15 +14,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import { useIsFocused } from '@react-navigation/native';
+import { AuthContext } from '../src/context/AuthContext'; // Import AuthContext
 
 const AdminScreen = ({ navigation }) => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [newProduct, setNewProduct] = useState({ name: '', price: '', category_id: null, description: '', image: '' });
-  const [orders, setOrders] = useState([]); // Placeholder for orders
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
-  const isFocused = useIsFocused(); // Hook to re-fetch data when screen is focused
+  const isFocused = useIsFocused();
+  const { profile } = useContext(AuthContext); // Get profile to check for admin status
 
   useEffect(() => {
     if (isFocused) {
@@ -33,6 +35,7 @@ const AdminScreen = ({ navigation }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // Fetch products
       const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*, product_variants(*), categories(name)')
@@ -40,16 +43,24 @@ const AdminScreen = ({ navigation }) => {
       if (productsError) throw productsError;
       setProducts(productsData);
 
+      // Fetch categories
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*');
       if (categoriesError) throw categoriesError;
       setCategories(categoriesData);
 
-      // TODO: Fetch orders data here
-      // const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*');
-      // if (ordersError) throw ordersError;
-      // setOrders(ordersData);
+      // Fetch orders (only if admin)
+      if (profile?.is_admin) {
+        const { data: ordersData, error: ordersError } = await supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (ordersError) throw ordersError;
+        setOrders(ordersData);
+      } else {
+        setOrders([]); // Clear orders if not admin
+      }
 
     } catch (error) {
       showToast(error.message, 'error');
@@ -125,10 +136,31 @@ const AdminScreen = ({ navigation }) => {
     );
   };
 
+  const getDailyOrders = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return orders.filter(order => new Date(order.created_at) >= today).length;
+  };
+
+  const getTotalRevenue = () => {
+    return orders.reduce((sum, order) => sum + parseFloat(order.total_price), 0).toLocaleString();
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
         <ActivityIndicator size="large" color="#FF69B4" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!profile?.is_admin) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <Text style={styles.emptyText}>У вас нет прав администратора для доступа к этой странице.</Text>
+        <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Profile')}>
+          <Text style={styles.shopButtonText}>Вернуться в профиль</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -238,7 +270,10 @@ const AdminScreen = ({ navigation }) => {
           ) : (
             orders.map(order => (
               <View key={order.id} style={styles.orderItem}>
-                <Text>Заказ #{order.id}</Text>
+                <Text style={styles.orderId}>Заказ #{order.id.substring(0, 8)}</Text>
+                <Text style={styles.orderCustomer}>Клиент: {order.customer_name}</Text>
+                <Text style={styles.orderTotal}>Итого: ₸{order.total_price.toLocaleString()}</Text>
+                <Text style={styles.orderStatus}>Статус: {order.status}</Text>
               </View>
             ))
           )}
@@ -249,11 +284,11 @@ const AdminScreen = ({ navigation }) => {
           <Text style={styles.sectionTitle}>Статистика</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>152</Text>
+              <Text style={styles.statNumber}>{getDailyOrders()}</Text>
               <Text style={styles.statLabel}>Заказов сегодня</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statNumber}>₸850K</Text>
+              <Text style={styles.statNumber}>₸{getTotalRevenue()}</Text>
               <Text style={styles.statLabel}>Выручка</Text>
             </View>
           </View>
@@ -360,6 +395,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
+  orderId: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 5,
+  },
+  orderCustomer: {
+    fontSize: 14,
+    color: '#666',
+  },
+  orderTotal: {
+    fontSize: 14,
+    color: '#FF69B4',
+    marginTop: 5,
+  },
+  orderStatus: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#333',
+    marginTop: 5,
+  },
   statsSection: {
     padding: 20,
   },
@@ -415,6 +470,18 @@ const styles = StyleSheet.create({
   },
   selectedCategoryButtonText: {
     color: '#fff',
+  },
+  shopButton: {
+    backgroundColor: '#FF69B4',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  shopButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 
