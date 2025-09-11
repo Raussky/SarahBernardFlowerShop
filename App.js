@@ -43,9 +43,9 @@ function MainTabs() {
         name="Home" 
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Home',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
+          tabBarLabel: 'Главная',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="home-outline" size={24} color={color} />
           ),
         }}
       />
@@ -53,9 +53,9 @@ function MainTabs() {
         name="Saved" 
         component={SavedScreen}
         options={{
-          tabBarLabel: 'Saved',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "heart" : "heart-outline"} size={24} color={color} />
+          tabBarLabel: 'Избранное',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="heart" size={24} color={color} />
           ),
         }}
       />
@@ -63,9 +63,9 @@ function MainTabs() {
         name="Basket" 
         component={BasketScreen}
         options={{
-          tabBarLabel: 'Basket',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "cart" : "cart-outline"} size={24} color={color} />
+          tabBarLabel: 'Корзина',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="cart-outline" size={24} color={color} />
           ),
         }}
       />
@@ -73,9 +73,9 @@ function MainTabs() {
         name="Profile" 
         component={ProfileScreen}
         options={{
-          tabBarLabel: 'Profile',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
+          tabBarLabel: 'Профиль',
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="person-outline" size={24} color={color} />
           ),
         }}
       />
