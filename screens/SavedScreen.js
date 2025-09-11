@@ -88,8 +88,8 @@ const styles = StyleSheet.create({
     maxHeight: 50,
   },
   tab: {
-    paddingHorizontal: 25,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     marginRight: 10,
     borderRadius: 20,
     backgroundColor: '#f5f5f5',
