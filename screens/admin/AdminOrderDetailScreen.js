@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useToast } from '../../src/components/ToastProvider';
+import { useAuth } from '../../src/context/AuthContext'; // Import useAuth
 
 const ORDER_STATUSES = {
   pending: 'Новый',
@@ -18,6 +19,8 @@ const AdminOrderDetailScreen = ({ route, navigation }) => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
+  const { profile } = useAuth(); // Get profile from AuthContext
+  const isAdmin = profile?.is_admin; // Check if user is admin
 
   const fetchOrderDetails = async () => {
     try {
@@ -42,6 +45,10 @@ const AdminOrderDetailScreen = ({ route, navigation }) => {
   }, [orderId]);
 
   const handleUpdateStatus = async (newStatus) => {
+    if (!isAdmin) { // Client-side check for admin status
+      showToast('У вас нет прав для изменения статуса заказа.', 'error');
+      return;
+    }
     try {
       const { error } = await supabase
         .from('orders')
@@ -108,20 +115,22 @@ const AdminOrderDetailScreen = ({ route, navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Статус заказа: {ORDER_STATUSES[order.status]}</Text>
-          <View style={styles.statusSelector}>
-            {Object.keys(ORDER_STATUSES).map(statusKey => (
-              <TouchableOpacity
-                key={statusKey}
-                disabled={order.status === statusKey}
-                style={[styles.statusButton, order.status === statusKey && styles.activeStatusButton]}
-                onPress={() => handleUpdateStatus(statusKey)}
-              >
-                <Text style={[styles.statusButtonText, order.status === statusKey && styles.activeStatusButtonText]}>
-                  {ORDER_STATUSES[statusKey]}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          {isAdmin && ( // Only show status selector if user is admin
+            <View style={styles.statusSelector}>
+              {Object.keys(ORDER_STATUSES).map(statusKey => (
+                <TouchableOpacity
+                  key={statusKey}
+                  disabled={order.status === statusKey}
+                  style={[styles.statusButton, order.status === statusKey && styles.activeStatusButton]}
+                  onPress={() => handleUpdateStatus(statusKey)}
+                >
+                  <Text style={[styles.statusButtonText, order.status === statusKey && styles.activeStatusButtonText]}>
+                    {ORDER_STATUSES[statusKey]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

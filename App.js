@@ -21,7 +21,8 @@ import AllCategoriesScreen from './screens/AllCategoriesScreen';
 
 // Import Admin Screens & Navigator
 import AdminNavigator from './navigation/AdminNavigator';
-import AdminOrderDetailScreen from './screens/admin/AdminOrderDetailScreen';
+// AdminOrderDetailScreen is now managed within AdminNavigator, so no direct import here
+// import AdminOrderDetailScreen from './screens/admin/AdminOrderDetailScreen';
 
 // Import Providers
 import { ToastProvider } from './src/components/ToastProvider';
@@ -113,7 +114,8 @@ export default function App() {
               <Stack.Screen name="Product" component={ProductScreen} />
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="Admin" component={AdminNavigator} />
-              <Stack.Screen name="AdminOrderDetail" component={AdminOrderDetailScreen} />
+              {/* AdminOrderDetailScreen is now part of AdminNavigator, removed from here */}
+              {/* <Stack.Screen name="AdminOrderDetail" component={AdminOrderDetailScreen} /> */}
               <Stack.Screen name="Category" component={CategoryScreen} />
               <Stack.Screen name="EditProduct" component={EditProductScreen} />
               <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
