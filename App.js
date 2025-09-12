@@ -18,7 +18,7 @@ import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import OrderConfirmationScreen from './screens/OrderConfirmationScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import AllCategoriesScreen from './screens/AllCategoriesScreen';
-import UserOrderDetailScreen from './screens/UserOrderDetailScreen'; // Import new UserOrderDetailScreen
+import UserOrderDetailScreen from './screens/UserOrderDetailScreen';
 
 // Import Admin Screens & Navigator
 import AdminNavigator from './navigation/AdminNavigator';
@@ -116,7 +116,7 @@ export default function App() {
               <Stack.Screen name="Category" component={CategoryScreen} />
               <Stack.Screen name="EditProduct" component={EditProductScreen} />
               <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-              <Stack.Screen name="UserOrderDetail" component={UserOrderDetailScreen} /> {/* New screen for users */}
+              <Stack.Screen name="UserOrderDetail" component={UserOrderDetailScreen} />
               <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
               <Stack.Screen name="EditProfile" component={EditProfileScreen} />
               <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
