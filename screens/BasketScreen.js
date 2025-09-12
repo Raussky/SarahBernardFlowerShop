@@ -21,6 +21,7 @@ import { useToast } from '../src/components/ToastProvider';
 import { DELIVERY_COST, WHATSAPP_PHONE } from '../src/config/constants';
 import { supabase } from '../src/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import MaskInput from 'react-native-mask-input'; // Import MaskInput
 
 // Memoized Order Form Component to prevent re-renders on text input
 const OrderForm = memo(({
@@ -32,6 +33,8 @@ const OrderForm = memo(({
   orderComment, setOrderComment,
   phoneError, nameError, addressError
 }) => {
+  const phoneMask = ['+', '7', ' ', '(', /\d/, /\d/, /\d/, ')', ' ', /\d/, /\d/, /\d/, '-', /\d/, /\d/, '-', /\d/, /\d/];
+
   return (
     <View style={styles.formContainer}>
       <Text style={styles.sectionTitle}>Способ получения</Text>
@@ -63,11 +66,12 @@ const OrderForm = memo(({
           {!!nameError && <Text style={styles.errorText}>{nameError}</Text>}
         </View>
         <View style={[styles.inputWrapper, phoneError ? styles.inputWrapperError : {}]}>
-          <TextInput 
+          <MaskInput 
             style={styles.input} 
             placeholder="Телефон" 
             value={customerPhone} 
-            onChangeText={setCustomerPhone} 
+            onChangeText={(masked, unmasked) => setCustomerPhone(masked)} 
+            mask={phoneMask}
             keyboardType="phone-pad" 
             placeholderTextColor="#999"
           />
@@ -135,6 +139,7 @@ const BasketScreen = ({ navigation }) => {
   useEffect(() => {
     if (profile) {
       setCustomerName(profile.first_name || '');
+      setCustomerPhone(profile.phone_number || ''); // Autofill phone number
     } else if (user) {
       setCustomerName(user.email || '');
     }
@@ -151,11 +156,11 @@ const BasketScreen = ({ navigation }) => {
       isValid = false;
     }
     
-    const phoneRegex = /^\+?\d{10,15}$/; // Basic international phone number regex
-    if (!customerPhone.trim()) {
+    const unmaskedPhone = customerPhone.replace(/\D/g, ''); // Remove non-digits for validation
+    if (!unmaskedPhone) {
       setPhoneError('Телефон обязателен');
       isValid = false;
-    } else if (!phoneRegex.test(customerPhone.trim())) {
+    } else if (unmaskedPhone.length < 11) { // Assuming +7 (XXX) XXX-XX-XX format, 11 digits after +7
       setPhoneError('Введите корректный номер телефона');
       isValid = false;
     }
@@ -297,11 +302,11 @@ const BasketScreen = ({ navigation }) => {
       Linking.openURL(whatsappUrl).then(() => {
         showToast('Заказ отправлен в WhatsApp и сохранен!', 'success');
         clearCart();
-        navigation.replace('OrderConfirmation', { orderId: newOrderId }); // Navigate to confirmation screen
+        navigation.replace('OrderConfirmation', { orderId: newOrderId });
       }).catch(() => {
         Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве, но ваш заказ успешно сохранен. Мы скоро с вами свяжемся.');
         clearCart();
-        navigation.replace('OrderConfirmation', { orderId: newOrderId }); // Navigate to confirmation screen
+        navigation.replace('OrderConfirmation', { orderId: newOrderId });
       });
 
     } catch (error) {
@@ -476,9 +481,9 @@ const styles = StyleSheet.create({
   toggleButtonText: { fontSize: 16, color: '#FF69B4', fontWeight: '600' },
   activeToggleButtonText: { color: '#fff' },
   inputGroup: { gap: 10 },
-  inputWrapper: { marginBottom: 10 }, // Added for error text spacing
+  inputWrapper: { marginBottom: 10 },
   input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, fontSize: 16 },
-  inputWrapperError: { borderColor: '#FF0000', borderWidth: 1, borderRadius: 10 }, // Highlight input on error
+  inputWrapperError: { borderColor: '#FF0000', borderWidth: 1, borderRadius: 10 },
   errorText: { color: '#FF0000', fontSize: 12, marginTop: 5, marginLeft: 15 },
   fixedFooter: { 
     position: 'absolute', 

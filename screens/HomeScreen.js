@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ImageBackground,
   Image,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,17 +28,18 @@ const HomeScreen = ({ navigation }) => {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
-  const [recommendedProducts, setRecommendedProducts] = useState([]); // New state for recommended
-  const [banners, setBanners] = useState([]); // New state for banners
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
+  const [banners, setBanners] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Все');
+  const scrollX = useRef(new Animated.Value(0)).current; // For banner pagination
 
   const fetchData = useCallback(async () => {
     try {
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
-        .limit(4);
+        .order('created_at', { ascending: true });
       if (categoriesError) throw categoriesError;
       setCategories(categoriesData);
 
@@ -48,7 +50,6 @@ const HomeScreen = ({ navigation }) => {
       if (productsError) throw productsError;
       setProducts(productsData);
 
-      // Fetch banners
       const { data: bannersData, error: bannersError } = await supabase
         .from('banners')
         .select('*')
@@ -74,7 +75,7 @@ const HomeScreen = ({ navigation }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, () => fetchData()) // Listen to banner changes
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, () => fetchData())
       .subscribe();
 
     return () => {
@@ -102,17 +103,14 @@ const HomeScreen = ({ navigation }) => {
 
     setFilteredProducts(currentFiltered);
 
-    // Logic for recommended products:
-    // Get product IDs from filteredProducts (bestsellers) to exclude them from recommendations
     const bestsellerIds = new Set(currentFiltered.slice(0, 4).map(p => p.id));
     const nonBestsellerProducts = products.filter(p => !bestsellerIds.has(p.id));
 
-    // Sort non-bestsellers by purchase_count descending, then randomly
     const sortedRecommended = [...nonBestsellerProducts]
       .sort((a, b) => (b.purchase_count || 0) - (a.purchase_count || 0))
-      .sort(() => Math.random() - 0.5); // Add some randomness for variety
+      .sort(() => Math.random() - 0.5);
 
-    setRecommendedProducts(sortedRecommended.slice(0, 4)); // Limit to 4 recommended
+    setRecommendedProducts(sortedRecommended.slice(0, 4));
   }, [searchText, activeFilter, products]);
 
   const renderBestsellerFilters = () => (
@@ -129,88 +127,53 @@ const HomeScreen = ({ navigation }) => {
     </ScrollView>
   );
 
+  const handleBannerPress = (banner) => {
+    if (banner.target_type === 'product' && banner.target_id) {
+      // Fetch product details and navigate
+      supabase.from('products').select('*, product_variants(*)').eq('id', banner.target_id).single()
+        .then(({ data, error }) => {
+          if (error) console.error("Error fetching product for banner:", error);
+          if (data) navigation.navigate('Product', { product: data });
+        });
+    } else if (banner.target_type === 'category' && banner.target_id) {
+      // Fetch category details and navigate
+      supabase.from('categories').select('*').eq('id', banner.target_id).single()
+        .then(({ data, error }) => {
+          if (error) console.error("Error fetching category for banner:", error);
+          if (data) navigation.navigate('Category', { category: data });
+        });
+    } else {
+      // Default action or show info toast
+      console.log('Banner pressed:', banner.title);
+    }
+  };
+
   const renderBannerItem = ({ item }) => (
-    <ImageBackground
-      source={{ uri: item.image_url }}
-      style={styles.banner}
-      imageStyle={{ borderRadius: 15 }}
+    <TouchableOpacity 
+      onPress={() => handleBannerPress(item)} 
+      activeOpacity={0.8}
+      style={{ width: width - 40, marginRight: 20 }} // Ensure item width for pagination
     >
-      <View style={styles.bannerContent}>
-        {item.title && <Text style={styles.bannerTitle}>{item.title}</Text>}
-        {item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
-        <TouchableOpacity style={styles.shopButton}>
-          <Text style={styles.shopButtonText}>В магазин</Text>
-        </TouchableOpacity>
-      </View>
-    </ImageBackground>
+      <ImageBackground
+        source={{ uri: item.image_url }}
+        style={styles.banner}
+        imageStyle={{ borderRadius: 15 }}
+      >
+        <View style={styles.bannerContent}>
+          {item.title && <Text style={styles.bannerTitle}>{item.title}</Text>}
+          {item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
+          <TouchableOpacity style={styles.shopButton}>
+            <Text style={styles.shopButtonText}>В магазин</Text>
+          </TouchableOpacity>
+        </View>
+      </ImageBackground>
+    </TouchableOpacity>
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
-        <View style={styles.headerSafeArea}>
-          <View style={styles.header}>
-            <View style={styles.headerTopRow}>
-              <View>
-                <SkeletonLoader width={80} height={15} borderRadius={4} style={{ marginBottom: 5 }} />
-                <SkeletonLoader width={120} height={20} borderRadius={4} />
-              </View>
-              <SkeletonLoader width={40} height={40} borderRadius={20} />
-            </View>
-            <View style={styles.headerBottomRow}>
-              <SkeletonLoader width={'75%'} height={48} borderRadius={12} />
-              <SkeletonLoader width={48} height={48} borderRadius={12} />
-            </View>
-          </View>
-        </View>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-          <SkeletonLoader width={'90%'} height={180} borderRadius={15} style={{ marginHorizontal: 20, marginTop: 20, marginBottom: 25 }} />
-          <Text style={styles.sectionTitle}>Категории</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
-            {[...Array(4)].map((_, i) => (
-              <View key={i} style={styles.categoryItem}>
-                <SkeletonLoader width={70} height={70} borderRadius={35} style={{ marginBottom: 8 }} />
-                <SkeletonLoader width={50} height={12} borderRadius={4} />
-              </View>
-            ))}
-          </ScrollView>
-          <Text style={styles.sectionTitle}>Бест Селлеры</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
-            {[...Array(3)].map((_, i) => (
-              <SkeletonLoader key={i} width={80} height={30} borderRadius={20} style={{ marginRight: 10 }} />
-            ))}
-          </ScrollView>
-          <View style={styles.productRow}>
-            {[...Array(4)].map((_, i) => (
-              <View key={i} style={styles.productCardSkeleton}>
-                <SkeletonLoader width={'100%'} height={180} borderRadius={15} />
-                <View style={{ padding: 12 }}>
-                  <SkeletonLoader width={'80%'} height={15} borderRadius={4} style={{ marginBottom: 4 }} />
-                  <SkeletonLoader width={'60%'} height={12} borderRadius={4} style={{ marginBottom: 8 }} />
-                  <SkeletonLoader width={'50%'} height={16} borderRadius={4} />
-                </View>
-              </View>
-            ))}
-          </View>
-          <SkeletonLoader width={'90%'} height={120} borderRadius={15} style={{ marginHorizontal: 20, marginBottom: 25 }} />
-          <Text style={styles.sectionTitle}>Рекомендовано для Вас</Text>
-          <View style={styles.productRow}>
-            {[...Array(4)].map((_, i) => (
-              <View key={i} style={styles.productCardSkeleton}>
-                <SkeletonLoader width={'100%'} height={180} borderRadius={15} />
-                <View style={{ padding: 12 }}>
-                  <SkeletonLoader width={'80%'} height={15} borderRadius={4} style={{ marginBottom: 4 }} />
-                  <SkeletonLoader width={'60%'} height={12} borderRadius={4} style={{ marginBottom: 8 }} />
-                  <SkeletonLoader width={'50%'} height={16} borderRadius={4} />
-                </View>
-              </View>
-            ))}
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    { useNativeDriver: false }
+  );
 
   return (
     <View style={styles.container}>
@@ -255,17 +218,42 @@ const HomeScreen = ({ navigation }) => {
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {banners.length > 0 ? (
-          <FlatList
-            data={banners}
-            renderItem={renderBannerItem}
-            keyExtractor={item => item.id.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            pagingEnabled
-            snapToInterval={width - 40 + 20} // Item width + margin
-            decelerationRate="fast"
-            contentContainerStyle={styles.bannersListContainer}
-          />
+          <>
+            <FlatList
+              data={banners}
+              renderItem={renderBannerItem}
+              keyExtractor={item => item.id.toString()}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              pagingEnabled
+              snapToInterval={width - 40 + 20} // Item width + margin
+              decelerationRate="fast"
+              contentContainerStyle={styles.bannersListContainer}
+              onScroll={onScroll}
+              scrollEventThrottle={16}
+            />
+            <View style={styles.paginationDots}>
+              {banners.map((_, index) => {
+                const inputRange = [(index - 1) * (width - 20), index * (width - 20), (index + 1) * (width - 20)];
+                const opacity = scrollX.interpolate({
+                  inputRange,
+                  outputRange: [0.3, 1, 0.3],
+                  extrapolate: 'clamp',
+                });
+                const scale = scrollX.interpolate({
+                  inputRange,
+                  outputRange: [0.8, 1.2, 0.8],
+                  extrapolate: 'clamp',
+                });
+                return (
+                  <Animated.View
+                    key={index}
+                    style={[styles.dot, { opacity, transform: [{ scale }] }]}
+                  />
+                );
+              })}
+            </View>
+          </>
         ) : (
           <ImageBackground
             source={{ uri: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=2070&auto=format&fit=crop' }}
@@ -291,7 +279,7 @@ const HomeScreen = ({ navigation }) => {
           showsHorizontalScrollIndicator={false}
           style={styles.categoriesContainer}
         >
-          {categories.map(category => (
+          {categories.slice(0, 4).map(category => (
             <TouchableOpacity 
               key={category.id} 
               style={styles.categoryItem}
@@ -310,6 +298,17 @@ const HomeScreen = ({ navigation }) => {
               <Text style={styles.categoryName}>{category.name}</Text>
             </TouchableOpacity>
           ))}
+          {categories.length > 4 && (
+            <TouchableOpacity 
+              style={styles.categoryItem}
+              onPress={() => navigation.navigate('AllCategories')}
+            >
+              <View style={styles.categoryIcon}>
+                <Ionicons name="grid-outline" size={30} color="#FF69B4" />
+              </View>
+              <Text style={styles.categoryName}>Все</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
 
         <View style={styles.bestsellerSection}>
@@ -371,16 +370,15 @@ const styles = StyleSheet.create({
   headerBottomRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   searchContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 15, height: 48, borderRadius: 12 },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 16 },
-  clearSearchButton: { padding: 5 }, // New style for clear search button
+  clearSearchButton: { padding: 5 },
   filterButton: { backgroundColor: '#fff', width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  bannersListContainer: { // New style for FlatList of banners
+  bannersListContainer: {
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 25,
   },
   banner: { 
-    width: width - 40, // Adjust width for padding
-    marginRight: 20, // Space between banners
+    width: '100%', // Use 100% as parent TouchableOpacity defines width
     borderRadius: 15, 
     padding: 20, 
     minHeight: 180, 
@@ -391,6 +389,19 @@ const styles = StyleSheet.create({
   bannerSubtitle: { fontSize: 14, color: '#fff', marginBottom: 15, lineHeight: 20 },
   shopButton: { backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, alignSelf: 'flex-start' },
   shopButtonText: { color: '#FF69B4', fontWeight: 'bold' },
+  paginationDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: -15, // Adjust to position below banners
+    marginBottom: 10,
+  },
+  dot: {
+    height: 8,
+    width: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF69B4',
+    marginHorizontal: 4,
+  },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginHorizontal: 20, marginBottom: 15 },
   categoriesContainer: { paddingHorizontal: 20, marginBottom: 25 },
   categoryItem: { alignItems: 'center', marginRight: 20 },

@@ -59,6 +59,9 @@ importers:
       react-native-get-random-values:
         specifier: ^1.11.0
         version: 1.11.0(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))
+      react-native-mask-input:
+        specifier: ^1.2.3
+        version: 1.2.3(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
       react-native-safe-area-context:
         specifier: ~5.6.0
         version: 5.6.1(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0)
@@ -2591,6 +2594,12 @@ packages:
 
   react-native-is-edge-to-edge@1.2.1:
     resolution: {integrity: sha512-FLbPWl/MyYQWz+KwqOZsSyj2JmLKglHatd3xLZWskXOpRaio4LfEDEz8E/A6uD8QoTHW6Aobw1jbEwK7KMgR7Q==}
+    peerDependencies:
+      react: '*'
+      react-native: '*'
+
+  react-native-mask-input@1.2.3:
+    resolution: {integrity: sha512-RWx+gc1EaBslJWR6dsvGdILJ5XvnvZuyEsgJaH9uAMukB3Z9eOlxra1E7Ovck8NSMVcYWpBB/lzojO4LwqqXgA==}
     peerDependencies:
       react: '*'
       react-native: '*'
@@ -6439,6 +6448,11 @@ snapshots:
       react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0)
 
   react-native-is-edge-to-edge@1.2.1(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0)
+
+  react-native-mask-input@1.2.3(react-native@0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0))(react@19.1.0):
     dependencies:
       react: 19.1.0
       react-native: 0.81.4(@babel/core@7.28.4)(@react-native-community/cli@13.6.9)(react@19.1.0)

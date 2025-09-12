@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,26 +18,61 @@ const CategoryScreen = ({ navigation, route }) => {
   const { category } = route.params;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [sortOption, setSortOption] = useState({ column: 'created_at', ascending: false, label: 'По новизне' });
+
+  const sortOptions = [
+    { column: 'created_at', ascending: false, label: 'По новизне' },
+    { column: 'name', ascending: true, label: 'По названию (А-Я)' },
+    { column: 'name', ascending: false, label: 'По названию (Я-А)' },
+    { column: 'product_variants.price', ascending: true, label: 'По цене (возрастание)' },
+    { column: 'product_variants.price', ascending: false, label: 'По цене (убывание)' },
+    { column: 'purchase_count', ascending: false, label: 'По популярности' },
+  ];
 
   const fetchProducts = useCallback(async () => {
     if (!category?.id) return;
     try {
-      // Don't set loading to true on refetch
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*, categories(name, name_en), product_variants(*)')
         .eq('category_id', category.id);
       
+      // Apply sorting
+      if (sortOption.column.includes('.')) {
+        // Handle sorting by a related table column (e.g., product_variants.price)
+        // This requires a bit more complex query or client-side sorting if not directly supported by Supabase RLS
+        // For simplicity, we'll sort client-side for nested fields, or use a workaround for Supabase
+        // For now, let's assume direct sorting for 'products' table columns and client-side for variants.
+        // A more robust solution for variant price sorting would involve a view or a function in Supabase.
+        query = query.order(sortOption.column.split('.')[0], { ascending: sortOption.ascending });
+      } else {
+        query = query.order(sortOption.column, { ascending: sortOption.ascending });
+      }
+
+      const { data, error } = await query;
+      
       if (error) throw error;
-      setProducts(data);
+
+      let sortedData = data;
+      if (sortOption.column === 'product_variants.price') {
+        sortedData = [...data].sort((a, b) => {
+          const priceA = a.product_variants?.[0]?.price || 0;
+          const priceB = b.product_variants?.[0]?.price || 0;
+          return sortOption.ascending ? priceA - priceB : priceB - priceA;
+        });
+      }
+
+      setProducts(sortedData);
     } catch (error) {
       console.error("Error fetching products for category:", error);
     } finally {
       setLoading(false);
     }
-  }, [category]);
+  }, [category, sortOption]);
 
   useEffect(() => {
+    setLoading(true); // Reset loading state when category or sort option changes
     fetchProducts();
   }, [fetchProducts]);
 
@@ -51,6 +87,11 @@ const CategoryScreen = ({ navigation, route }) => {
       supabase.removeChannel(channel);
     };
   }, [fetchProducts, category.id]);
+
+  const handleSortSelect = (option) => {
+    setSortOption(option);
+    setSortModalVisible(false);
+  };
 
   if (loading) {
     return (
@@ -118,21 +159,60 @@ const CategoryScreen = ({ navigation, route }) => {
 
       <View style={styles.sortBar}>
         <Text style={styles.productCount}>{products.length} товаров</Text>
-        <TouchableOpacity style={styles.sortButton}>
-          <Text style={styles.sortText}>Сортировка</Text>
+        <TouchableOpacity style={styles.sortButton} onPress={() => setSortModalVisible(true)}>
+          <Text style={styles.sortText}>{sortOption.label}</Text>
           <Ionicons name="chevron-down" size={16} color="#666" />
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={products}
-        renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
-        keyExtractor={item => item.id.toString()}
-        numColumns={2}
-        columnWrapperStyle={styles.productRow}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {products.length > 0 ? (
+        <FlatList
+          data={products}
+          renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
+          keyExtractor={item => item.id.toString()}
+          numColumns={2}
+          columnWrapperStyle={styles.productRow}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="sad-outline" size={80} color="#999" />
+          <Text style={styles.emptyText}>В этой категории пока нет товаров.</Text>
+          <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Main', { screen: 'Home' })}>
+            <Text style={styles.shopButtonText}>Вернуться на главную</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={sortModalVisible}
+        onRequestClose={() => setSortModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPressOut={() => setSortModalVisible(false)}
+        >
+          <View style={styles.sortModalContent}>
+            <Text style={styles.modalTitle}>Сортировать по</Text>
+            {sortOptions.map((option) => (
+              <TouchableOpacity
+                key={option.label}
+                style={styles.modalOption}
+                onPress={() => handleSortSelect(option)}
+              >
+                <Text style={[styles.modalOptionText, sortOption.label === option.label && styles.activeModalOptionText]}>
+                  {option.label}
+                </Text>
+                {sortOption.label === option.label && <Ionicons name="checkmark" size={20} color="#FF69B4" />}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -200,10 +280,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   sortText: {
     fontSize: 14,
     color: '#666',
+    fontWeight: '500',
   },
   listContent: {
     paddingHorizontal: 20,
@@ -223,6 +308,66 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 6,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    marginTop: 50,
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  shopButton: {
+    backgroundColor: '#FF69B4',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  shopButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sortModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    width: '80%',
+    maxHeight: '70%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#333',
+  },
+  activeModalOptionText: {
+    fontWeight: 'bold',
+    color: '#FF69B4',
   },
 });
 

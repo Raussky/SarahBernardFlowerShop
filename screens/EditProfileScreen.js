@@ -18,6 +18,7 @@ import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
 import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
+import MaskInput from 'react-native-mask-input'; // Import MaskInput
 
 const EditProfileScreen = ({ navigation }) => {
   const { user, profile } = useAuth();
@@ -25,13 +26,17 @@ const EditProfileScreen = ({ navigation }) => {
 
   const [firstName, setFirstName] = useState(profile?.first_name || '');
   const [lastName, setLastName] = useState(profile?.last_name || '');
+  const [phoneNumber, setPhoneNumber] = useState(profile?.phone_number || ''); // New state for phone number
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || null);
   const [loading, setLoading] = useState(false);
+
+  const phoneMask = ['+', '7', ' ', '(', /\d/, /\d/, /\d/, ')', ' ', /\d/, /\d/, /\d/, '-', /\d/, /\d/, '-', /\d/, /\d/];
 
   useEffect(() => {
     if (profile) {
       setFirstName(profile.first_name || '');
       setLastName(profile.last_name || '');
+      setPhoneNumber(profile.phone_number || ''); // Set phone number from profile
       setAvatarUrl(profile.avatar_url || null);
     }
   }, [profile]);
@@ -84,6 +89,7 @@ const EditProfileScreen = ({ navigation }) => {
         .update({
           first_name: firstName,
           last_name: lastName,
+          phone_number: phoneNumber, // Save phone number
           avatar_url: newAvatarUrl,
           updated_at: new Date().toISOString(),
         })
@@ -153,6 +159,17 @@ const EditProfileScreen = ({ navigation }) => {
             onChangeText={setLastName}
             placeholder="Ваша фамилия"
             autoCapitalize="words"
+            placeholderTextColor="#999"
+          />
+
+          <Text style={styles.label}>Номер телефона</Text>
+          <MaskInput
+            style={styles.input}
+            value={phoneNumber}
+            onChangeText={(masked, unmasked) => setPhoneNumber(masked)}
+            mask={phoneMask}
+            keyboardType="phone-pad"
+            placeholder="Ваш номер телефона"
             placeholderTextColor="#999"
           />
 

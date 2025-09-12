@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/context/AuthContext';
@@ -45,12 +45,13 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.storeDescription}>Магазин цветов</Text>
         </View>
 
-        <View style={styles.menu}>
+        <View style={styles.menuGroup}>
+          <Text style={styles.menuGroupTitle}>Мой аккаунт</Text>
           {user ? (
             <>
               <TouchableOpacity 
                 style={styles.menuItem}
-                onPress={() => navigation.navigate('EditProfile')} // New navigation
+                onPress={() => navigation.navigate('EditProfile')}
               >
                 <Ionicons name="person-circle-outline" size={24} color="#FF69B4" />
                 <Text style={styles.menuText}>Редактировать профиль</Text>
@@ -95,7 +96,10 @@ const ProfileScreen = ({ navigation }) => {
               <Ionicons name="chevron-forward" size={20} color="#999" />
             </TouchableOpacity>
           )}
+        </View>
 
+        <View style={styles.menuGroup}>
+          <Text style={styles.menuGroupTitle}>Поддержка и информация</Text>
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="help-circle-outline" size={24} color="#FF69B4" />
             <Text style={styles.menuText}>Помощь</Text>
@@ -146,7 +150,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
-    overflow: 'hidden', // Ensure image stays within bounds
+    overflow: 'hidden',
   },
   avatarImage: {
     width: '100%',
@@ -167,8 +171,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  menu: {
-    gap: 15,
+  menuGroup: {
+    marginBottom: 20,
+  },
+  menuGroupTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+    marginLeft: 5,
   },
   menuItem: {
     flexDirection: 'row',
@@ -177,6 +188,7 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 12,
     gap: 15,
+    marginBottom: 10, // Spacing between items within a group
   },
   menuText: {
     flex: 1,

@@ -17,6 +17,7 @@ import EditProductScreen from './screens/EditProductScreen';
 import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import OrderConfirmationScreen from './screens/OrderConfirmationScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
+import AllCategoriesScreen from './screens/AllCategoriesScreen'; // New import
 
 // Import Admin Screens & Navigator
 import AdminNavigator from './navigation/AdminNavigator';
@@ -118,6 +119,7 @@ export default function App() {
               <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
               <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
               <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+              <Stack.Screen name="AllCategories" component={AllCategoriesScreen} /> {/* New screen */}
             </Stack.Navigator>
           </NavigationContainer>
         </ToastProvider>

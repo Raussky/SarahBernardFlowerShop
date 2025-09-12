@@ -29,13 +29,13 @@ const ProductScreen = ({ navigation, route }) => {
   const variants = product.product_variants || [];
   const [selectedVariant, setSelectedVariant] = useState(variants.length > 0 ? variants[0] : null);
   const [recommended, setRecommended] = useState([]);
-  const [productImages, setProductImages] = useState([]); // New state for product images
-  const [activeImageIndex, setActiveImageIndex] = useState(0); // For image carousel
+  const [productImages, setProductImages] = useState([]);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   const isVariantOutOfStock = selectedVariant?.stock_quantity <= 0;
 
   const addToCartButtonScale = useRef(new Animated.Value(1)).current;
-  const scrollX = useRef(new Animated.Value(0)).current; // For image carousel pagination
+  const scrollX = useRef(new Animated.Value(0)).current;
 
   const handleAddToCartPressIn = () => {
     Animated.spring(addToCartButtonScale, { toValue: 0.95, useNativeDriver: true }).start();
@@ -47,35 +47,33 @@ const ProductScreen = ({ navigation, route }) => {
   const fetchProductDetails = useCallback(async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('*, product_variants(*), product_images(*)') // Fetch product_images
+      .select('*, product_variants(*), product_images(*)')
       .eq('id', initialProduct.id)
       .single();
     
     if (!error && data) {
       setProduct(data);
-      // Reselect variant if it still exists
       const currentSelectedId = selectedVariant?.id;
       const newVariants = data.product_variants || [];
       const newSelectedVariant = newVariants.find(v => v.id === currentSelectedId) || (newVariants.length > 0 ? newVariants[0] : null);
       setSelectedVariant(newSelectedVariant);
 
-      // Set product images, including the main image
       const images = data.product_images ? data.product_images.map(img => img.image_url) : [];
       if (data.image && !images.includes(data.image)) {
-        images.unshift(data.image); // Add main image to the beginning if not already there
+        images.unshift(data.image);
       }
       setProductImages(images);
     }
   }, [initialProduct.id, selectedVariant]);
 
   useEffect(() => {
-    fetchProductDetails(); // Initial fetch
+    fetchProductDetails();
 
     const channel = supabase
       .channel(`public:product:${initialProduct.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `id=eq.${initialProduct.id}` }, fetchProductDetails)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants', filter: `product_id=eq.${initialProduct.id}` }, fetchProductDetails)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images', filter: `product_id=eq.${initialProduct.id}` }, fetchProductDetails) // Listen to product_images changes
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images', filter: `product_id=eq.${initialProduct.id}` }, fetchProductDetails)
       .subscribe();
 
     return () => {
@@ -89,7 +87,7 @@ const ProductScreen = ({ navigation, route }) => {
         .from('products')
         .select('*, product_variants(*)')
         .neq('id', product.id)
-        .order('purchase_count', { ascending: false }) // Order by purchase count
+        .order('purchase_count', { ascending: false })
         .limit(5);
       
       if (!error && data) {
@@ -146,7 +144,7 @@ const ProductScreen = ({ navigation, route }) => {
     }
   };
 
-  const onScroll = Animated.event(
+  const onScrollEvent = Animated.event(
     [{ nativeEvent: { contentOffset: { x: scrollX } } }],
     { useNativeDriver: false }
   );
@@ -184,7 +182,7 @@ const ProductScreen = ({ navigation, route }) => {
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
-                onScroll={onScroll}
+                onScroll={onScrollEvent}
                 onMomentumScrollEnd={handleScrollEnd}
                 scrollEventThrottle={16}
                 contentContainerStyle={styles.carouselContentContainer}
@@ -220,7 +218,7 @@ const ProductScreen = ({ navigation, route }) => {
           {variants.length > 0 && (
             <View style={styles.sizeSection}>
               <Text style={styles.sectionTitle}>Варианты</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.variantsScrollContainer}>
                 {variants.map((variant) => (
                   <TouchableOpacity
                     key={variant.id}
@@ -239,6 +237,9 @@ const ProductScreen = ({ navigation, route }) => {
                     ]}>
                       {variant.size}
                     </Text>
+                    {variant.stock_quantity <= 0 && (
+                      <Text style={styles.outOfStockVariantText}>Нет в наличии</Text>
+                    )}
                   </TouchableOpacity>
                 ))}
               </ScrollView>
@@ -284,6 +285,7 @@ const ProductScreen = ({ navigation, route }) => {
                 keyExtractor={item => item.id.toString()}
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recommendedListContent}
               />
             </View>
           )}
@@ -325,9 +327,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
   headerTitle: { fontSize: 18, fontWeight: '600' },
   productTitle: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, paddingHorizontal: 20 },
-  imageCarouselContainer: { marginBottom: 20, position: 'relative' }, // New style for carousel container
-  carouselImage: { width: width - 40, height: width - 40, borderRadius: 20, marginHorizontal: 10 }, // New style for carousel images
-  carouselContentContainer: { paddingHorizontal: 10 }, // Padding for FlatList
+  imageCarouselContainer: { marginBottom: 20, position: 'relative' },
+  carouselImage: { width: width - 40, height: width - 40, borderRadius: 20, marginHorizontal: 10 },
+  carouselContentContainer: { paddingHorizontal: 10 },
   paginationDots: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -347,18 +349,27 @@ const styles = StyleSheet.create({
   detailsSection: { marginBottom: 25 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   description: { fontSize: 14, color: '#666', lineHeight: 22, marginBottom: 10 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 }, // New style for detail rows
-  detailIcon: { marginRight: 8 }, // New style for detail icons
-  detailText: { fontSize: 14, color: '#666' }, // New style for detail text
-  detailLabel: { fontWeight: '600' }, // New style for detail labels
+  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  detailIcon: { marginRight: 8 },
+  detailText: { fontSize: 14, color: '#666' },
+  detailLabel: { fontWeight: '600' },
   sizeSection: { marginBottom: 25 },
-  sizeButton: { minWidth: 50, height: 50, paddingHorizontal: 15, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', marginRight: 15 },
+  variantsScrollContainer: { paddingRight: 10 }, // Added for horizontal scroll
+  sizeButton: { minWidth: 50, height: 50, paddingHorizontal: 15, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', marginRight: 15, position: 'relative' },
   selectedSize: { backgroundColor: '#FF69B4', transform: [{ scale: 1.1 }] },
   disabledSize: { backgroundColor: '#f5f5f5', opacity: 0.5 },
   sizeText: { fontSize: 16, color: '#666', fontWeight: '500' },
   selectedSizeText: { color: '#fff', fontWeight: 'bold' },
   disabledSizeText: { textDecorationLine: 'line-through' },
+  outOfStockVariantText: { // New style for out of stock variant
+    position: 'absolute',
+    bottom: -20,
+    fontSize: 10,
+    color: '#D32F2F',
+    fontWeight: 'bold',
+  },
   recommendedSection: { marginBottom: 25 },
+  recommendedListContent: { paddingRight: 20 }, // Added for horizontal scroll
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 15, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#f0f0f0', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   priceContainer: { flex: 0.8 },
   totalLabel: { fontSize: 14, color: '#999', marginBottom: 2 },
