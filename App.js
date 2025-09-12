@@ -16,7 +16,7 @@ import ProfileScreen from './screens/ProfileScreen';
 import EditProductScreen from './screens/EditProductScreen';
 import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import OrderConfirmationScreen from './screens/OrderConfirmationScreen';
-import EditProfileScreen from './screens/EditProfileScreen'; // New import
+import EditProfileScreen from './screens/EditProfileScreen';
 
 // Import Admin Screens & Navigator
 import AdminNavigator from './navigation/AdminNavigator';
@@ -117,7 +117,7 @@ export default function App() {
               <Stack.Screen name="EditProduct" component={EditProductScreen} />
               <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
               <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
-              <Stack.Screen name="EditProfile" component={EditProfileScreen} /> {/* New screen */}
+              <Stack.Screen name="EditProfile" component={EditProfileScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </ToastProvider>
