@@ -17,25 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base-64';
 import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
-
-// Helper function to get Blob from file URI using XMLHttpRequest
-const getBlobFromUri = async (uri) => {
-  const blob = await new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.onload = function () {
-      resolve(xhr.response);
-    };
-    xhr.onerror = function (e) {
-      console.error("XHR error:", e);
-      reject(new TypeError('Network request failed'));
-    };
-    xhr.responseType = 'blob';
-    xhr.open('GET', uri, true);
-    xhr.send(null);
-  });
-  return blob;
-};
 
 const EditProductScreen = ({ navigation, route }) => {
   const { productId } = route.params;
@@ -83,7 +67,6 @@ const EditProductScreen = ({ navigation, route }) => {
           setCareInstructions(productData.care_instructions || '');
           setCategoryId(productData.category_id);
 
-          // Combine main image and gallery images into one array
           const allImages = [];
           if (productData.image) allImages.push(productData.image);
           if (productData.product_images) {
@@ -152,19 +135,25 @@ const EditProductScreen = ({ navigation, route }) => {
   };
 
   const uploadImage = async (uri) => {
-    const fileExt = uri.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `public/${fileName}`;
+    try {
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      const fileExt = uri.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `public/${fileName}`;
+      const contentType = `image/${fileExt}`;
 
-    const blob = await getBlobFromUri(uri);
-    
-    const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, blob, {
-      contentType: `image/${fileExt}`,
-    });
-    if (uploadError) throw uploadError;
+      const { data, error } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, decode(base64), { contentType });
 
-    const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
-    return data.publicUrl;
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      return publicUrlData.publicUrl;
+    } catch (e) {
+      console.error("Upload error:", e);
+      throw e;
+    }
   };
 
   const handleSave = async () => {
@@ -174,16 +163,14 @@ const EditProductScreen = ({ navigation, route }) => {
     }
     setSaving(true);
     try {
-      // 1. Upload new local images and get all final URLs
       const uploadPromises = images.map(imgUri => {
         if (imgUri.startsWith('file://')) {
           return uploadImage(imgUri);
         }
-        return Promise.resolve(imgUri); // It's already a remote URL
+        return Promise.resolve(imgUri);
       });
       const finalImageUrls = await Promise.all(uploadPromises);
 
-      // 2. Upsert Product Info
       const mainImage = finalImageUrls.length > 0 ? finalImageUrls[0] : null;
       const { data: productData, error: productError } = await supabase
         .from('products')
@@ -203,20 +190,16 @@ const EditProductScreen = ({ navigation, route }) => {
       if (productError) throw productError;
       const savedProductId = productData.id;
 
-      // 3. Sync product_images table (delete all and re-insert)
-      const { error: deleteError } = await supabase.from('product_images').delete().eq('product_id', savedProductId);
-      if (deleteError) throw deleteError;
+      await supabase.from('product_images').delete().eq('product_id', savedProductId);
 
       if (finalImageUrls.length > 0) {
         const imagesToInsert = finalImageUrls.map(url => ({
           product_id: savedProductId,
           image_url: url,
         }));
-        const { error: insertError } = await supabase.from('product_images').insert(imagesToInsert);
-        if (insertError) throw insertError;
+        await supabase.from('product_images').insert(imagesToInsert);
       }
 
-      // 4. Handle variants (same logic as before)
       const variantsToUpsert = variants.map(v => ({
         id: v.id,
         product_id: savedProductId,
@@ -224,8 +207,7 @@ const EditProductScreen = ({ navigation, route }) => {
         price: parseFloat(v.price) || 0,
         stock_quantity: parseInt(v.stock_quantity, 10) || 0,
       }));
-      const { error: variantsUpsertError } = await supabase.from('product_variants').upsert(variantsToUpsert);
-      if (variantsUpsertError) throw variantsUpsertError;
+      await supabase.from('product_variants').upsert(variantsToUpsert);
 
       const currentVariantIds = new Set(variants.map(v => v.id).filter(Boolean));
       const variantsToDelete = initialVariants.filter(v => !currentVariantIds.has(v.id));
