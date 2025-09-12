@@ -64,7 +64,7 @@ const LoginScreen = ({ navigation }) => {
       showToast(error.message, 'error');
     } else {
       showToast('Вход выполнен успешно!', 'success');
-      navigation.navigate('Profile');
+      navigation.navigate('Main', { screen: 'Profile' });
     }
     setLoading(false);
   };
