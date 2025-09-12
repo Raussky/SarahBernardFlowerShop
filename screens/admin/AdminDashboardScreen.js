@@ -14,7 +14,15 @@ const StatCard = ({ icon, title, value, color }) => (
 );
 
 const AdminDashboardScreen = ({ navigation }) => {
-  const [stats, setStats] = useState({ newOrders: 0, revenueToday: 0, activeOrders: 0, totalRevenue: 0, totalOrders: 0 });
+  const [stats, setStats] = useState({
+    newOrders: 0,
+    revenueToday: 0,
+    activeOrders: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    revenue7days: 0,
+    bestseller: '...',
+  });
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const isFocused = useIsFocused();
@@ -26,54 +34,50 @@ const AdminDashboardScreen = ({ navigation }) => {
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
-      // Fetch stats for today
-      const { data: newOrdersData, error: newOrdersError } = await supabase
-        .from('orders')
-        .select('id', { count: 'exact' })
-        .gte('created_at', todayISO);
-      if (newOrdersError) throw newOrdersError;
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const sevenDaysAgoISO = sevenDaysAgo.toISOString();
 
-      const { data: revenueTodayData, error: revenueTodayError } = await supabase
-        .from('orders')
-        .select('total_price')
-        .gte('created_at', todayISO);
-      if (revenueTodayError) throw revenueTodayError;
-      const totalRevenueToday = revenueTodayData.reduce((sum, order) => sum + order.total_price, 0);
+      // --- Parallel fetching for performance ---
+      const [
+        newOrdersRes,
+        revenueTodayRes,
+        activeOrdersRes,
+        totalOrdersRes,
+        totalRevenueRes,
+        revenue7daysRes,
+        bestsellerRes,
+        recentOrdersRes,
+      ] = await Promise.all([
+        supabase.from('orders').select('id', { count: 'exact' }).gte('created_at', todayISO),
+        supabase.from('orders').select('total_price').gte('created_at', todayISO),
+        supabase.from('orders').select('id', { count: 'exact' }).in('status', ['pending', 'processing', 'shipping']),
+        supabase.from('orders').select('id', { count: 'exact' }),
+        supabase.from('orders').select('total_price'),
+        supabase.from('orders').select('total_price').gte('created_at', sevenDaysAgoISO),
+        supabase.rpc('get_bestseller_last_30_days'),
+        supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(5),
+      ]);
 
-      // Fetch general stats
-      const { data: activeOrdersData, error: activeOrdersError } = await supabase
-        .from('orders')
-        .select('id', { count: 'exact' })
-        .in('status', ['pending', 'processing', 'shipping']);
-      if (activeOrdersError) throw activeOrdersError;
-
-      const { data: totalOrdersData, error: totalOrdersError } = await supabase
-        .from('orders')
-        .select('id', { count: 'exact' });
-      if (totalOrdersError) throw totalOrdersError;
-
-      const { data: totalRevenueData, error: totalRevenueError } = await supabase
-        .from('orders')
-        .select('total_price');
-      if (totalRevenueError) throw totalRevenueError;
-      const totalRevenueAllTime = totalRevenueData.reduce((sum, order) => sum + order.total_price, 0);
-
-      // Fetch recent orders
-      const { data: recentOrdersData, error: recentOrdersError } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-      if (recentOrdersError) throw recentOrdersError;
+      // --- Process results ---
+      const totalRevenueToday = revenueTodayRes.data?.reduce((sum, order) => sum + order.total_price, 0) || 0;
+      const totalRevenueAllTime = totalRevenueRes.data?.reduce((sum, order) => sum + order.total_price, 0) || 0;
+      const totalRevenue7days = revenue7daysRes.data?.reduce((sum, order) => sum + order.total_price, 0) || 0;
+      const bestsellerData = bestsellerRes.data;
+      const bestseller = bestsellerData && bestsellerData.length > 0 
+        ? `${bestsellerData[0].product_name} (${bestsellerData[0].total_quantity} шт.)` 
+        : 'Нет данных';
 
       setStats({
-        newOrders: newOrdersData.length,
+        newOrders: newOrdersRes.data?.length || 0,
         revenueToday: totalRevenueToday,
-        activeOrders: activeOrdersData.length,
-        totalOrders: totalOrdersData.length,
+        activeOrders: activeOrdersRes.data?.length || 0,
+        totalOrders: totalOrdersRes.data?.length || 0,
         totalRevenue: totalRevenueAllTime,
+        revenue7days: totalRevenue7days,
+        bestseller: bestseller,
       });
-      setRecentOrders(recentOrdersData);
+      setRecentOrders(recentOrdersRes.data || []);
 
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -106,9 +110,11 @@ const AdminDashboardScreen = ({ navigation }) => {
         <View style={styles.statsGrid}>
           <StatCard icon="receipt-outline" title="Новых заказов сегодня" value={stats.newOrders} color="#2196F3" />
           <StatCard icon="cash-outline" title="Выручка сегодня" value={`₸${stats.revenueToday.toLocaleString()}`} color="#4CAF50" />
+          <StatCard icon="trending-up-outline" title="Выручка за 7 дней" value={`₸${stats.revenue7days.toLocaleString()}`} color="#4CAF50" />
           <StatCard icon="hourglass-outline" title="Активных заказов" value={stats.activeOrders} color="#FFC107" />
           <StatCard icon="stats-chart-outline" title="Всего заказов" value={stats.totalOrders} color="#9C27B0" />
-          <StatCard icon="wallet-outline" title="Общая выручка" value={`₸${stats.totalRevenue.toLocaleString()}`} color="#E91E63" />
+          <StatCard icon="wallet-outline" title="Выручка (все время)" value={`₸${stats.totalRevenue.toLocaleString()}`} color="#E91E63" />
+          <StatCard icon="star-outline" title="Хит продаж (30 дней)" value={stats.bestseller} color="#FF9800" />
         </View>
 
         <View style={styles.section}>
@@ -155,8 +161,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    minHeight: 120,
+    justifyContent: 'center',
   },
-  statValue: { fontSize: 22, fontWeight: 'bold', marginVertical: 5 },
+  statValue: { fontSize: 18, fontWeight: 'bold', marginVertical: 5, textAlign: 'center' },
   statTitle: { fontSize: 12, color: '#666', textAlign: 'center' },
   section: { paddingHorizontal: 20, marginTop: 10 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
