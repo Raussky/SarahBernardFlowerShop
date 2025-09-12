@@ -2,11 +2,13 @@ import React, { useContext, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../context/CartContext';
+import { useToast } from './ToastProvider'; // Import useToast
 
 const { width } = Dimensions.get('window');
 
 const ProductCard = ({ product, navigation }) => {
-  const { toggleSaved, saved } = useContext(CartContext);
+  const { toggleSaved, saved, addToCart } = useContext(CartContext); // Add addToCart
+  const { showToast } = useToast(); // Use toast
   const isSaved = saved.find(i => i.id === product.id);
 
   const displayPrice = product.product_variants && product.product_variants.length > 0
@@ -14,6 +16,9 @@ const ProductCard = ({ product, navigation }) => {
     : 0;
 
   const isOutOfStock = !product.product_variants || product.product_variants.every(v => v.stock_quantity <= 0);
+  const hasSingleVariant = product.product_variants && product.product_variants.length === 1;
+  const singleVariant = hasSingleVariant ? product.product_variants[0] : null;
+  const canAddToCartDirectly = hasSingleVariant && !isOutOfStock;
 
   const cardScale = useRef(new Animated.Value(1)).current;
   const handleCardPressIn = () => {
@@ -29,6 +34,23 @@ const ProductCard = ({ product, navigation }) => {
       Animated.timing(heartScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
       Animated.spring(heartScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }),
     ]).start();
+  };
+
+  const handleDirectAddToCart = () => {
+    if (canAddToCartDirectly && singleVariant) {
+      const item = {
+        id: product.id,
+        name: product.name,
+        nameRu: product.name_ru,
+        image: product.image,
+        size: singleVariant.size,
+        price: singleVariant.price,
+        variantId: singleVariant.id,
+        stock_quantity: singleVariant.stock_quantity,
+      };
+      addToCart(item);
+      showToast('Товар добавлен в корзину', 'success');
+    }
   };
 
   return (
@@ -69,13 +91,22 @@ const ProductCard = ({ product, navigation }) => {
         </Animated.View>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.addButton, isOutOfStock && styles.addButtonDisabled]}
-        onPress={() => navigation.navigate('Product', { product })}
-        disabled={isOutOfStock}
-      >
-        <Text style={styles.addButtonText}>+</Text>
-      </TouchableOpacity>
+      {canAddToCartDirectly ? (
+        <TouchableOpacity
+          style={styles.addToCartButton}
+          onPress={handleDirectAddToCart}
+        >
+          <Ionicons name="add" size={20} color="#fff" />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.addButton, isOutOfStock && styles.addButtonDisabled]}
+          onPress={() => navigation.navigate('Product', { product })}
+          disabled={isOutOfStock}
+        >
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 };
@@ -159,6 +190,17 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     lineHeight: 24,
+  },
+  addToCartButton: { // New style for direct add to cart
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: '#FF69B4', // Pink color for direct add
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

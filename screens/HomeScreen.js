@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   ImageBackground,
   Image,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,11 +20,15 @@ import ProductCard from '../src/components/ProductCard';
 import { DEFAULT_CITY } from '../src/config/constants';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 
+const { width } = Dimensions.get('window');
+
 const HomeScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
+  const [recommendedProducts, setRecommendedProducts] = useState([]); // New state for recommended
+  const [banners, setBanners] = useState([]); // New state for banners
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Все');
 
@@ -43,6 +48,15 @@ const HomeScreen = ({ navigation }) => {
       if (productsError) throw productsError;
       setProducts(productsData);
 
+      // Fetch banners
+      const { data: bannersData, error: bannersError } = await supabase
+        .from('banners')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      if (bannersError) throw bannersError;
+      setBanners(bannersData);
+
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -56,10 +70,11 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     const channel = supabase
-      .channel('public:products_and_variants_and_categories')
+      .channel('public:home_screen_data')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, () => fetchData()) // Listen to banner changes
       .subscribe();
 
     return () => {
@@ -86,6 +101,18 @@ const HomeScreen = ({ navigation }) => {
     }
 
     setFilteredProducts(currentFiltered);
+
+    // Logic for recommended products:
+    // Get product IDs from filteredProducts (bestsellers) to exclude them from recommendations
+    const bestsellerIds = new Set(currentFiltered.slice(0, 4).map(p => p.id));
+    const nonBestsellerProducts = products.filter(p => !bestsellerIds.has(p.id));
+
+    // Sort non-bestsellers by purchase_count descending, then randomly
+    const sortedRecommended = [...nonBestsellerProducts]
+      .sort((a, b) => (b.purchase_count || 0) - (a.purchase_count || 0))
+      .sort(() => Math.random() - 0.5); // Add some randomness for variety
+
+    setRecommendedProducts(sortedRecommended.slice(0, 4)); // Limit to 4 recommended
   }, [searchText, activeFilter, products]);
 
   const renderBestsellerFilters = () => (
@@ -100,6 +127,22 @@ const HomeScreen = ({ navigation }) => {
         </TouchableOpacity>
       ))}
     </ScrollView>
+  );
+
+  const renderBannerItem = ({ item }) => (
+    <ImageBackground
+      source={{ uri: item.image_url }}
+      style={styles.banner}
+      imageStyle={{ borderRadius: 15 }}
+    >
+      <View style={styles.bannerContent}>
+        {item.title && <Text style={styles.bannerTitle}>{item.title}</Text>}
+        {item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
+        <TouchableOpacity style={styles.shopButton}>
+          <Text style={styles.shopButtonText}>В магазин</Text>
+        </TouchableOpacity>
+      </View>
+    </ImageBackground>
   );
 
   if (loading) {
@@ -197,6 +240,11 @@ const HomeScreen = ({ navigation }) => {
                 onChangeText={setSearchText}
                 placeholderTextColor="#999"
               />
+              {searchText.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchText('')} style={styles.clearSearchButton}>
+                  <Ionicons name="close-circle" size={20} color="#999" />
+                </TouchableOpacity>
+              )}
             </View>
             <TouchableOpacity style={styles.filterButton}>
               <Ionicons name="options-outline" size={24} color="#333" />
@@ -206,22 +254,36 @@ const HomeScreen = ({ navigation }) => {
       </SafeAreaView>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        <ImageBackground
-          source={{ uri: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=2070&auto=format&fit=crop' }}
-          style={styles.banner}
-          imageStyle={{ borderRadius: 15 }}
-        >
-          <View style={styles.bannerContent}>
-            <Text style={styles.bannerTitle}>SARAH BERNARD</Text>
-            <Text style={styles.bannerSubtitle}>
-              Сделайте каждый момент ярче{'\n'}
-              с идеальным цветком.
-            </Text>
-            <TouchableOpacity style={styles.shopButton}>
-              <Text style={styles.shopButtonText}>В магазин</Text>
-            </TouchableOpacity>
-          </View>
-        </ImageBackground>
+        {banners.length > 0 ? (
+          <FlatList
+            data={banners}
+            renderItem={renderBannerItem}
+            keyExtractor={item => item.id.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            pagingEnabled
+            snapToInterval={width - 40 + 20} // Item width + margin
+            decelerationRate="fast"
+            contentContainerStyle={styles.bannersListContainer}
+          />
+        ) : (
+          <ImageBackground
+            source={{ uri: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=2070&auto=format&fit=crop' }}
+            style={styles.banner}
+            imageStyle={{ borderRadius: 15 }}
+          >
+            <View style={styles.bannerContent}>
+              <Text style={styles.bannerTitle}>SARAH BERNARD</Text>
+              <Text style={styles.bannerSubtitle}>
+                Сделайте каждый момент ярче{'\n'}
+                с идеальным цветком.
+              </Text>
+              <TouchableOpacity style={styles.shopButton}>
+                <Text style={styles.shopButtonText}>В магазин</Text>
+              </TouchableOpacity>
+            </View>
+          </ImageBackground>
+        )}
 
         <Text style={styles.sectionTitle}>Категории</Text>
         <ScrollView 
@@ -278,9 +340,9 @@ const HomeScreen = ({ navigation }) => {
 
         <View style={styles.recommendedSection}>
           <Text style={styles.sectionTitle}>Рекомендовано для Вас</Text>
-          {filteredProducts.length > 0 ? (
+          {recommendedProducts.length > 0 ? (
             <FlatList
-              data={filteredProducts}
+              data={recommendedProducts}
               renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
               keyExtractor={item => item.id.toString()}
               numColumns={2}
@@ -288,7 +350,7 @@ const HomeScreen = ({ navigation }) => {
               scrollEnabled={false}
             />
           ) : (
-            <Text style={styles.emptyResultsText}>Нет товаров, соответствующих вашему запросу.</Text>
+            <Text style={styles.emptyResultsText}>Нет рекомендованных товаров.</Text>
           )}
         </View>
       </ScrollView>
@@ -309,8 +371,21 @@ const styles = StyleSheet.create({
   headerBottomRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   searchContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 15, height: 48, borderRadius: 12 },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 16 },
+  clearSearchButton: { padding: 5 }, // New style for clear search button
   filterButton: { backgroundColor: '#fff', width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  banner: { marginHorizontal: 20, borderRadius: 15, padding: 20, marginBottom: 25, minHeight: 180, marginTop: 20, justifyContent: 'center' },
+  bannersListContainer: { // New style for FlatList of banners
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 25,
+  },
+  banner: { 
+    width: width - 40, // Adjust width for padding
+    marginRight: 20, // Space between banners
+    borderRadius: 15, 
+    padding: 20, 
+    minHeight: 180, 
+    justifyContent: 'center' 
+  },
   bannerContent: { backgroundColor: 'rgba(0,0,0,0.2)', padding: 15, borderRadius: 10 },
   bannerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
   bannerSubtitle: { fontSize: 14, color: '#fff', marginBottom: 15, lineHeight: 20 },

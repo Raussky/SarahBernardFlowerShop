@@ -29,10 +29,13 @@ const ProductScreen = ({ navigation, route }) => {
   const variants = product.product_variants || [];
   const [selectedVariant, setSelectedVariant] = useState(variants.length > 0 ? variants[0] : null);
   const [recommended, setRecommended] = useState([]);
+  const [productImages, setProductImages] = useState([]); // New state for product images
+  const [activeImageIndex, setActiveImageIndex] = useState(0); // For image carousel
 
   const isVariantOutOfStock = selectedVariant?.stock_quantity <= 0;
 
   const addToCartButtonScale = useRef(new Animated.Value(1)).current;
+  const scrollX = useRef(new Animated.Value(0)).current; // For image carousel pagination
 
   const handleAddToCartPressIn = () => {
     Animated.spring(addToCartButtonScale, { toValue: 0.95, useNativeDriver: true }).start();
@@ -44,7 +47,7 @@ const ProductScreen = ({ navigation, route }) => {
   const fetchProductDetails = useCallback(async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('*, product_variants(*)')
+      .select('*, product_variants(*), product_images(*)') // Fetch product_images
       .eq('id', initialProduct.id)
       .single();
     
@@ -55,14 +58,24 @@ const ProductScreen = ({ navigation, route }) => {
       const newVariants = data.product_variants || [];
       const newSelectedVariant = newVariants.find(v => v.id === currentSelectedId) || (newVariants.length > 0 ? newVariants[0] : null);
       setSelectedVariant(newSelectedVariant);
+
+      // Set product images, including the main image
+      const images = data.product_images ? data.product_images.map(img => img.image_url) : [];
+      if (data.image && !images.includes(data.image)) {
+        images.unshift(data.image); // Add main image to the beginning if not already there
+      }
+      setProductImages(images);
     }
   }, [initialProduct.id, selectedVariant]);
 
   useEffect(() => {
+    fetchProductDetails(); // Initial fetch
+
     const channel = supabase
       .channel(`public:product:${initialProduct.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `id=eq.${initialProduct.id}` }, fetchProductDetails)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants', filter: `product_id=eq.${initialProduct.id}` }, fetchProductDetails)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images', filter: `product_id=eq.${initialProduct.id}` }, fetchProductDetails) // Listen to product_images changes
       .subscribe();
 
     return () => {
@@ -76,6 +89,7 @@ const ProductScreen = ({ navigation, route }) => {
         .from('products')
         .select('*, product_variants(*)')
         .neq('id', product.id)
+        .order('purchase_count', { ascending: false }) // Order by purchase count
         .limit(5);
       
       if (!error && data) {
@@ -132,6 +146,21 @@ const ProductScreen = ({ navigation, route }) => {
     }
   };
 
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    { useNativeDriver: false }
+  );
+
+  const renderImageItem = ({ item }) => (
+    <Image source={{ uri: item }} style={styles.carouselImage} />
+  );
+
+  const handleScrollEnd = (e) => {
+    const contentOffsetX = e.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffsetX / (width - 40));
+    setActiveImageIndex(index);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -145,8 +174,46 @@ const ProductScreen = ({ navigation, route }) => {
 
         <Text style={styles.productTitle}>{product.name || product.name_ru}</Text>
 
-        <View style={styles.imageContainer}>
-          <Image source={{ uri: product.image }} style={styles.mainImage} />
+        <View style={styles.imageCarouselContainer}>
+          {productImages.length > 0 ? (
+            <>
+              <FlatList
+                data={productImages}
+                renderItem={renderImageItem}
+                keyExtractor={(item, index) => index.toString()}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onScroll={onScroll}
+                onMomentumScrollEnd={handleScrollEnd}
+                scrollEventThrottle={16}
+                contentContainerStyle={styles.carouselContentContainer}
+              />
+              <View style={styles.paginationDots}>
+                {productImages.map((_, index) => {
+                  const inputRange = [(index - 1) * (width - 40), index * (width - 40), (index + 1) * (width - 40)];
+                  const opacity = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [0.3, 1, 0.3],
+                    extrapolate: 'clamp',
+                  });
+                  const scale = scrollX.interpolate({
+                    inputRange,
+                    outputRange: [0.8, 1.2, 0.8],
+                    extrapolate: 'clamp',
+                  });
+                  return (
+                    <Animated.View
+                      key={index}
+                      style={[styles.dot, { opacity, transform: [{ scale }] }]}
+                    />
+                  );
+                })}
+              </View>
+            </>
+          ) : (
+            <Image source={{ uri: product.image }} style={styles.mainImage} />
+          )}
         </View>
 
         <View style={styles.productInfo}>
@@ -183,6 +250,24 @@ const ProductScreen = ({ navigation, route }) => {
             <Text style={styles.description}>
               {product.description || 'Красивый букет для любого случая.'}
             </Text>
+            {product.composition && (
+              <View style={styles.detailRow}>
+                <Ionicons name="flower-outline" size={18} color="#666" style={styles.detailIcon} />
+                <Text style={styles.detailText}><Text style={styles.detailLabel}>Состав:</Text> {product.composition}</Text>
+              </View>
+            )}
+            {product.size_info && (
+              <View style={styles.detailRow}>
+                <Ionicons name="resize-outline" size={18} color="#666" style={styles.detailIcon} />
+                <Text style={styles.detailText}><Text style={styles.detailLabel}>Размер:</Text> {product.size_info}</Text>
+              </View>
+            )}
+            {product.care_instructions && (
+              <View style={styles.detailRow}>
+                <Ionicons name="leaf-outline" size={18} color="#666" style={styles.detailIcon} />
+                <Text style={styles.detailText}><Text style={styles.detailLabel}>Уход:</Text> {product.care_instructions}</Text>
+              </View>
+            )}
           </View>
 
           {recommended.length > 0 && (
@@ -240,12 +325,32 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
   headerTitle: { fontSize: 18, fontWeight: '600' },
   productTitle: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, paddingHorizontal: 20 },
-  imageContainer: { marginBottom: 20 },
+  imageCarouselContainer: { marginBottom: 20, position: 'relative' }, // New style for carousel container
+  carouselImage: { width: width - 40, height: width - 40, borderRadius: 20, marginHorizontal: 10 }, // New style for carousel images
+  carouselContentContainer: { paddingHorizontal: 10 }, // Padding for FlatList
+  paginationDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    position: 'absolute',
+    bottom: 10,
+    width: '100%',
+  },
+  dot: {
+    height: 8,
+    width: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF69B4',
+    marginHorizontal: 4,
+  },
   mainImage: { width: width - 40, height: width - 40, alignSelf: 'center', borderRadius: 20, marginBottom: 15 },
   productInfo: { paddingHorizontal: 20, paddingBottom: 120 },
   detailsSection: { marginBottom: 25 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  description: { fontSize: 14, color: '#666', lineHeight: 22 },
+  description: { fontSize: 14, color: '#666', lineHeight: 22, marginBottom: 10 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 }, // New style for detail rows
+  detailIcon: { marginRight: 8 }, // New style for detail icons
+  detailText: { fontSize: 14, color: '#666' }, // New style for detail text
+  detailLabel: { fontWeight: '600' }, // New style for detail labels
   sizeSection: { marginBottom: 25 },
   sizeButton: { minWidth: 50, height: 50, paddingHorizontal: 15, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', marginRight: 15 },
   selectedSize: { backgroundColor: '#FF69B4', transform: [{ scale: 1.1 }] },
