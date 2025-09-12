@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 import { decode } from 'base-64';
 import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
 
@@ -136,7 +136,7 @@ const EditProductScreen = ({ navigation, route }) => {
 
   const uploadImage = async (uri) => {
     try {
-      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      const base64 = await readAsStringAsync(uri, { encoding: EncodingType.Base64 });
       const fileExt = uri.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `public/${fileName}`;
