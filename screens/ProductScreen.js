@@ -26,7 +26,7 @@ const ProductScreen = ({ navigation, route }) => {
   const { addToCart } = useContext(CartContext);
   const { showToast } = useToast();
   
-  const variants = product.product_variants || [];
+  const variants = product?.product_variants || [];
   const [selectedVariant, setSelectedVariant] = useState(variants.length > 0 ? variants[0] : null);
   const [recommended, setRecommended] = useState([]);
   const [productImages, setProductImages] = useState([]);
@@ -47,7 +47,7 @@ const ProductScreen = ({ navigation, route }) => {
   const fetchProductDetails = useCallback(async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('*, product_variants(id, product_id, size, price, stock_quantity), product_images(*)') // Explicitly select columns
+      .select('*, product_variants(id, product_id, size, price, stock_quantity), product_images(*)')
       .eq('id', initialProduct.id)
       .maybeSingle(); // Use maybeSingle() here too
     
@@ -92,7 +92,7 @@ const ProductScreen = ({ navigation, route }) => {
     const fetchRecommended = async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*, product_variants(id, product_id, size, price, stock_quantity)') // Explicitly select columns
+        .select('*, product_variants(id, product_id, size, price, stock_quantity)')
         .neq('id', product.id)
         .order('purchase_count', { ascending: false })
         .limit(5);

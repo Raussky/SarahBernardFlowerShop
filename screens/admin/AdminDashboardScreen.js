@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useIsFocused } from '@react-navigation/native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
+import SkeletonLoader from '../../src/components/SkeletonLoader';
 
 const { width } = Dimensions.get('window');
 
@@ -36,17 +37,11 @@ const AdminDashboardScreen = ({ navigation }) => {
     backgroundColor: '#ffffff',
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
-    decimalPlaces: 0, // optional, defaults to 2dp
-    color: (opacity = 1) => `rgba(255, 105, 180, ${opacity})`, // Pink color
+    decimalPlaces: 0,
+    color: (opacity = 1) => `rgba(255, 105, 180, ${opacity})`,
     labelColor: (opacity = 1) => `rgba(51, 51, 51, ${opacity})`,
-    style: {
-      borderRadius: 16,
-    },
-    propsForDots: {
-      r: '6',
-      strokeWidth: '2',
-      stroke: '#FF69B4',
-    },
+    style: { borderRadius: 16 },
+    propsForDots: { r: '6', strokeWidth: '2', stroke: '#FF69B4' },
   };
 
   const fetchDashboardData = async () => {
@@ -64,18 +59,10 @@ const AdminDashboardScreen = ({ navigation }) => {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const thirtyDaysAgoISO = thirtyDaysAgo.toISOString();
 
-      // --- Parallel fetching for performance ---
       const [
-        newOrdersRes,
-        revenueTodayRes,
-        activeOrdersRes,
-        totalOrdersRes,
-        totalRevenueRes,
-        revenue7daysRes,
-        bestsellerRes,
-        recentOrdersRes,
-        dailyRevenueRes,
-        orderStatusRes,
+        newOrdersRes, revenueTodayRes, activeOrdersRes, totalOrdersRes,
+        totalRevenueRes, revenue7daysRes, bestsellerRes, recentOrdersRes,
+        dailyRevenueRes, orderStatusRes,
       ] = await Promise.all([
         supabase.from('orders').select('id', { count: 'exact' }).gte('created_at', todayISO),
         supabase.from('orders').select('total_price').gte('created_at', todayISO),
@@ -89,7 +76,6 @@ const AdminDashboardScreen = ({ navigation }) => {
         supabase.from('orders').select('status', { count: 'exact' }),
       ]);
 
-      // --- Process results ---
       const totalRevenueToday = revenueTodayRes.data?.reduce((sum, order) => sum + order.total_price, 0) || 0;
       const totalRevenueAllTime = totalRevenueRes.data?.reduce((sum, order) => sum + order.total_price, 0) || 0;
       const totalRevenue7days = revenue7daysRes.data?.reduce((sum, order) => sum + order.total_price, 0) || 0;
@@ -109,25 +95,24 @@ const AdminDashboardScreen = ({ navigation }) => {
       });
       setRecentOrders(recentOrdersRes.data || []);
 
-      // Process daily revenue for chart
       const dailyData = {};
       dailyRevenueRes.data?.forEach(order => {
         const date = new Date(order.created_at).toLocaleDateString('ru-RU');
         dailyData[date] = (dailyData[date] || 0) + order.total_price;
       });
 
-      const sortedDates = Object.keys(dailyData).sort((a, b) => new Date(a) - new Date(b));
-      const labels = sortedDates.map(date => date.substring(0, 5)); // e.g., 01.01
+      const sortedDates = Object.keys(dailyData).sort((a, b) => new Date(a.split('.').reverse().join('-')) - new Date(b.split('.').reverse().join('-')));
+      const labels = sortedDates.map(date => date.substring(0, 5));
       const data = sortedDates.map(date => dailyData[date]);
 
       setDailyRevenue({
-        labels: labels.slice(-7), // Show last 7 days for brevity
+        labels: labels.slice(-7),
         datasets: [{ data: data.slice(-7) }],
       });
 
-      // Process order status distribution for chart
       const statusCounts = {};
-      orderStatusRes.data?.forEach(order => {
+      const { data: allOrders } = await supabase.from('orders').select('status');
+      allOrders.forEach(order => {
         statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
       });
 
@@ -154,12 +139,40 @@ const AdminDashboardScreen = ({ navigation }) => {
     }
   }, [isFocused]);
 
+  const renderSkeleton = () => (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <View style={styles.header}>
+        <SkeletonLoader width={150} height={28} borderRadius={8} />
+      </View>
+      <View style={styles.statsGrid}>
+        {[...Array(6)].map((_, i) => (
+          <View key={i} style={styles.statCard}>
+            <SkeletonLoader width={32} height={32} borderRadius={16} />
+            <SkeletonLoader width={80} height={20} borderRadius={6} style={{ marginVertical: 8 }} />
+            <SkeletonLoader width={100} height={14} borderRadius={6} />
+          </View>
+        ))}
+      </View>
+      <View style={styles.chartContainer}>
+        <SkeletonLoader width={width - 70} height={220} borderRadius={16} />
+      </View>
+      <View style={styles.section}>
+        <SkeletonLoader width={200} height={22} borderRadius={8} style={{ marginBottom: 15 }} />
+        {[...Array(3)].map((_, i) => (
+          <View key={i} style={styles.orderItem}>
+            <View>
+              <SkeletonLoader width={120} height={16} borderRadius={6} />
+              <SkeletonLoader width={150} height={14} borderRadius={6} style={{ marginTop: 8 }} />
+            </View>
+            <SkeletonLoader width={80} height={20} borderRadius={6} />
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+
   if (loading) {
-    return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF69B4" />
-      </SafeAreaView>
-    );
+    return <SafeAreaView style={styles.container}>{renderSkeleton()}</SafeAreaView>;
   }
 
   return (
@@ -184,7 +197,7 @@ const AdminDashboardScreen = ({ navigation }) => {
             <Text style={styles.chartTitle}>Выручка за последние 7 дней</Text>
             <LineChart
               data={dailyRevenue}
-              width={width - 40} // from react-native
+              width={width - 40}
               height={220}
               chartConfig={chartConfig}
               bezier
@@ -204,7 +217,7 @@ const AdminDashboardScreen = ({ navigation }) => {
               accessor="population"
               backgroundColor="transparent"
               paddingLeft="15"
-              center={[10, 50]}
+              center={[10, 0]}
               absolute
               style={styles.chartStyle}
             />
@@ -233,7 +246,6 @@ const AdminDashboardScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   header: { paddingHorizontal: 20, paddingVertical: 15 },
   headerTitle: { fontSize: 24, fontWeight: 'bold' },
   statsGrid: {
@@ -281,6 +293,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
     padding: 15,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

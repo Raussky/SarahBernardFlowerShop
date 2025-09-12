@@ -1,5 +1,6 @@
 import 'react-native-get-random-values'; // Must be at the top
-import React from 'react';
+import React, { useContext } from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -25,11 +26,27 @@ import AdminNavigator from './navigation/AdminNavigator';
 
 // Import Providers
 import { ToastProvider } from './src/components/ToastProvider';
-import { CartProvider } from './src/context/CartContext';
+import { CartContext, CartProvider } from './src/context/CartContext';
 import { AuthProvider } from './src/context/AuthContext';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+
+const CartIconWithBadge = ({ color }) => {
+  const { cart } = useContext(CartContext);
+  const itemCount = cart.length;
+
+  return (
+    <View>
+      <Ionicons name="cart-outline" size={24} color={color} />
+      {itemCount > 0 && (
+        <View style={styles.badgeContainer}>
+          <Text style={styles.badgeText}>{itemCount}</Text>
+        </View>
+      )}
+    </View>
+  );
+};
 
 function MainTabs() {
   return (
@@ -83,9 +100,7 @@ function MainTabs() {
         component={BasketScreen}
         options={{
           tabBarLabel: 'Корзина',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="cart-outline" size={24} color={color} />
-          ),
+          tabBarIcon: ({ color }) => <CartIconWithBadge color={color} />,
         }}
       />
       <Tab.Screen
@@ -127,3 +142,24 @@ export default function App() {
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  badgeContainer: {
+    position: 'absolute',
+    right: -10,
+    top: -5,
+    backgroundColor: '#FF69B4',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+});

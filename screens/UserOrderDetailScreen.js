@@ -34,7 +34,7 @@ const UserOrderDetailScreen = ({ route, navigation }) => {
         .select('*, order_items(*)')
         .eq('id', orderId)
         .eq('user_id', user.id) // Ensure user can only see their own orders
-        .single();
+        .maybeSingle();
       if (error) throw error;
       setOrder(data);
     } catch (error) {

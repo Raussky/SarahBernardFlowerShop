@@ -29,7 +29,7 @@ const AdminOrderDetailScreen = ({ route, navigation }) => {
         .from('orders')
         .select('*, order_items(*)')
         .eq('id', orderId)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       setOrder(data);
     } catch (error) {
