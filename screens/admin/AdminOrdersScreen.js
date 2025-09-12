@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useIsFocused } from '@react-navigation/native';
@@ -14,21 +14,39 @@ const ORDER_STATUSES = {
   cancelled: 'Отмененные',
 };
 
+const PAGE_SIZE = 15;
+
 const AdminOrdersScreen = ({ navigation }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState({ column: 'created_at', ascending: false });
   const isFocused = useIsFocused();
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (currentPage = 0, isRefresh = false) => {
+    if (loadingMore || (currentPage > 0 && !hasMore)) return;
+
     try {
-      setLoading(true);
+      if (currentPage === 0) {
+        setLoading(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      const from = currentPage * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       let query = supabase
         .from('orders')
         .select('*')
-        .order(sort.column, { ascending: sort.ascending });
+        .order(sort.column, { ascending: sort.ascending })
+        .range(from, to);
       
       if (filter !== 'all') {
         query = query.eq('status', filter);
@@ -39,26 +57,50 @@ const AdminOrdersScreen = ({ navigation }) => {
 
       const { data, error } = await query;
       if (error) throw error;
-      setOrders(data);
+
+      if (isRefresh || currentPage === 0) {
+        setOrders(data);
+      } else {
+        setOrders(prevOrders => [...prevOrders, ...data]);
+      }
+
+      if (data.length < PAGE_SIZE) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
+      }
+      
+      setPage(currentPage);
+
     } catch (error) {
       console.error("Error fetching orders:", error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+      if (isRefresh) setIsRefreshing(false);
     }
-  }, [filter, searchQuery, sort]);
+  }, [filter, searchQuery, sort, loadingMore, hasMore]);
 
   useEffect(() => {
     if (isFocused) {
-      fetchOrders();
+      setPage(0);
+      setHasMore(true);
+      fetchOrders(0, true);
     }
-  }, [isFocused, fetchOrders]);
+  }, [isFocused, filter, searchQuery, sort]);
 
-  const handleSort = (column) => {
-    setSort(prevSort => ({
-      column,
-      ascending: prevSort.column === column ? !prevSort.ascending : false,
-    }));
+  const handleLoadMore = () => {
+    if (hasMore && !loadingMore) {
+      fetchOrders(page + 1);
+    }
   };
+
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    setPage(0);
+    setHasMore(true);
+    fetchOrders(0, true);
+  }, []);
 
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity style={styles.orderItem} onPress={() => navigation.navigate('AdminOrderDetail', { orderId: item.id })}>
@@ -125,6 +167,12 @@ const AdminOrdersScreen = ({ navigation }) => {
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={<Text style={styles.emptyText}>Нет заказов, соответствующих критериям</Text>}
+          onEndReached={handleLoadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#999" style={{ marginVertical: 20 }} /> : null}
+          refreshControl={
+            <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF69B4']} />
+          }
         />
       )}
     </SafeAreaView>
