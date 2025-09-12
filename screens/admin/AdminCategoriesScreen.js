@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, TextInput, Modal, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/integrations/supabase/client';
@@ -10,7 +10,7 @@ const AdminCategoriesScreen = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState({ id: null, name: '', icon: '' });
+  const [currentCategory, setCurrentCategory] = useState({ id: null, name: '', icon: '', image_url: '' });
   const isFocused = useIsFocused();
   const { showToast } = useToast();
 
@@ -33,24 +33,29 @@ const AdminCategoriesScreen = () => {
     }
   }, [isFocused]);
 
-  const openModal = (category = { id: null, name: '', icon: '' }) => {
+  const openModal = (category = { id: null, name: '', icon: '', image_url: '' }) => {
     setCurrentCategory(category);
     setModalVisible(true);
   };
 
   const handleSave = async () => {
-    if (!currentCategory.name || !currentCategory.icon) {
-      showToast('Заполните все поля', 'error');
+    if (!currentCategory.name) {
+      showToast('Название обязательно', 'error');
       return;
     }
 
     try {
+      const payload = {
+        name: currentCategory.name,
+        icon: currentCategory.icon,
+        image_url: currentCategory.image_url,
+      };
       if (currentCategory.id) { // Update
-        const { error } = await supabase.from('categories').update({ name: currentCategory.name, icon: currentCategory.icon }).eq('id', currentCategory.id);
+        const { error } = await supabase.from('categories').update(payload).eq('id', currentCategory.id);
         if (error) throw error;
         showToast('Категория обновлена', 'success');
       } else { // Insert
-        const { error } = await supabase.from('categories').insert({ name: currentCategory.name, icon: currentCategory.icon });
+        const { error } = await supabase.from('categories').insert(payload);
         if (error) throw error;
         showToast('Категория добавлена', 'success');
       }
@@ -94,7 +99,11 @@ const AdminCategoriesScreen = () => {
           contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
             <View style={styles.categoryItem}>
-              <Text style={styles.categoryIcon}>{item.icon}</Text>
+              {item.image_url ? (
+                <Image source={{ uri: item.image_url }} style={styles.categoryImage} />
+              ) : (
+                <Text style={styles.categoryIcon}>{item.icon || '💐'}</Text>
+              )}
               <Text style={styles.categoryName}>{item.name}</Text>
               <View style={styles.actions}>
                 <TouchableOpacity onPress={() => openModal(item)}><Ionicons name="create-outline" size={22} color="#333" /></TouchableOpacity>
@@ -110,6 +119,7 @@ const AdminCategoriesScreen = () => {
             <Text style={styles.modalTitle}>{currentCategory.id ? 'Редактировать' : 'Добавить'} категорию</Text>
             <TextInput style={styles.input} placeholder="Название (e.g., Букеты)" value={currentCategory.name} onChangeText={text => setCurrentCategory({...currentCategory, name: text})} />
             <TextInput style={styles.input} placeholder="Иконка (один эмодзи, e.g., 💐)" value={currentCategory.icon} onChangeText={text => setCurrentCategory({...currentCategory, icon: text})} />
+            <TextInput style={styles.input} placeholder="URL изображения (необязательно)" value={currentCategory.image_url} onChangeText={text => setCurrentCategory({...currentCategory, image_url: text})} />
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}><Text>Отмена</Text></TouchableOpacity>
               <TouchableOpacity style={styles.saveButton} onPress={handleSave}><Text style={styles.saveButtonText}>Сохранить</Text></TouchableOpacity>
@@ -128,7 +138,8 @@ const styles = StyleSheet.create({
   addButton: { backgroundColor: '#FF69B4', padding: 8, borderRadius: 20 },
   listContent: { paddingHorizontal: 20 },
   categoryItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },
-  categoryIcon: { fontSize: 24, marginRight: 15 },
+  categoryIcon: { fontSize: 24, marginRight: 15, width: 40, textAlign: 'center' },
+  categoryImage: { width: 40, height: 40, borderRadius: 20, marginRight: 15 },
   categoryName: { flex: 1, fontSize: 16 },
   actions: { flexDirection: 'row', gap: 15 },
   modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },

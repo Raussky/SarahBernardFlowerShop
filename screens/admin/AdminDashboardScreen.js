@@ -14,7 +14,7 @@ const StatCard = ({ icon, title, value, color }) => (
 );
 
 const AdminDashboardScreen = ({ navigation }) => {
-  const [stats, setStats] = useState({ newOrders: 0, revenue: 0, activeOrders: 0 });
+  const [stats, setStats] = useState({ newOrders: 0, revenueToday: 0, activeOrders: 0, totalRevenue: 0, totalOrders: 0 });
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const isFocused = useIsFocused();
@@ -26,25 +26,37 @@ const AdminDashboardScreen = ({ navigation }) => {
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
 
-      // Fetch stats
+      // Fetch stats for today
       const { data: newOrdersData, error: newOrdersError } = await supabase
         .from('orders')
         .select('id', { count: 'exact' })
         .gte('created_at', todayISO);
       if (newOrdersError) throw newOrdersError;
 
-      const { data: revenueData, error: revenueError } = await supabase
+      const { data: revenueTodayData, error: revenueTodayError } = await supabase
         .from('orders')
         .select('total_price')
         .gte('created_at', todayISO);
-      if (revenueError) throw revenueError;
-      const totalRevenue = revenueData.reduce((sum, order) => sum + order.total_price, 0);
+      if (revenueTodayError) throw revenueTodayError;
+      const totalRevenueToday = revenueTodayData.reduce((sum, order) => sum + order.total_price, 0);
 
+      // Fetch general stats
       const { data: activeOrdersData, error: activeOrdersError } = await supabase
         .from('orders')
         .select('id', { count: 'exact' })
         .in('status', ['pending', 'processing', 'shipping']);
       if (activeOrdersError) throw activeOrdersError;
+
+      const { data: totalOrdersData, error: totalOrdersError } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact' });
+      if (totalOrdersError) throw totalOrdersError;
+
+      const { data: totalRevenueData, error: totalRevenueError } = await supabase
+        .from('orders')
+        .select('total_price');
+      if (totalRevenueError) throw totalRevenueError;
+      const totalRevenueAllTime = totalRevenueData.reduce((sum, order) => sum + order.total_price, 0);
 
       // Fetch recent orders
       const { data: recentOrdersData, error: recentOrdersError } = await supabase
@@ -56,8 +68,10 @@ const AdminDashboardScreen = ({ navigation }) => {
 
       setStats({
         newOrders: newOrdersData.length,
-        revenue: totalRevenue,
+        revenueToday: totalRevenueToday,
         activeOrders: activeOrdersData.length,
+        totalOrders: totalOrdersData.length,
+        totalRevenue: totalRevenueAllTime,
       });
       setRecentOrders(recentOrdersData);
 
@@ -91,8 +105,10 @@ const AdminDashboardScreen = ({ navigation }) => {
         
         <View style={styles.statsGrid}>
           <StatCard icon="receipt-outline" title="Новых заказов сегодня" value={stats.newOrders} color="#2196F3" />
-          <StatCard icon="cash-outline" title="Выручка сегодня" value={`₸${stats.revenue.toLocaleString()}`} color="#4CAF50" />
+          <StatCard icon="cash-outline" title="Выручка сегодня" value={`₸${stats.revenueToday.toLocaleString()}`} color="#4CAF50" />
           <StatCard icon="hourglass-outline" title="Активных заказов" value={stats.activeOrders} color="#FFC107" />
+          <StatCard icon="stats-chart-outline" title="Всего заказов" value={stats.totalOrders} color="#9C27B0" />
+          <StatCard icon="wallet-outline" title="Общая выручка" value={`₸${stats.totalRevenue.toLocaleString()}`} color="#E91E63" />
         </View>
 
         <View style={styles.section}>

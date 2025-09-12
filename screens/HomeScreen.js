@@ -19,13 +19,6 @@ import ProductCard from '../src/components/ProductCard';
 import { DEFAULT_CITY } from '../src/config/constants';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 
-const categoryImageMap = {
-  '💐': 'https://images.unsplash.com/photo-1546842931-886c185b4c8c?w=500&q=80',
-  '🎁': 'https://images.unsplash.com/photo-1513201099705-4874684e20d8?w=500&q=80',
-  '🧸': 'https://images.unsplash.com/photo-1575397429859-1d52b176dbb4?w=500&q=80',
-  '🎂': 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?w=500&q=80',
-};
-
 const HomeScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
   const [categories, setCategories] = useState([]);
@@ -36,8 +29,6 @@ const HomeScreen = ({ navigation }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      // Don't set loading to true on refetch
-      // setLoading(true); 
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
@@ -47,11 +38,10 @@ const HomeScreen = ({ navigation }) => {
 
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('*, categories(name, name_en), product_variants(*)')
+        .select('*, categories(name, name_ru), product_variants(*)')
         .order('created_at', { ascending: false });
       if (productsError) throw productsError;
       setProducts(productsData);
-      // setFilteredProducts(productsData); // This will be handled by the useEffect below
 
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -66,9 +56,10 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     const channel = supabase
-      .channel('public:products_and_variants')
+      .channel('public:products_and_variants_and_categories')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => fetchData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => fetchData())
       .subscribe();
 
     return () => {
@@ -85,13 +76,13 @@ const HomeScreen = ({ navigation }) => {
         product.name?.toLowerCase().includes(lowercasedSearchText) ||
         product.name_ru?.toLowerCase().includes(lowercasedSearchText) ||
         product.categories?.name?.toLowerCase().includes(lowercasedSearchText) ||
-        product.categories?.name_en?.toLowerCase().includes(lowercasedSearchText)
+        product.categories?.name_ru?.toLowerCase().includes(lowercasedSearchText)
       );
     }
 
     if (activeFilter !== 'Все') {
       currentFiltered = currentFiltered.filter(product =>
-        product.categories?.name === activeFilter || product.categories?.name_en === activeFilter
+        product.categories?.name === activeFilter || product.categories?.name_ru === activeFilter
       );
     }
 
@@ -100,7 +91,7 @@ const HomeScreen = ({ navigation }) => {
 
   const renderBestsellerFilters = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
-      {['Все', ...categories.map(cat => cat.name)].map(filter => (
+      {['Все', ...categories.map(cat => cat.name_ru || cat.name)].map(filter => (
         <TouchableOpacity 
           key={filter}
           style={[styles.filterTab, activeFilter === filter && styles.activeFilterTab]}
@@ -246,12 +237,16 @@ const HomeScreen = ({ navigation }) => {
               onPress={() => navigation.navigate('Category', { category })}
             >
               <View style={styles.categoryIcon}>
-                <Image 
-                  source={{ uri: categoryImageMap[category.icon] || 'https://via.placeholder.com/70' }} 
-                  style={styles.categoryImage} 
-                />
+                {category.image_url ? (
+                  <Image 
+                    source={{ uri: category.image_url }} 
+                    style={styles.categoryImage} 
+                  />
+                ) : (
+                  <Text style={styles.categoryEmoji}>{category.icon || '💐'}</Text>
+                )}
               </View>
-              <Text style={styles.categoryName}>{category.name}</Text>
+              <Text style={styles.categoryName}>{category.name_ru || category.name}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -261,7 +256,7 @@ const HomeScreen = ({ navigation }) => {
           {renderBestsellerFilters()}
           {filteredProducts.length > 0 ? (
             <FlatList
-              data={filteredProducts.slice(0, 4)} // Show only a few bestsellers
+              data={filteredProducts.slice(0, 4)}
               renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
               keyExtractor={item => item.id.toString()}
               numColumns={2}
@@ -323,10 +318,11 @@ const styles = StyleSheet.create({
   shopButton: { backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, alignSelf: 'flex-start' },
   shopButtonText: { color: '#FF69B4', fontWeight: 'bold' },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginHorizontal: 20, marginBottom: 15 },
-  categoriesContainer: { paddingHorizontal: 30, marginBottom: 25 },
+  categoriesContainer: { paddingHorizontal: 20, marginBottom: 25 },
   categoryItem: { alignItems: 'center', marginRight: 20 },
-  categoryIcon: { width: 70, height: 70, borderRadius: 35, marginBottom: 8, overflow: 'hidden', backgroundColor: '#FFE4E1' },
+  categoryIcon: { width: 70, height: 70, borderRadius: 35, marginBottom: 8, overflow: 'hidden', backgroundColor: '#FFE4E1', justifyContent: 'center', alignItems: 'center' },
   categoryImage: { width: '100%', height: '100%' },
+  categoryEmoji: { fontSize: 30 },
   categoryName: { fontSize: 12, color: '#666' },
   bestsellerSection: { marginBottom: 20 },
   filterScrollView: { paddingHorizontal: 20, marginBottom: 15 },
@@ -338,7 +334,7 @@ const styles = StyleSheet.create({
   offerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff', textShadowColor: 'rgba(0, 0, 0, 0.5)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 },
   offerSubtitle: { fontSize: 14, color: '#fff', textShadowColor: 'rgba(0, 0, 0, 0.7)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2, marginTop: 5 },
   recommendedSection: { marginBottom: 20 },
-  productRow: { justifyContent: 'space-between', paddingHorizontal: 15 }, // Removed padding here as FlatList contentContainerStyle handles it
+  productRow: { justifyContent: 'space-between', paddingHorizontal: 20 },
   emptyResultsText: {
     textAlign: 'center',
     fontSize: 16,
@@ -348,7 +344,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   productCardSkeleton: {
-    width: 160, // Adjust to match ProductCard width
+    width: '48%',
     backgroundColor: '#fff',
     borderRadius: 15,
     marginBottom: 20,

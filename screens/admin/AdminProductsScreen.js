@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, TextInput, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/integrations/supabase/client';
@@ -10,6 +10,9 @@ const AdminProductsScreen = ({ navigation }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('active'); // 'active' or 'archived'
   const isFocused = useIsFocused();
   const { showToast } = useToast();
 
@@ -19,11 +22,18 @@ const AdminProductsScreen = ({ navigation }) => {
       let query = supabase
         .from('products')
         .select('*, product_variants(*), categories(name)')
-        .filter('is_archived', 'is', 'false')
         .order('created_at', { ascending: false });
 
       if (searchQuery) {
         query = query.ilike('name', `%${searchQuery}%`);
+      }
+      if (categoryFilter !== 'all') {
+        query = query.eq('category_id', categoryFilter);
+      }
+      if (statusFilter === 'active') {
+        query = query.filter('is_archived', 'is', 'false');
+      } else {
+        query = query.eq('is_archived', true);
       }
 
       const { data, error } = await query;
@@ -34,26 +44,34 @@ const AdminProductsScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, categoryFilter, statusFilter]);
+
+  const fetchCategories = async () => {
+    const { data } = await supabase.from('categories').select('*');
+    setCategories(data || []);
+  };
 
   useEffect(() => {
     if (isFocused) {
       fetchProducts();
+      fetchCategories();
     }
   }, [isFocused, fetchProducts]);
 
-  const handleArchiveProduct = (id) => {
+  const handleArchiveToggle = (product) => {
+    const newArchivedStatus = !product.is_archived;
+    const actionText = newArchivedStatus ? 'Архивировать' : 'Восстановить';
     Alert.alert(
-      'Архивировать товар?',
-      'Товар будет скрыт из каталога.',
+      `${actionText} товар?`,
+      `Товар будет ${newArchivedStatus ? 'скрыт' : 'снова виден'} в каталоге.`,
       [
         { text: 'Отмена', style: 'cancel' },
-        { text: 'Архивировать', onPress: async () => {
+        { text: actionText, onPress: async () => {
             try {
-              const { error } = await supabase.from('products').update({ is_archived: true }).eq('id', id);
+              const { error } = await supabase.from('products').update({ is_archived: newArchivedStatus }).eq('id', product.id);
               if (error) throw error;
               fetchProducts();
-              showToast('Товар архивирован', 'success');
+              showToast(`Товар ${newArchivedStatus ? 'архивирован' : 'восстановлен'}`, 'success');
             } catch (error) {
               showToast(error.message, 'error');
             }
@@ -73,8 +91,8 @@ const AdminProductsScreen = ({ navigation }) => {
         <TouchableOpacity onPress={() => navigation.navigate('EditProduct', { productId: item.id })} style={styles.actionButton}>
           <Ionicons name="create-outline" size={20} color="#333" />
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleArchiveProduct(item.id)} style={styles.actionButton}>
-          <Ionicons name="archive-outline" size={20} color="#FF69B4" />
+        <TouchableOpacity onPress={() => handleArchiveToggle(item)} style={styles.actionButton}>
+          <Ionicons name={item.is_archived ? "arrow-undo-outline" : "archive-outline"} size={20} color="#FF69B4" />
         </TouchableOpacity>
       </View>
     </View>
@@ -98,6 +116,20 @@ const AdminProductsScreen = ({ navigation }) => {
           placeholderTextColor="#999"
         />
       </View>
+      <View style={styles.filters}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <TouchableOpacity style={[styles.filterButton, statusFilter === 'active' && styles.activeFilter]} onPress={() => setStatusFilter('active')}><Text style={[styles.filterText, statusFilter === 'active' && styles.activeFilterText]}>Активные</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.filterButton, statusFilter === 'archived' && styles.activeFilter]} onPress={() => setStatusFilter('archived')}><Text style={[styles.filterText, statusFilter === 'archived' && styles.activeFilterText]}>Архивные</Text></TouchableOpacity>
+        </ScrollView>
+      </View>
+      <View style={styles.filters}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <TouchableOpacity style={[styles.filterButton, categoryFilter === 'all' && styles.activeFilter]} onPress={() => setCategoryFilter('all')}><Text style={[styles.filterText, categoryFilter === 'all' && styles.activeFilterText]}>Все категории</Text></TouchableOpacity>
+          {categories.map(cat => (
+            <TouchableOpacity key={cat.id} style={[styles.filterButton, categoryFilter === cat.id && styles.activeFilter]} onPress={() => setCategoryFilter(cat.id)}><Text style={[styles.filterText, categoryFilter === cat.id && styles.activeFilterText]}>{cat.name}</Text></TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
       {loading ? (
         <ActivityIndicator size="large" color="#FF69B4" style={{ flex: 1 }} />
       ) : (
@@ -118,9 +150,14 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 },
   headerTitle: { fontSize: 24, fontWeight: 'bold' },
   addButton: { backgroundColor: '#FF69B4', padding: 8, borderRadius: 20 },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 20, borderRadius: 10, paddingHorizontal: 10, marginTop: 10, marginBottom: 10 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 20, borderRadius: 10, paddingHorizontal: 10, marginTop: 10 },
   searchInput: { flex: 1, height: 40, marginLeft: 10 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 20 },
+  filters: { paddingHorizontal: 20, paddingTop: 10 },
+  filterButton: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, backgroundColor: '#e0e0e0', marginRight: 10 },
+  activeFilter: { backgroundColor: '#FF69B4' },
+  filterText: { color: '#333' },
+  activeFilterText: { color: '#fff', fontWeight: 'bold' },
+  listContent: { paddingHorizontal: 20, paddingBottom: 20, paddingTop: 10 },
   productItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },
   productInfo: { flex: 1 },
   productName: { fontSize: 16, fontWeight: '600' },
