@@ -18,12 +18,14 @@ import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
-import { decode } from 'base-64';
-import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
+import { decode } from 'base64-js';
+import 'react-native-url-polyfill/auto';
+import { useAuth } from '../src/context/AuthContext';
 
 const EditProductScreen = ({ navigation, route }) => {
   const { productId } = route.params;
   const { showToast } = useToast();
+  const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isNewProduct, setIsNewProduct] = useState(!productId);
@@ -36,11 +38,17 @@ const EditProductScreen = ({ navigation, route }) => {
   const [sizeInfo, setSizeInfo] = useState('');
   const [careInstructions, setCareInstructions] = useState('');
   const [categoryId, setCategoryId] = useState(null);
-  const [images, setImages] = useState([]); // Array for multiple images
+  const [images, setImages] = useState([]);
   const [variants, setVariants] = useState([{ size: 'шт.', price: '', stock_quantity: '99' }]);
   const [initialVariants, setInitialVariants] = useState([]);
-  
   const [categories, setCategories] = useState([]);
+
+  useEffect(() => {
+    if (profile && !profile.is_admin) {
+      showToast('У вас нет прав для доступа к этой странице', 'error');
+      navigation.goBack();
+    }
+  }, [profile, navigation, showToast]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -54,7 +62,7 @@ const EditProductScreen = ({ navigation, route }) => {
           setIsNewProduct(false);
           const { data: productData, error: productError } = await supabase
             .from('products')
-            .select('*, product_variants(*), product_images(*)') // Fetch gallery images
+            .select('*, product_variants(*), product_images(*)')
             .eq('id', productId)
             .single();
           if (productError) throw productError;
@@ -137,35 +145,35 @@ const EditProductScreen = ({ navigation, route }) => {
   const uploadImage = async (uri) => {
     try {
       const base64 = await LegacyFileSystem.readAsStringAsync(uri, { encoding: LegacyFileSystem.EncodingType.Base64 });
-      const fileExt = uri.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`; // Simplified path, removed 'public/'
+      const fileExt = uri.split('.').pop()?.toLowerCase();
+      if (!fileExt || !['jpg', 'jpeg', 'png', 'webp'].includes(fileExt)) {
+        throw new Error('Неподдерживаемый формат изображения');
+      }
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
       const contentType = `image/${fileExt}`;
+      const byteArray = decode(base64);
 
-      const { data, error: uploadError } = await supabase.storage
+      const { error } = await supabase.storage
         .from('product-images')
-        .upload(filePath, decode(base64), { 
+        .upload(filePath, byteArray, { 
           contentType,
-          upsert: true 
+          upsert: false
         });
 
-      if (uploadError) {
-        throw uploadError;
+      if (error) {
+        console.error("Storage upload error:", error);
+        throw new Error(`Ошибка загрузки: ${error.message}`);
       }
 
       const { data: publicUrlData } = supabase.storage
         .from('product-images')
         .getPublicUrl(filePath);
       
-      if (!publicUrlData || !publicUrlData.publicUrl) {
-          throw new Error('Не удалось получить публичную ссылку после загрузки.');
-      }
-
       return publicUrlData.publicUrl;
-    } catch (e) {
-      console.error("Ошибка при загрузке изображения:", e);
-      showToast(`Ошибка загрузки фото: ${e.message}`, 'error');
-      throw e;
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw error;
     }
   };
 
@@ -174,16 +182,27 @@ const EditProductScreen = ({ navigation, route }) => {
       showToast('Пожалуйста, заполните все обязательные поля.', 'error');
       return;
     }
+    
     setSaving(true);
     try {
-      const uploadPromises = images.map(imgUri => {
+      if (images.some(img => img.startsWith('file://'))) {
+        showToast('Загружаем изображения...', 'info');
+      }
+      
+      const uploadPromises = images.map(async (imgUri) => {
         if (imgUri.startsWith('file://')) {
-          return uploadImage(imgUri);
+          try {
+            return await uploadImage(imgUri);
+          } catch (error) {
+            console.error('Failed to upload image:', imgUri, error);
+            throw error;
+          }
         }
-        return Promise.resolve(imgUri);
+        return imgUri;
       });
+      
       const finalImageUrls = await Promise.all(uploadPromises);
-
+      
       const mainImage = finalImageUrls.length > 0 ? finalImageUrls[0] : null;
       const { data: productData, error: productError } = await supabase
         .from('products')
@@ -235,9 +254,10 @@ const EditProductScreen = ({ navigation, route }) => {
 
       showToast(`Товар успешно ${isNewProduct ? 'создан' : 'обновлен'}!`, 'success');
       navigation.goBack();
+      
     } catch (error) {
       console.error("Save error:", error);
-      showToast(error.message, 'error');
+      showToast(`Ошибка сохранения: ${error.message}`, 'error');
     } finally {
       setSaving(false);
     }
