@@ -29,6 +29,15 @@ const AdminOrdersScreen = ({ navigation }) => {
   const [sort, setSort] = useState({ column: 'created_at', ascending: false });
   const isFocused = useIsFocused();
 
+  const handleSort = (columnName) => {
+    setSort(currentSort => {
+      if (currentSort.column === columnName) {
+        return { ...currentSort, ascending: !currentSort.ascending };
+      }
+      return { column: columnName, ascending: false };
+    });
+  };
+
   const fetchOrders = useCallback(async (currentPage = 0, isRefresh = false) => {
     if (loadingMore || (currentPage > 0 && !hasMore)) return;
 
