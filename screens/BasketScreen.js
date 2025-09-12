@@ -29,7 +29,8 @@ const OrderForm = memo(({
   customerName, setCustomerName,
   customerPhone, setCustomerPhone,
   customerAddress, setCustomerAddress,
-  orderComment, setOrderComment
+  orderComment, setOrderComment,
+  phoneError, nameError, addressError
 }) => {
   return (
     <View style={styles.formContainer}>
@@ -51,12 +52,46 @@ const OrderForm = memo(({
 
       <Text style={styles.sectionTitle}>Ваши данные</Text>
       <View style={styles.inputGroup}>
-        <TextInput style={styles.input} placeholder="Имя" value={customerName} onChangeText={setCustomerName} />
-        <TextInput style={styles.input} placeholder="Телефон" value={customerPhone} onChangeText={setCustomerPhone} keyboardType="phone-pad" />
+        <View style={[styles.inputWrapper, nameError ? styles.inputWrapperError : {}]}>
+          <TextInput 
+            style={styles.input} 
+            placeholder="Имя" 
+            value={customerName} 
+            onChangeText={setCustomerName} 
+            placeholderTextColor="#999"
+          />
+          {!!nameError && <Text style={styles.errorText}>{nameError}</Text>}
+        </View>
+        <View style={[styles.inputWrapper, phoneError ? styles.inputWrapperError : {}]}>
+          <TextInput 
+            style={styles.input} 
+            placeholder="Телефон" 
+            value={customerPhone} 
+            onChangeText={setCustomerPhone} 
+            keyboardType="phone-pad" 
+            placeholderTextColor="#999"
+          />
+          {!!phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
+        </View>
         {deliveryMethod === 'delivery' && (
-          <TextInput style={styles.input} placeholder="Адрес" value={customerAddress} onChangeText={setCustomerAddress} />
+          <View style={[styles.inputWrapper, addressError ? styles.inputWrapperError : {}]}>
+            <TextInput 
+              style={styles.input} 
+              placeholder="Адрес" 
+              value={customerAddress} 
+              onChangeText={setCustomerAddress} 
+              placeholderTextColor="#999"
+            />
+            {!!addressError && <Text style={styles.errorText}>{addressError}</Text>}
+          </View>
         )}
-        <TextInput style={styles.input} placeholder="Комментарий к заказу" value={orderComment} onChangeText={setOrderComment} />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Комментарий к заказу" 
+          value={orderComment} 
+          onChangeText={setOrderComment} 
+          placeholderTextColor="#999"
+        />
       </View>
 
       <Text style={styles.sectionTitle}>Способ оплаты</Text>
@@ -93,6 +128,10 @@ const BasketScreen = ({ navigation }) => {
   const [customerAddress, setCustomerAddress] = useState('');
   const [orderComment, setOrderComment] = useState('');
 
+  const [nameError, setNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [addressError, setAddressError] = useState('');
+
   useEffect(() => {
     if (profile) {
       setCustomerName(profile.first_name || '');
@@ -100,6 +139,37 @@ const BasketScreen = ({ navigation }) => {
       setCustomerName(user.email || '');
     }
   }, [profile, user]);
+
+  const validateForm = () => {
+    let isValid = true;
+    setNameError('');
+    setPhoneError('');
+    setAddressError('');
+
+    if (!customerName.trim()) {
+      setNameError('Имя обязательно');
+      isValid = false;
+    }
+    
+    const phoneRegex = /^\+?\d{10,15}$/; // Basic international phone number regex
+    if (!customerPhone.trim()) {
+      setPhoneError('Телефон обязателен');
+      isValid = false;
+    } else if (!phoneRegex.test(customerPhone.trim())) {
+      setPhoneError('Введите корректный номер телефона');
+      isValid = false;
+    }
+
+    if (deliveryMethod === 'delivery' && !customerAddress.trim()) {
+      setAddressError('Адрес обязателен для доставки');
+      isValid = false;
+    }
+
+    if (!isValid) {
+      showToast('Пожалуйста, заполните все обязательные поля корректно.', 'error');
+    }
+    return isValid;
+  };
 
   const getSubtotal = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
@@ -151,8 +221,7 @@ const BasketScreen = ({ navigation }) => {
   };
 
   const handleWhatsAppOrder = async () => {
-    if (!customerName || !customerPhone || (deliveryMethod === 'delivery' && !customerAddress)) {
-      showToast('Пожалуйста, заполните все обязательные поля для заказа.', 'error');
+    if (!validateForm()) {
       return;
     }
 
@@ -228,11 +297,11 @@ const BasketScreen = ({ navigation }) => {
       Linking.openURL(whatsappUrl).then(() => {
         showToast('Заказ отправлен в WhatsApp и сохранен!', 'success');
         clearCart();
-        navigation.navigate('Home');
+        navigation.replace('OrderConfirmation', { orderId: newOrderId }); // Navigate to confirmation screen
       }).catch(() => {
         Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве, но ваш заказ успешно сохранен. Мы скоро с вами свяжемся.');
         clearCart();
-        navigation.navigate('Home');
+        navigation.replace('OrderConfirmation', { orderId: newOrderId }); // Navigate to confirmation screen
       });
 
     } catch (error) {
@@ -324,6 +393,7 @@ const BasketScreen = ({ navigation }) => {
                     customerPhone={customerPhone} setCustomerPhone={setCustomerPhone}
                     customerAddress={customerAddress} setCustomerAddress={setCustomerAddress}
                     orderComment={orderComment} setOrderComment={setOrderComment}
+                    nameError={nameError} phoneError={phoneError} addressError={addressError}
                   />
                 ) : null
               }
@@ -406,7 +476,10 @@ const styles = StyleSheet.create({
   toggleButtonText: { fontSize: 16, color: '#FF69B4', fontWeight: '600' },
   activeToggleButtonText: { color: '#fff' },
   inputGroup: { gap: 10 },
+  inputWrapper: { marginBottom: 10 }, // Added for error text spacing
   input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, fontSize: 16 },
+  inputWrapperError: { borderColor: '#FF0000', borderWidth: 1, borderRadius: 10 }, // Highlight input on error
+  errorText: { color: '#FF0000', fontSize: 12, marginTop: 5, marginLeft: 15 },
   fixedFooter: { 
     position: 'absolute', 
     bottom: 80,

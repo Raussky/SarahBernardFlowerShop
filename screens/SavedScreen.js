@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,17 +6,51 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../src/context/CartContext';
 import ProductCard from '../src/components/ProductCard';
+import { supabase } from '../src/integrations/supabase/client';
 
 const SavedScreen = ({ navigation }) => {
   const { saved } = useContext(CartContext);
-  const [activeTab, setActiveTab] = React.useState('Все');
+  const [categories, setCategories] = useState([]);
+  const [activeTab, setActiveTab] = useState('Все');
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
-  const tabs = ['Все', 'Букеты', 'Цветы', 'Комнатные'];
+  const fetchCategories = useCallback(async () => {
+    try {
+      setLoadingCategories(true);
+      const { data, error } = await supabase.from('categories').select('*').order('name');
+      if (error) throw error;
+      setCategories([{ id: 'all', name: 'Все' }, ...data]);
+    } catch (error) {
+      console.error("Error fetching categories for SavedScreen:", error);
+    } finally {
+      setLoadingCategories(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
+
+  const filteredSaved = React.useMemo(() => {
+    if (activeTab === 'Все') {
+      return saved;
+    }
+    return saved.filter(item => item.categories?.name === activeTab);
+  }, [saved, activeTab]);
+
+  if (loadingCategories) {
+    return (
+      <SafeAreaView style={styles.centered}>
+        <ActivityIndicator size="large" color="#FF69B4" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -29,22 +63,22 @@ const SavedScreen = ({ navigation }) => {
         showsHorizontalScrollIndicator={false}
         style={styles.tabContainer}
       >
-        {tabs.map((tab) => (
+        {categories.map((category) => (
           <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
-            onPress={() => setActiveTab(tab)}
+            key={category.id}
+            style={[styles.tab, activeTab === category.name && styles.activeTab]}
+            onPress={() => setActiveTab(category.name)}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
-              {tab}
+            <Text style={[styles.tabText, activeTab === category.name && styles.activeTabText]}>
+              {category.name}
             </Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
 
-      {saved.length > 0 ? (
+      {filteredSaved.length > 0 ? (
         <FlatList
-          data={saved}
+          data={filteredSaved}
           renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
           keyExtractor={item => item.id.toString()}
           numColumns={2}
@@ -73,6 +107,12 @@ const SavedScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
   },
   header: {

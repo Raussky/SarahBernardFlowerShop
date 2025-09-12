@@ -35,7 +35,11 @@ const ProfileScreen = ({ navigation }) => {
       <View style={styles.content}>
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{displayAvatarLetter}</Text>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarText}>{displayAvatarLetter}</Text>
+            )}
           </View>
           <Text style={styles.storeName}>{displayName}</Text>
           <Text style={styles.storeDescription}>Магазин цветов</Text>
@@ -44,6 +48,15 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.menu}>
           {user ? (
             <>
+              <TouchableOpacity 
+                style={styles.menuItem}
+                onPress={() => navigation.navigate('EditProfile')} // New navigation
+              >
+                <Ionicons name="person-circle-outline" size={24} color="#FF69B4" />
+                <Text style={styles.menuText}>Редактировать профиль</Text>
+                <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+
               {profile?.is_admin ? (
                 <TouchableOpacity 
                   style={styles.menuItem}
@@ -133,6 +146,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 15,
+    overflow: 'hidden', // Ensure image stays within bounds
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 40,
   },
   avatarText: {
     fontSize: 32,
