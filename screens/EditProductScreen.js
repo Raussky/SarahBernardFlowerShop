@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -187,55 +189,71 @@ const EditProductScreen = ({ navigation, route }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="#333" /></TouchableOpacity>
-          <Text style={styles.headerTitle}>{isNewProduct ? 'Новый товар' : 'Редактировать'}</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        <View style={styles.form}>
-          <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
-            {image ? <Image source={{ uri: image }} style={styles.productImage} /> : <Ionicons name="camera" size={40} color="#999" />}
-            <Text style={styles.imagePickerText}>Нажмите, чтобы выбрать фото</Text>
-          </TouchableOpacity>
-
-          <Text style={styles.label}>Название товара</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} />
-
-          <Text style={styles.label}>Описание</Text>
-          <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} multiline />
-
-          <Text style={styles.label}>Категория</Text>
-          <View style={styles.categorySelector}>
-            {categories.map(cat => (
-              <TouchableOpacity key={cat.id} style={[styles.categoryButton, categoryId === cat.id && styles.selectedCategoryButton]} onPress={() => setCategoryId(cat.id)}>
-                <Text style={[styles.categoryButtonText, categoryId === cat.id && styles.selectedCategoryButtonText]}>{cat.name}</Text>
-              </TouchableOpacity>
-            ))}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="#333" /></TouchableOpacity>
+            <Text style={styles.headerTitle}>{isNewProduct ? 'Новый товар' : 'Редактировать'}</Text>
+            <View style={{ width: 24 }} />
           </View>
 
-          <Text style={styles.label}>Варианты</Text>
-          {variants.map((variant, index) => (
-            <View key={index} style={styles.variantContainer}>
-              <TextInput style={styles.variantInput} placeholder="Размер" value={variant.size} onChangeText={text => { const newVariants = [...variants]; newVariants[index].size = text; setVariants(newVariants); }} />
-              <TextInput style={styles.variantInput} placeholder="Цена" value={variant.price} onChangeText={text => { const newVariants = [...variants]; newVariants[index].price = text; setVariants(newVariants); }} keyboardType="numeric" />
-              <TextInput style={styles.variantInput} placeholder="Остаток" value={variant.stock_quantity} onChangeText={text => { const newVariants = [...variants]; newVariants[index].stock_quantity = text; setVariants(newVariants); }} keyboardType="numeric" />
-              <TouchableOpacity onPress={() => handleRemoveVariant(index)}>
-                <Ionicons name="trash-outline" size={22} color="#FF69B4" />
-              </TouchableOpacity>
-            </View>
-          ))}
-          <TouchableOpacity style={styles.addVariantButton} onPress={handleAddVariant}>
-            <Ionicons name="add" size={20} color="#FF69B4" />
-            <Text style={styles.addVariantText}>Добавить вариант</Text>
-          </TouchableOpacity>
+          <View style={styles.form}>
+            <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+              {image ? <Image source={{ uri: image }} style={styles.productImage} /> : <Ionicons name="camera" size={40} color="#999" />}
+              <Text style={styles.imagePickerText}>Нажмите, чтобы выбрать фото</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSaveProduct} disabled={saving}>
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+            <Text style={styles.label}>Название товара</Text>
+            <TextInput style={styles.input} value={name} onChangeText={setName} />
+
+            <Text style={styles.label}>Описание</Text>
+            <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} multiline />
+
+            <Text style={styles.label}>Категория</Text>
+            <View style={styles.categorySelector}>
+              {categories.map(cat => (
+                <TouchableOpacity key={cat.id} style={[styles.categoryButton, categoryId === cat.id && styles.selectedCategoryButton]} onPress={() => setCategoryId(cat.id)}>
+                  <Text style={[styles.categoryButtonText, categoryId === cat.id && styles.selectedCategoryButtonText]}>{cat.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Варианты</Text>
+            {variants.map((variant, index) => (
+              <View key={index} style={styles.variantSection}>
+                <View style={styles.variantRow}>
+                  <View style={styles.variantInputContainer}>
+                    <Text style={styles.variantLabel}>Размер</Text>
+                    <TextInput style={styles.variantInput} placeholder="шт." value={variant.size} onChangeText={text => { const newVariants = [...variants]; newVariants[index].size = text; setVariants(newVariants); }} />
+                  </View>
+                  <View style={styles.variantInputContainer}>
+                    <Text style={styles.variantLabel}>Цена (₸)</Text>
+                    <TextInput style={styles.variantInput} placeholder="0" value={variant.price} onChangeText={text => { const newVariants = [...variants]; newVariants[index].price = text; setVariants(newVariants); }} keyboardType="numeric" />
+                  </View>
+                  <View style={styles.variantInputContainer}>
+                    <Text style={styles.variantLabel}>Остаток</Text>
+                    <TextInput style={styles.variantInput} placeholder="99" value={variant.stock_quantity} onChangeText={text => { const newVariants = [...variants]; newVariants[index].stock_quantity = text; setVariants(newVariants); }} keyboardType="numeric" />
+                  </View>
+                  <TouchableOpacity style={styles.removeVariantButton} onPress={() => handleRemoveVariant(index)}>
+                    <Ionicons name="trash-outline" size={22} color="#FF69B4" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.addVariantButton} onPress={handleAddVariant}>
+              <Ionicons name="add" size={20} color="#FF69B4" />
+              <Text style={styles.addVariantText}>Добавить вариант</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProduct} disabled={saving}>
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -257,11 +275,43 @@ const styles = StyleSheet.create({
   selectedCategoryButton: { backgroundColor: '#FF69B4' },
   categoryButtonText: { color: '#333' },
   selectedCategoryButtonText: { color: '#fff' },
-  variantContainer: { flexDirection: 'row', gap: 10, marginBottom: 10, alignItems: 'center' },
-  variantInput: { flex: 1, backgroundColor: '#f5f5f5', padding: 10, borderRadius: 8, fontSize: 14 },
+  
+  variantSection: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+  },
+  variantRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  variantInputContainer: {
+    flex: 1,
+  },
+  variantLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+    marginLeft: 2,
+  },
+  variantInput: {
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 8,
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  removeVariantButton: {
+    padding: 5,
+    marginBottom: 5,
+  },
+
   addVariantButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#FF69B4', marginTop: 5 },
   addVariantText: { color: '#FF69B4', marginLeft: 5 },
-  saveButton: { backgroundColor: '#FF69B4', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 30 },
+  saveButton: { backgroundColor: '#FF69B4', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 30, marginBottom: 20 },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
 
