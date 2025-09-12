@@ -80,23 +80,33 @@ const AdminProductsScreen = ({ navigation }) => {
     );
   };
 
-  const renderProductItem = ({ item }) => (
-    <View style={styles.productItem}>
-      <View style={styles.productInfo}>
-        <Text style={styles.productName}>{item.name}</Text>
-        <Text style={styles.productCategory}>{item.categories?.name || 'Без категории'}</Text>
-        <Text style={styles.productPrice}>₸{item.product_variants[0]?.price.toLocaleString() || 'N/A'}</Text>
+  const renderProductItem = ({ item }) => {
+    const isLowStock = item.product_variants.some(v => v.stock_quantity <= 10);
+    
+    return (
+      <View style={styles.productItem}>
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{item.name}</Text>
+          <Text style={styles.productCategory}>{item.categories?.name || 'Без категории'}</Text>
+          <Text style={styles.productPrice}>₸{item.product_variants[0]?.price.toLocaleString() || 'N/A'}</Text>
+          {isLowStock && (
+            <View style={styles.lowStockIndicator}>
+              <Ionicons name="warning-outline" size={14} color="#D32F2F" />
+              <Text style={styles.lowStockText}>Мало на складе</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.productActions}>
+          <TouchableOpacity onPress={() => navigation.navigate('EditProduct', { productId: item.id })} style={styles.actionButton}>
+            <Ionicons name="create-outline" size={20} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleArchiveToggle(item)} style={styles.actionButton}>
+            <Ionicons name={item.is_archived ? "arrow-undo-outline" : "archive-outline"} size={20} color="#FF69B4" />
+          </TouchableOpacity>
+        </View>
       </View>
-      <View style={styles.productActions}>
-        <TouchableOpacity onPress={() => navigation.navigate('EditProduct', { productId: item.id })} style={styles.actionButton}>
-          <Ionicons name="create-outline" size={20} color="#333" />
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => handleArchiveToggle(item)} style={styles.actionButton}>
-          <Ionicons name={item.is_archived ? "arrow-undo-outline" : "archive-outline"} size={20} color="#FF69B4" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -166,6 +176,22 @@ const styles = StyleSheet.create({
   productActions: { flexDirection: 'row', gap: 10 },
   actionButton: { padding: 5 },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999' },
+  lowStockIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEE',
+    borderRadius: 15,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  lowStockText: {
+    color: '#D32F2F',
+    fontSize: 12,
+    marginLeft: 5,
+    fontWeight: '500',
+  },
 });
 
 export default AdminProductsScreen;
