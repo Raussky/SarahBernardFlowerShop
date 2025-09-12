@@ -46,13 +46,13 @@ const EditProductScreen = ({ navigation, route }) => {
 
   // Product state
   const [name, setName] = useState('');
-  const [nameRu, setNameRu] = useState(''); // New field
+  const [nameRu, setNameRu] = useState('');
   const [description, setDescription] = useState('');
-  const [composition, setComposition] = useState(''); // New field
-  const [sizeInfo, setSizeInfo] = useState(''); // New field
-  const [careInstructions, setCareInstructions] = useState(''); // New field
+  const [composition, setComposition] = useState('');
+  const [sizeInfo, setSizeInfo] = useState('');
+  const [careInstructions, setCareInstructions] = useState('');
   const [categoryId, setCategoryId] = useState(null);
-  const [image, setImage] = useState(null); // Can be a URL or a local URI
+  const [images, setImages] = useState([]); // Array for multiple images
   const [variants, setVariants] = useState([{ size: 'шт.', price: '', stock_quantity: '99' }]);
   const [initialVariants, setInitialVariants] = useState([]);
   
@@ -70,19 +70,31 @@ const EditProductScreen = ({ navigation, route }) => {
           setIsNewProduct(false);
           const { data: productData, error: productError } = await supabase
             .from('products')
-            .select('*, product_variants(*)')
+            .select('*, product_variants(*), product_images(*)') // Fetch gallery images
             .eq('id', productId)
             .single();
           if (productError) throw productError;
           
           setName(productData.name || '');
-          setNameRu(productData.name_ru || ''); // Set new field
+          setNameRu(productData.name_ru || '');
           setDescription(productData.description || '');
-          setComposition(productData.composition || ''); // Set new field
-          setSizeInfo(productData.size_info || ''); // Set new field
-          setCareInstructions(productData.care_instructions || ''); // Set new field
-          setImage(productData.image || null);
+          setComposition(productData.composition || '');
+          setSizeInfo(productData.size_info || '');
+          setCareInstructions(productData.care_instructions || '');
           setCategoryId(productData.category_id);
+
+          // Combine main image and gallery images into one array
+          const allImages = [];
+          if (productData.image) allImages.push(productData.image);
+          if (productData.product_images) {
+            productData.product_images.forEach(img => {
+              if (!allImages.includes(img.image_url)) {
+                allImages.push(img.image_url);
+              }
+            });
+          }
+          setImages(allImages);
+
           if (productData.product_variants && productData.product_variants.length > 0) {
             const formattedVariants = productData.product_variants.map(v => ({
               id: v.id,
@@ -91,7 +103,7 @@ const EditProductScreen = ({ navigation, route }) => {
               stock_quantity: v.stock_quantity.toString(),
             }));
             setVariants(formattedVariants);
-            setInitialVariants(formattedVariants); // Store initial state for comparison on save
+            setInitialVariants(formattedVariants);
           }
         }
       } catch (error) {
@@ -131,8 +143,12 @@ const EditProductScreen = ({ navigation, route }) => {
     });
 
     if (!result.canceled) {
-      setImage(result.assets[0].uri);
+      setImages([...images, result.assets[0].uri]);
     }
+  };
+
+  const removeImage = (index) => {
+    setImages(images.filter((_, i) => i !== index));
   };
 
   const uploadImage = async (uri) => {
@@ -140,11 +156,10 @@ const EditProductScreen = ({ navigation, route }) => {
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `public/${fileName}`;
 
-    // Use the helper function to get a Blob from the local URI
     const blob = await getBlobFromUri(uri);
     
     const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, blob, {
-      contentType: `image/${fileExt}`, // Specify content type for correct upload
+      contentType: `image/${fileExt}`,
     });
     if (uploadError) throw uploadError;
 
@@ -159,33 +174,51 @@ const EditProductScreen = ({ navigation, route }) => {
     }
     setSaving(true);
     try {
-      let imageUrl = image;
-      if (image && image.startsWith('file://')) {
-        imageUrl = await uploadImage(image);
-      }
+      // 1. Upload new local images and get all final URLs
+      const uploadPromises = images.map(imgUri => {
+        if (imgUri.startsWith('file://')) {
+          return uploadImage(imgUri);
+        }
+        return Promise.resolve(imgUri); // It's already a remote URL
+      });
+      const finalImageUrls = await Promise.all(uploadPromises);
 
-      // 1. Upsert Product Info
+      // 2. Upsert Product Info
+      const mainImage = finalImageUrls.length > 0 ? finalImageUrls[0] : null;
       const { data: productData, error: productError } = await supabase
         .from('products')
         .upsert({
           id: productId,
           name,
-          name_ru: nameRu, // Save new field
+          name_ru: nameRu,
           description,
-          composition, // Save new field
-          size_info: sizeInfo, // Save new field
-          care_instructions: careInstructions, // Save new field
+          composition,
+          size_info: sizeInfo,
+          care_instructions: careInstructions,
           category_id: categoryId,
-          image: imageUrl,
+          image: mainImage,
         })
         .select()
         .single();
       if (productError) throw productError;
       const savedProductId = productData.id;
 
-      // 2. Upsert current variants
+      // 3. Sync product_images table (delete all and re-insert)
+      const { error: deleteError } = await supabase.from('product_images').delete().eq('product_id', savedProductId);
+      if (deleteError) throw deleteError;
+
+      if (finalImageUrls.length > 0) {
+        const imagesToInsert = finalImageUrls.map(url => ({
+          product_id: savedProductId,
+          image_url: url,
+        }));
+        const { error: insertError } = await supabase.from('product_images').insert(imagesToInsert);
+        if (insertError) throw insertError;
+      }
+
+      // 4. Handle variants (same logic as before)
       const variantsToUpsert = variants.map(v => ({
-        id: v.id, // will be null for new variants
+        id: v.id,
         product_id: savedProductId,
         size: v.size,
         price: parseFloat(v.price) || 0,
@@ -194,25 +227,14 @@ const EditProductScreen = ({ navigation, route }) => {
       const { error: variantsUpsertError } = await supabase.from('product_variants').upsert(variantsToUpsert);
       if (variantsUpsertError) throw variantsUpsertError;
 
-      // 3. Safely handle deleted variants
       const currentVariantIds = new Set(variants.map(v => v.id).filter(Boolean));
       const variantsToDelete = initialVariants.filter(v => !currentVariantIds.has(v.id));
-
       for (const variant of variantsToDelete) {
-        // Check if variant is in any order
-        const { count, error: checkError } = await supabase
-          .from('order_items')
-          .select('id', { count: 'exact', head: true })
-          .eq('product_variant_id', variant.id);
-        
-        if (checkError) throw checkError;
-
+        const { count } = await supabase.from('order_items').select('id', { count: 'exact', head: true }).eq('product_variant_id', variant.id);
         if (count === 0) {
-          // Safe to delete
           await supabase.from('product_variants').delete().eq('id', variant.id);
         } else {
-          // Not safe, just inform the user
-          showToast(`Вариант "${variant.size}" не может быть удален, так как он используется в заказах.`, 'warning');
+          showToast(`Вариант "${variant.size}" не удален, т.к. используется в заказах.`, 'warning');
         }
       }
 
@@ -245,16 +267,21 @@ const EditProductScreen = ({ navigation, route }) => {
             <View style={{ width: 24 }} />
           </View>
 
-          <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-            {image ? (
-              <Image source={{ uri: image }} style={styles.productImage} />
-            ) : (
-              <>
-                <Ionicons name="camera-outline" size={40} color="#999" />
-                <Text style={styles.imagePickerText}>Добавить фото</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <Text style={styles.label}>Фотографии товара</Text>
+          <ScrollView horizontal contentContainerStyle={styles.imageScrollView}>
+            {images.map((imgUri, index) => (
+              <View key={index} style={styles.imageContainer}>
+                <Image source={{ uri: imgUri }} style={styles.productImage} />
+                <TouchableOpacity style={styles.removeImageButton} onPress={() => removeImage(index)}>
+                  <Ionicons name="close-circle" size={24} color="#fff" style={styles.removeImageIcon} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+              <Ionicons name="camera-outline" size={40} color="#999" />
+              <Text style={styles.imagePickerText}>Добавить</Text>
+            </TouchableOpacity>
+          </ScrollView>
 
           <Text style={styles.label}>Название товара (Русский)</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Например, Букет 'Нежность'" />
@@ -321,8 +348,12 @@ const styles = StyleSheet.create({
   label: { fontSize: 16, fontWeight: '500', color: '#333', marginTop: 20, marginBottom: 8 },
   input: { backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 12, borderRadius: 10, fontSize: 16 },
   textArea: { height: 100, textAlignVertical: 'top' },
-  imagePicker: { height: 150, width: 150, borderRadius: 10, backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', overflow: 'hidden' },
-  productImage: { width: '100%', height: '100%' },
+  imageScrollView: { paddingVertical: 10 },
+  imageContainer: { marginRight: 10, position: 'relative' },
+  productImage: { height: 100, width: 100, borderRadius: 10, backgroundColor: '#e0e0e0' },
+  removeImageButton: { position: 'absolute', top: -5, right: -5, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12 },
+  removeImageIcon: { textShadowColor: 'rgba(0, 0, 0, 0.75)', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 2 },
+  imagePicker: { height: 100, width: 100, borderRadius: 10, backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   imagePickerText: { color: '#999', marginTop: 5 },
   categoryContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   categoryChip: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, backgroundColor: '#e0e0e0' },
