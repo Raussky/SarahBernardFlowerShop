@@ -19,6 +19,24 @@ import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
 import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
 
+// Helper function to get Blob from file URI using XMLHttpRequest
+const getBlobFromUri = async (uri) => {
+  const blob = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.onload = function () {
+      resolve(xhr.response);
+    };
+    xhr.onerror = function (e) {
+      console.error("XHR error:", e);
+      reject(new TypeError('Network request failed'));
+    };
+    xhr.responseType = 'blob';
+    xhr.open('GET', uri, true);
+    xhr.send(null);
+  });
+  return blob;
+};
+
 const EditProductScreen = ({ navigation, route }) => {
   const { productId } = route.params;
   const { showToast } = useToast();
@@ -122,10 +140,12 @@ const EditProductScreen = ({ navigation, route }) => {
     const fileName = `${Date.now()}.${fileExt}`;
     const filePath = `public/${fileName}`;
 
-    const response = await fetch(uri);
-    const blob = await response.blob();
+    // Use the helper function to get a Blob from the local URI
+    const blob = await getBlobFromUri(uri);
     
-    const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, blob);
+    const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, blob, {
+      contentType: `image/${fileExt}`, // Specify content type for correct upload
+    });
     if (uploadError) throw uploadError;
 
     const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
