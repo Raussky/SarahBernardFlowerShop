@@ -312,6 +312,8 @@ const HomeScreen = ({ navigation }) => {
         </View>
       )}
 
+      {/* Main ScrollView starts here */}
+      <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Категории</Text>
         <ScrollView 
           horizontal 
@@ -376,7 +378,7 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.emptyResultsText}>Нет новых товаров.</Text>
           )}
         </View>
-      </ScrollView>
+      </ScrollView> {/* Main ScrollView ends here */}
     </View>
   );
 };
