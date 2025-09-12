@@ -139,19 +139,32 @@ const EditProductScreen = ({ navigation, route }) => {
       const base64 = await LegacyFileSystem.readAsStringAsync(uri, { encoding: LegacyFileSystem.EncodingType.Base64 });
       const fileExt = uri.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `public/${fileName}`;
+      const filePath = `${fileName}`; // Simplified path, removed 'public/'
       const contentType = `image/${fileExt}`;
 
-      const { data, error } = await supabase.storage
+      const { data, error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(filePath, decode(base64), { contentType });
+        .upload(filePath, decode(base64), { 
+          contentType,
+          upsert: true 
+        });
 
-      if (error) throw error;
+      if (uploadError) {
+        throw uploadError;
+      }
 
-      const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(filePath);
+      const { data: publicUrlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+      
+      if (!publicUrlData || !publicUrlData.publicUrl) {
+          throw new Error('Не удалось получить публичную ссылку после загрузки.');
+      }
+
       return publicUrlData.publicUrl;
     } catch (e) {
-      console.error("Upload error:", e);
+      console.error("Ошибка при загрузке изображения:", e);
+      showToast(`Ошибка загрузки фото: ${e.message}`, 'error');
       throw e;
     }
   };
