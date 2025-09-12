@@ -32,6 +32,7 @@ const EditProductScreen = ({ navigation, route }) => {
   const [categoryId, setCategoryId] = useState(null);
   const [image, setImage] = useState(null); // Can be a URL or a local URI
   const [variants, setVariants] = useState([{ size: 'шт.', price: '', stock_quantity: '99' }]);
+  const [initialVariants, setInitialVariants] = useState([]);
   
   const [categories, setCategories] = useState([]);
 
@@ -57,20 +58,43 @@ const EditProductScreen = ({ navigation, route }) => {
           setImage(productData.image || null);
           setCategoryId(productData.category_id);
           if (productData.product_variants && productData.product_variants.length > 0) {
-            setVariants(productData.product_variants.map(v => ({ ...v, price: v.price.toString(), stock_quantity: v.stock_quantity.toString() })));
+            const formattedVariants = productData.product_variants.map(v => ({
+              id: v.id,
+              size: v.size,
+              price: v.price.toString(),
+              stock_quantity: v.stock_quantity.toString(),
+            }));
+            setVariants(formattedVariants);
+            setInitialVariants(formattedVariants); // Store initial state for comparison on save
           }
-        } else {
-          setIsNewProduct(true);
         }
       } catch (error) {
         showToast(error.message, 'error');
-        navigation.goBack();
       } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [productId]);
+
+  const handleVariantChange = (index, field, value) => {
+    const newVariants = [...variants];
+    newVariants[index][field] = value;
+    setVariants(newVariants);
+  };
+
+  const addVariant = () => {
+    setVariants([...variants, { size: '', price: '', stock_quantity: '99' }]);
+  };
+
+  const removeVariant = (index) => {
+    if (variants.length > 1) {
+      const newVariants = variants.filter((_, i) => i !== index);
+      setVariants(newVariants);
+    } else {
+      showToast('Должен быть хотя бы один вариант товара.', 'info');
+    }
+  };
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -85,233 +109,189 @@ const EditProductScreen = ({ navigation, route }) => {
     }
   };
 
-  const uploadImage = async (localUri) => {
-    try {
-      const response = await fetch(localUri);
-      const arrayBuffer = await response.arrayBuffer(); // Use arrayBuffer instead of blob
-      const fileName = `public/${Date.now()}.jpg`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(fileName, arrayBuffer, { // Pass arrayBuffer to upload
-          cacheControl: '3600',
-          upsert: false,
-          contentType: 'image/jpeg',
-        });
+  const uploadImage = async (uri) => {
+    const fileExt = uri.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `public/${fileName}`;
 
-      if (uploadError) throw uploadError;
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    
+    const { error: uploadError } = await supabase.storage.from('product-images').upload(filePath, blob);
+    if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(fileName);
-      
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error("Image upload error:", error);
-      throw new Error("Не удалось загрузить изображение.");
-    }
+    const { data } = supabase.storage.from('product-images').getPublicUrl(filePath);
+    return data.publicUrl;
   };
 
-  const handleSaveProduct = async () => {
-    if (!name || !categoryId) {
-      showToast('Название и категория обязательны.', 'error');
+  const handleSave = async () => {
+    if (!name || !categoryId || variants.some(v => !v.price || !v.size || !v.stock_quantity)) {
+      showToast('Пожалуйста, заполните все обязательные поля.', 'error');
       return;
     }
     setSaving(true);
-
     try {
       let imageUrl = image;
-      // If image is a local file URI, upload it first
       if (image && image.startsWith('file://')) {
         imageUrl = await uploadImage(image);
       }
 
-      const productPayload = {
-        name,
-        description,
-        category_id: categoryId,
-        image: imageUrl,
-      };
+      // 1. Upsert Product Info
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .upsert({
+          id: productId,
+          name,
+          description,
+          category_id: categoryId,
+          image: imageUrl,
+        })
+        .select()
+        .single();
+      if (productError) throw productError;
+      const savedProductId = productData.id;
 
-      let savedProduct;
-      if (isNewProduct) {
-        const { data, error } = await supabase.from('products').insert(productPayload).select().single();
-        if (error) throw error;
-        savedProduct = data;
-      } else {
-        const { data, error } = await supabase.from('products').update(productPayload).eq('id', productId).select().single();
-        if (error) throw error;
-        savedProduct = data;
-      }
-
-      // Now, handle variants
-      const variantsPayload = variants.map(v => ({
-        product_id: savedProduct.id,
+      // 2. Upsert current variants
+      const variantsToUpsert = variants.map(v => ({
+        id: v.id, // will be null for new variants
+        product_id: savedProductId,
         size: v.size,
         price: parseFloat(v.price) || 0,
         stock_quantity: parseInt(v.stock_quantity, 10) || 0,
       }));
+      const { error: variantsUpsertError } = await supabase.from('product_variants').upsert(variantsToUpsert);
+      if (variantsUpsertError) throw variantsUpsertError;
 
-      // Simple approach: delete old variants and insert new ones
-      if (!isNewProduct) {
-        const { error: deleteError } = await supabase.from('product_variants').delete().eq('product_id', savedProduct.id);
-        if (deleteError) throw deleteError;
+      // 3. Safely handle deleted variants
+      const currentVariantIds = new Set(variants.map(v => v.id).filter(Boolean));
+      const variantsToDelete = initialVariants.filter(v => !currentVariantIds.has(v.id));
+
+      for (const variant of variantsToDelete) {
+        // Check if variant is in any order
+        const { count, error: checkError } = await supabase
+          .from('order_items')
+          .select('id', { count: 'exact', head: true })
+          .eq('product_variant_id', variant.id);
+        
+        if (checkError) throw checkError;
+
+        if (count === 0) {
+          // Safe to delete
+          await supabase.from('product_variants').delete().eq('id', variant.id);
+        } else {
+          // Not safe, just inform the user
+          showToast(`Вариант "${variant.size}" не может быть удален, так как он используется в заказах.`, 'warning');
+        }
       }
-      const { error: variantsError } = await supabase.from('product_variants').insert(variantsPayload);
-      if (variantsError) throw variantsError;
 
-      showToast(isNewProduct ? 'Товар успешно создан' : 'Товар успешно обновлен', 'success');
+      showToast(`Товар успешно ${isNewProduct ? 'создан' : 'обновлен'}!`, 'success');
       navigation.goBack();
-
     } catch (error) {
+      console.error("Save error:", error);
       showToast(error.message, 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAddVariant = () => {
-    setVariants([...variants, { size: '', price: '', stock_quantity: '99' }]);
-  };
-
-  const handleRemoveVariant = (index) => {
-    if (variants.length > 1) {
-      const newVariants = variants.filter((_, i) => i !== index);
-      setVariants(newVariants);
-    } else {
-      showToast('Должен быть хотя бы один вариант.', 'info');
-    }
-  };
-
   if (loading) {
-    return <SafeAreaView style={styles.centered}><ActivityIndicator size="large" color="#FF69B4" /></SafeAreaView>;
+    return <ActivityIndicator size="large" color="#FF69B4" style={{ flex: 1 }} />;
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="#333" /></TouchableOpacity>
-            <Text style={styles.headerTitle}>{isNewProduct ? 'Новый товар' : 'Редактировать'}</Text>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>{isNewProduct ? 'Новый товар' : 'Редактировать товар'}</Text>
             <View style={{ width: 24 }} />
           </View>
 
-          <View style={styles.form}>
-            <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
-              {image ? <Image source={{ uri: image }} style={styles.productImage} /> : <Ionicons name="camera" size={40} color="#999" />}
-              <Text style={styles.imagePickerText}>Нажмите, чтобы выбрать фото</Text>
-            </TouchableOpacity>
+          <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+            {image ? (
+              <Image source={{ uri: image }} style={styles.productImage} />
+            ) : (
+              <>
+                <Ionicons name="camera-outline" size={40} color="#999" />
+                <Text style={styles.imagePickerText}>Добавить фото</Text>
+              </>
+            )}
+          </TouchableOpacity>
 
-            <Text style={styles.label}>Название товара</Text>
-            <TextInput style={styles.input} value={name} onChangeText={setName} />
+          <Text style={styles.label}>Название товара</Text>
+          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Например, Букет 'Нежность'" />
 
-            <Text style={styles.label}>Описание</Text>
-            <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} multiline />
+          <Text style={styles.label}>Описание</Text>
+          <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} multiline placeholder="Краткое описание товара..." />
 
-            <Text style={styles.label}>Категория</Text>
-            <View style={styles.categorySelector}>
-              {categories.map(cat => (
-                <TouchableOpacity key={cat.id} style={[styles.categoryButton, categoryId === cat.id && styles.selectedCategoryButton]} onPress={() => setCategoryId(cat.id)}>
-                  <Text style={[styles.categoryButtonText, categoryId === cat.id && styles.selectedCategoryButtonText]}>{cat.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.label}>Варианты</Text>
-            {variants.map((variant, index) => (
-              <View key={index} style={styles.variantSection}>
-                <View style={styles.variantRow}>
-                  <View style={styles.variantInputContainer}>
-                    <Text style={styles.variantLabel}>Размер</Text>
-                    <TextInput style={styles.variantInput} placeholder="шт." value={variant.size} onChangeText={text => { const newVariants = [...variants]; newVariants[index].size = text; setVariants(newVariants); }} />
-                  </View>
-                  <View style={styles.variantInputContainer}>
-                    <Text style={styles.variantLabel}>Цена (₸)</Text>
-                    <TextInput style={styles.variantInput} placeholder="0" value={variant.price} onChangeText={text => { const newVariants = [...variants]; newVariants[index].price = text; setVariants(newVariants); }} keyboardType="numeric" />
-                  </View>
-                  <View style={styles.variantInputContainer}>
-                    <Text style={styles.variantLabel}>Остаток</Text>
-                    <TextInput style={styles.variantInput} placeholder="99" value={variant.stock_quantity} onChangeText={text => { const newVariants = [...variants]; newVariants[index].stock_quantity = text; setVariants(newVariants); }} keyboardType="numeric" />
-                  </View>
-                  <TouchableOpacity style={styles.removeVariantButton} onPress={() => handleRemoveVariant(index)}>
-                    <Ionicons name="trash-outline" size={22} color="#FF69B4" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+          <Text style={styles.label}>Категория</Text>
+          <View style={styles.categoryContainer}>
+            {categories.map(cat => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.categoryChip, categoryId === cat.id && styles.activeCategoryChip]}
+                onPress={() => setCategoryId(cat.id)}
+              >
+                <Text style={[styles.categoryText, categoryId === cat.id && styles.activeCategoryText]}>{cat.name}</Text>
+              </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.addVariantButton} onPress={handleAddVariant}>
-              <Ionicons name="add" size={20} color="#FF69B4" />
-              <Text style={styles.addVariantText}>Добавить вариант</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.saveButton} onPress={handleSaveProduct} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
-            </TouchableOpacity>
           </View>
+
+          <Text style={styles.label}>Варианты товара</Text>
+          {variants.map((variant, index) => (
+            <View key={index} style={styles.variantRow}>
+              <TextInput style={[styles.variantInput, { flex: 2 }]} value={variant.size} onChangeText={text => handleVariantChange(index, 'size', text)} placeholder="Размер (шт.)" />
+              <TextInput style={[styles.variantInput, { flex: 2 }]} value={variant.price} onChangeText={text => handleVariantChange(index, 'price', text)} placeholder="Цена (₸)" keyboardType="numeric" />
+              <TextInput style={[styles.variantInput, { flex: 1.5 }]} value={variant.stock_quantity} onChangeText={text => handleVariantChange(index, 'stock_quantity', text)} placeholder="Кол-во" keyboardType="numeric" />
+              <TouchableOpacity onPress={() => removeVariant(index)} style={styles.removeButton}>
+                <Ionicons name="trash-outline" size={20} color="#D32F2F" />
+              </TouchableOpacity>
+            </View>
+          ))}
+          <TouchableOpacity style={styles.addButton} onPress={addVariant}>
+            <Ionicons name="add" size={20} color="#FF69B4" />
+            <Text style={styles.addButtonText}>Добавить вариант</Text>
+          </TouchableOpacity>
         </ScrollView>
+        <View style={styles.footer}>
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
+            {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  scrollContent: { padding: 20, paddingBottom: 100 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
-  form: { padding: 20 },
-  imagePicker: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', height: 150, borderRadius: 12, marginBottom: 20 },
-  productImage: { width: '100%', height: '100%', borderRadius: 12 },
+  label: { fontSize: 16, fontWeight: '500', color: '#333', marginTop: 20, marginBottom: 8 },
+  input: { backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 12, borderRadius: 10, fontSize: 16 },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  imagePicker: { height: 150, width: 150, borderRadius: 10, backgroundColor: '#e0e0e0', justifyContent: 'center', alignItems: 'center', alignSelf: 'center', overflow: 'hidden' },
+  productImage: { width: '100%', height: '100%' },
   imagePickerText: { color: '#999', marginTop: 5 },
-  label: { fontSize: 16, fontWeight: '600', marginBottom: 8, marginTop: 15 },
-  input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, fontSize: 16 },
-  textArea: { minHeight: 100, textAlignVertical: 'top' },
-  categorySelector: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  categoryButton: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, backgroundColor: '#f0f0f0' },
-  selectedCategoryButton: { backgroundColor: '#FF69B4' },
-  categoryButtonText: { color: '#333' },
-  selectedCategoryButtonText: { color: '#fff' },
-  
-  variantSection: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 10,
-  },
-  variantRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 10,
-  },
-  variantInputContainer: {
-    flex: 1,
-  },
-  variantLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
-    marginLeft: 2,
-  },
-  variantInput: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 8,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  removeVariantButton: {
-    padding: 5,
-    marginBottom: 5,
-  },
-
-  addVariantButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 10, borderRadius: 8, borderWidth: 1, borderColor: '#FF69B4', marginTop: 5 },
-  addVariantText: { color: '#FF69B4', marginLeft: 5 },
-  saveButton: { backgroundColor: '#FF69B4', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 30, marginBottom: 20 },
+  categoryContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  categoryChip: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, backgroundColor: '#e0e0e0' },
+  activeCategoryChip: { backgroundColor: '#FF69B4' },
+  categoryText: { color: '#333' },
+  activeCategoryText: { color: '#fff', fontWeight: 'bold' },
+  variantRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  variantInput: { backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 10, borderRadius: 8, flex: 1 },
+  removeButton: { padding: 5 },
+  addButton: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 10, padding: 10 },
+  addButtonText: { color: '#FF69B4', fontWeight: 'bold' },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, backgroundColor: '#f5f5f5', borderTopWidth: 1, borderColor: '#eee' },
+  saveButton: { backgroundColor: '#FF69B4', padding: 15, borderRadius: 10, alignItems: 'center' },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
 
