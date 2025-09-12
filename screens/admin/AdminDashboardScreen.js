@@ -214,7 +214,7 @@ const AdminDashboardScreen = ({ navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Последние заказы</Text>
           {recentOrders.map(order => (
-            <TouchableOpacity key={order.id} style={styles.orderItem} onPress={() => navigation.navigate('AdminOrderDetail', { orderId: order.id })}>
+            <TouchableOpacity key={order.id} style={styles.orderItem} onPress={() => navigation.navigate('OrdersTab', { screen: 'AdminOrderDetail', params: { orderId: order.id } })}>
               <View>
                 <Text style={styles.orderId}>Заказ #{order.id.substring(0, 8)}</Text>
                 <Text style={styles.orderCustomer}>{order.customer_name}</Text>

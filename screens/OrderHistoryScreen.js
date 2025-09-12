@@ -62,7 +62,7 @@ const OrderHistoryScreen = ({ navigation }) => {
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity 
       style={styles.orderItem} 
-      onPress={() => navigation.navigate('AdminOrderDetail', { orderId: item.id })}
+      onPress={() => navigation.navigate('UserOrderDetail', { orderId: item.id })} // Changed to UserOrderDetail
     >
       <View style={styles.orderHeader}>
         <Text style={styles.orderId}>Заказ #{item.id.substring(0, 8)}</Text>
