@@ -1,18 +1,17 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack'; // Import createStackNavigator
+import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import AdminOrdersScreen from '../screens/admin/AdminOrdersScreen';
 import AdminProductsScreen from '../screens/admin/AdminProductsScreen';
 import AdminCategoriesScreen from '../screens/admin/AdminCategoriesScreen';
-import AdminOrderDetailScreen from '../screens/admin/AdminOrderDetailScreen'; // Import AdminOrderDetailScreen
+import AdminOrderDetailScreen from '../screens/admin/AdminOrderDetailScreen';
 
 const Tab = createBottomTabNavigator();
-const AdminStack = createStackNavigator(); // Create a stack navigator for Admin screens
+const AdminStack = createStackNavigator();
 
-// Stack for Orders tab to include OrderDetailScreen
 const OrdersStack = () => (
   <AdminStack.Navigator screenOptions={{ headerShown: false }}>
     <AdminStack.Screen name="AdminOrdersList" component={AdminOrdersScreen} />
@@ -28,7 +27,7 @@ const AdminNavigator = () => {
           let iconName;
           if (route.name === 'Dashboard') {
             iconName = focused ? 'stats-chart' : 'stats-chart-outline';
-          } else if (route.name === 'OrdersTab') { // Use OrdersTab for the stack
+          } else if (route.name === 'OrdersTab') {
             iconName = focused ? 'receipt' : 'receipt-outline';
           } else if (route.name === 'Products') {
             iconName = focused ? 'cube' : 'cube-outline';
@@ -43,7 +42,7 @@ const AdminNavigator = () => {
       })}
     >
       <Tab.Screen name="Dashboard" component={AdminDashboardScreen} options={{ title: 'Сводка' }} />
-      <Tab.Screen name="OrdersTab" component={OrdersStack} options={{ title: 'Заказы' }} /> {/* Use the OrdersStack here */}
+      <Tab.Screen name="OrdersTab" component={OrdersStack} options={{ title: 'Заказы' }} />
       <Tab.Screen name="Products" component={AdminProductsScreen} options={{ title: 'Товары' }} />
       <Tab.Screen name="Categories" component={AdminCategoriesScreen} options={{ title: 'Категории' }} />
     </Tab.Navigator>
