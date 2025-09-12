@@ -35,7 +35,7 @@ const CategoryScreen = ({ navigation, route }) => {
     try {
       let query = supabase
         .from('products')
-        .select('*, categories(name, name_en), product_variants(*)')
+        .select('*, categories(name, name_en), product_variants(id, product_id, size, price, stock_quantity)') // Explicitly select columns
         .eq('category_id', category.id);
       
       // Apply sorting
@@ -59,7 +59,7 @@ const CategoryScreen = ({ navigation, route }) => {
         sortedData = [...data].sort((a, b) => {
           const priceA = a.product_variants?.[0]?.price || 0;
           const priceB = b.product_variants?.[0]?.price || 0;
-          return sortOption.ascending ? priceA - priceB : priceB - priceA;
+          return sortOption.ascending ? priceA - priceB : priceB - a.price;
         });
       }
 

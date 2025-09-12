@@ -47,11 +47,15 @@ const ProductScreen = ({ navigation, route }) => {
   const fetchProductDetails = useCallback(async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('*, product_variants(*), product_images(*)')
+      .select('*, product_variants(id, product_id, size, price, stock_quantity), product_images(*)') // Explicitly select columns
       .eq('id', initialProduct.id)
-      .single();
+      .maybeSingle(); // Use maybeSingle() here too
     
-    if (!error && data) {
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found"
+      console.error("Error fetching product details:", error);
+      showToast('Ошибка загрузки деталей товара', 'error');
+      setProduct(null); // Or handle as appropriate
+    } else if (data) {
       setProduct(data);
       const currentSelectedId = selectedVariant?.id;
       const newVariants = data.product_variants || [];
@@ -63,6 +67,9 @@ const ProductScreen = ({ navigation, route }) => {
         images.unshift(data.image);
       }
       setProductImages(images);
+    } else {
+      setProduct(null); // Product not found
+      showToast('Товар не найден', 'error');
     }
   }, [initialProduct.id, selectedVariant]);
 
@@ -85,7 +92,7 @@ const ProductScreen = ({ navigation, route }) => {
     const fetchRecommended = async () => {
       const { data, error } = await supabase
         .from('products')
-        .select('*, product_variants(*)')
+        .select('*, product_variants(id, product_id, size, price, stock_quantity)') // Explicitly select columns
         .neq('id', product.id)
         .order('purchase_count', { ascending: false })
         .limit(5);
@@ -94,8 +101,10 @@ const ProductScreen = ({ navigation, route }) => {
         setRecommended(data);
       }
     };
-    fetchRecommended();
-  }, [product.id]);
+    if (product) { // Only fetch recommended if product details are loaded
+      fetchRecommended();
+    }
+  }, [product?.id]); // Depend on product.id
 
   const handleAddToCart = () => {
     if (!selectedVariant) {
@@ -158,6 +167,27 @@ const ProductScreen = ({ navigation, route }) => {
     const index = Math.round(contentOffsetX / (width - 40));
     setActiveImageIndex(index);
   };
+
+  if (!product) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={28} color="#333" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Детали товара</Text>
+          <View style={{ width: 28 }} />
+        </View>
+        <View style={styles.emptyState}>
+          <Ionicons name="flower-outline" size={80} color="#999" />
+          <Text style={styles.emptyStateText}>Товар не найден или был удален.</Text>
+          <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Main', { screen: 'Home' })}>
+            <Text style={styles.shopButtonText}>Вернуться на главную</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -377,6 +407,31 @@ const styles = StyleSheet.create({
   addToCartButtonWrapper: { flex: 1.2, borderRadius: 30, shadowColor: '#FF69B4', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 10 },
   addToCartButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18, borderRadius: 30, gap: 10 },
   addToCartText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    marginTop: 50,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  shopButton: {
+    backgroundColor: '#FF69B4',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  shopButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });
 
 export default ProductScreen;

@@ -45,7 +45,7 @@ const HomeScreen = ({ navigation }) => {
 
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('*, categories(name, name_en), product_variants(*)')
+        .select('*, categories(name, name_en), product_variants(id, product_id, size, price, stock_quantity)') // Explicitly select columns
         .order('created_at', { ascending: false });
       if (productsError) throw productsError;
       setProducts(productsData);

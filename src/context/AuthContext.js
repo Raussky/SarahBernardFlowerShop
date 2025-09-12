@@ -18,12 +18,13 @@ export const AuthProvider = ({ children }) => {
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle(); // Changed to maybeSingle()
         
-        if (error) {
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found", which maybeSingle handles by returning null data
           console.error("Error fetching profile:", error);
+          setProfile(null);
         } else {
-          setProfile(profileData);
+          setProfile(profileData); // profileData will be null if no profile found
         }
       }
       setLoading(false);
@@ -38,9 +39,9 @@ export const AuthProvider = ({ children }) => {
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single();
+          .maybeSingle(); // Changed to maybeSingle()
         
-        if (error) {
+        if (error && error.code !== 'PGRST116') {
           console.error("Error fetching profile on auth change:", error);
           setProfile(null);
         } else {
