@@ -38,7 +38,7 @@ const HomeScreen = ({ navigation }) => {
 
       const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('*, categories(name, name_ru), product_variants(*)')
+        .select('*, categories(name, name_en), product_variants(*)')
         .order('created_at', { ascending: false });
       if (productsError) throw productsError;
       setProducts(productsData);
@@ -75,14 +75,13 @@ const HomeScreen = ({ navigation }) => {
       currentFiltered = currentFiltered.filter(product =>
         product.name?.toLowerCase().includes(lowercasedSearchText) ||
         product.name_ru?.toLowerCase().includes(lowercasedSearchText) ||
-        product.categories?.name?.toLowerCase().includes(lowercasedSearchText) ||
-        product.categories?.name_ru?.toLowerCase().includes(lowercasedSearchText)
+        product.categories?.name?.toLowerCase().includes(lowercasedSearchText)
       );
     }
 
     if (activeFilter !== 'Все') {
       currentFiltered = currentFiltered.filter(product =>
-        product.categories?.name === activeFilter || product.categories?.name_ru === activeFilter
+        product.categories?.name === activeFilter
       );
     }
 
@@ -91,7 +90,7 @@ const HomeScreen = ({ navigation }) => {
 
   const renderBestsellerFilters = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
-      {['Все', ...categories.map(cat => cat.name_ru || cat.name)].map(filter => (
+      {['Все', ...categories.map(cat => cat.name)].map(filter => (
         <TouchableOpacity 
           key={filter}
           style={[styles.filterTab, activeFilter === filter && styles.activeFilterTab]}
@@ -246,7 +245,7 @@ const HomeScreen = ({ navigation }) => {
                   <Text style={styles.categoryEmoji}>{category.icon || '💐'}</Text>
                 )}
               </View>
-              <Text style={styles.categoryName}>{category.name_ru || category.name}</Text>
+              <Text style={styles.categoryName}>{category.name}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
