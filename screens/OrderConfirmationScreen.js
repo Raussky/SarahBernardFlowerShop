@@ -17,7 +17,7 @@ const OrderConfirmationScreen = ({ navigation, route }) => {
         </Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={() => navigation.navigate('Home')}
+          onPress={() => navigation.navigate('Main', { screen: 'Home' })}
         >
           <Text style={styles.buttonText}>Вернуться на главную</Text>
         </TouchableOpacity>

@@ -94,7 +94,7 @@ const SavedScreen = ({ navigation }) => {
           </Text>
           <TouchableOpacity 
             style={styles.shopButton}
-            onPress={() => navigation.navigate('Home')}
+            onPress={() => navigation.navigate('Main', { screen: 'Home' })}
           >
             <Text style={styles.shopButtonText}>Перейти к покупкам</Text>
           </TouchableOpacity>

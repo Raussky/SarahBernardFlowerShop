@@ -367,7 +367,7 @@ const BasketScreen = ({ navigation }) => {
             <Text style={styles.emptyText}>
               Ваша корзина пуста. Добавьте что-нибудь красивое!
             </Text>
-            <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Home')}>
+            <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Main', { screen: 'Home' })}>
               <Text style={styles.shopButtonText}>Перейти к покупкам</Text>
             </TouchableOpacity>
           </View>
@@ -379,7 +379,7 @@ const BasketScreen = ({ navigation }) => {
               keyExtractor={item => item.cartItemId}
               contentContainerStyle={styles.listContainer}
               ListHeaderComponent={!isCheckingOut && (
-                <TouchableOpacity style={styles.continueShoppingButton} onPress={() => navigation.navigate('Home')}>
+                <TouchableOpacity style={styles.continueShoppingButton} onPress={() => navigation.navigate('Main', { screen: 'Home' })}>
                   <Ionicons name="arrow-back" size={18} color="#FF69B4" />
                   <Text style={styles.continueShoppingText}>Продолжить покупки</Text>
                 </TouchableOpacity>
