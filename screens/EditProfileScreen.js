@@ -61,8 +61,8 @@ const EditProfileScreen = ({ navigation }) => {
     try {
       const base64 = await LegacyFileSystem.readAsStringAsync(uri, { encoding: LegacyFileSystem.EncodingType.Base64 });
       const fileExt = uri.split('.').pop();
-      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`; // User-specific folder path
       const contentType = `image/${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
