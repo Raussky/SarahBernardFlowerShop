@@ -10,6 +10,7 @@ import {
   Platform,
   FlatList,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -82,6 +83,9 @@ const BasketScreen = ({ navigation }) => {
   const { user, profile } = useContext(AuthContext);
   const { showToast } = useToast();
 
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+
   const [deliveryMethod, setDeliveryMethod] = useState('delivery');
   const [paymentMethod, setPaymentMethod] = useState('kaspi');
   const [customerName, setCustomerName] = useState('');
@@ -121,6 +125,31 @@ const BasketScreen = ({ navigation }) => {
     );
   };
 
+  const handleProductPress = async (item) => {
+    if (isNavigating) return;
+    setIsNavigating(true);
+    try {
+      const { data: product, error } = await supabase
+        .from('products')
+        .select('*, categories(name, name_en), product_variants(*)')
+        .eq('id', item.id)
+        .single();
+      
+      if (error) throw error;
+
+      if (product) {
+        navigation.navigate('Product', { product });
+      } else {
+        showToast('Товар не найден', 'error');
+      }
+    } catch (error) {
+      showToast('Не удалось открыть товар', 'error');
+      console.error("Error navigating to product:", error);
+    } finally {
+      setIsNavigating(false);
+    }
+  };
+
   const handleWhatsAppOrder = async () => {
     if (!customerName || !customerPhone || (deliveryMethod === 'delivery' && !customerAddress)) {
       showToast('Пожалуйста, заполните все обязательные поля для заказа.', 'error');
@@ -134,14 +163,13 @@ const BasketScreen = ({ navigation }) => {
 
     const subtotal = getSubtotal();
     const total = getTotalPrice();
-    const newOrderId = uuidv4(); // Генерируем ID на клиенте
+    const newOrderId = uuidv4();
 
     try {
-      // 1. Insert order into Supabase
       const { error: orderError } = await supabase
         .from('orders')
         .insert({
-          id: newOrderId, // Используем сгенерированный ID
+          id: newOrderId,
           user_id: user?.id || null,
           customer_name: customerName,
           customer_phone: customerPhone,
@@ -155,9 +183,8 @@ const BasketScreen = ({ navigation }) => {
 
       if (orderError) throw orderError;
 
-      // 2. Insert order items
       const orderItems = cart.map(item => ({
-        order_id: newOrderId, // Используем тот же сгенерированный ID
+        order_id: newOrderId,
         product_id: item.id,
         product_variant_id: item.variantId,
         product_name: item.name || item.nameRu,
@@ -170,7 +197,6 @@ const BasketScreen = ({ navigation }) => {
       const { error: orderItemsError } = await supabase.from('order_items').insert(orderItems);
       if (orderItemsError) throw orderItemsError;
 
-      // 3. Decrement stock
       const itemsToDecrement = cart.map(item => ({
         variant_id: item.variantId,
         quantity: item.quantity,
@@ -181,7 +207,6 @@ const BasketScreen = ({ navigation }) => {
         showToast('Ошибка при обновлении остатков', 'error');
       }
 
-      // 4. Send WhatsApp message
       const orderDetails = cart.map(item => 
         `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
       ).join('\n');
@@ -217,38 +242,53 @@ const BasketScreen = ({ navigation }) => {
   };
 
   const renderCartItem = ({ item }) => (
-    <View style={styles.cartItem}>
-      <Image source={{ uri: item.image }} style={styles.itemImage} />
-      <View style={styles.itemDetails}>
-        <Text style={styles.itemName} numberOfLines={1}>{item.name || item.nameRu}</Text>
-        <Text style={styles.itemSize}>Размер: {item.size}</Text>
-        <Text style={styles.itemPrice}>₸{item.price.toLocaleString()}</Text>
-      </View>
-      <View style={styles.quantityControl}>
-        <TouchableOpacity onPress={() => updateItemQuantity(item.cartItemId, item.quantity - 1)}>
-          <Ionicons name="remove-circle-outline" size={28} color="#FF69B4" />
+    <TouchableOpacity onPress={() => handleProductPress(item)} activeOpacity={0.7} disabled={isNavigating}>
+      <View style={styles.cartItem}>
+        {isNavigating && <ActivityIndicator style={StyleSheet.absoluteFill} color="#FF69B4" />}
+        <Image source={{ uri: item.image }} style={styles.itemImage} />
+        <View style={styles.itemDetails}>
+          <Text style={styles.itemName} numberOfLines={1}>{item.name || item.nameRu}</Text>
+          <Text style={styles.itemSize}>Размер: {item.size}</Text>
+          <Text style={styles.itemPrice}>₸{item.price.toLocaleString()}</Text>
+        </View>
+        <View style={styles.quantityControl}>
+          <TouchableOpacity onPress={() => updateItemQuantity(item.cartItemId, item.quantity - 1)}>
+            <Ionicons name="remove-circle-outline" size={28} color="#FF69B4" />
+          </TouchableOpacity>
+          <Text style={styles.quantityText}>{item.quantity}</Text>
+          <TouchableOpacity onPress={() => updateItemQuantity(item.cartItemId, item.quantity + 1)}>
+            <Ionicons name="add-circle-outline" size={28} color="#FF69B4" />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity style={styles.deleteButton} onPress={() => removeFromCart(item.cartItemId)}>
+          <Ionicons name="trash-outline" size={24} color="#999" />
         </TouchableOpacity>
-        <Text style={styles.quantityText}>{item.quantity}</Text>
-        <TouchableOpacity onPress={() => updateItemQuantity(item.cartItemId, item.quantity + 1)}>
-          <Ionicons name="add-circle-outline" size={28} color="#FF69B4" />
-        </TouchableOpacity>
       </View>
-      <TouchableOpacity style={styles.deleteButton} onPress={() => removeFromCart(item.cartItemId)}>
-        <Ionicons name="trash-outline" size={24} color="#999" />
-      </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Корзина</Text>
-          {cart.length > 0 && (
-            <TouchableOpacity onPress={handleClearCart} style={styles.clearButton}>
-              <Ionicons name="trash-outline" size={20} color="#FF69B4" />
-              <Text style={styles.clearButtonText}>Очистить</Text>
-            </TouchableOpacity>
+          {isCheckingOut ? (
+            <View style={styles.checkoutHeader}>
+              <TouchableOpacity onPress={() => setIsCheckingOut(false)}>
+                <Ionicons name="arrow-back" size={24} color="#333" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Оформление заказа</Text>
+              <View style={{ width: 24 }} />
+            </View>
+          ) : (
+            <>
+              <Text style={styles.headerTitle}>Корзина</Text>
+              {cart.length > 0 && (
+                <TouchableOpacity onPress={handleClearCart} style={styles.clearButton}>
+                  <Ionicons name="trash-outline" size={20} color="#FF69B4" />
+                  <Text style={styles.clearButtonText}>Очистить</Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
 
@@ -269,15 +309,23 @@ const BasketScreen = ({ navigation }) => {
               renderItem={renderCartItem}
               keyExtractor={item => item.cartItemId}
               contentContainerStyle={styles.listContainer}
+              ListHeaderComponent={!isCheckingOut && (
+                <TouchableOpacity style={styles.continueShoppingButton} onPress={() => navigation.navigate('Home')}>
+                  <Ionicons name="arrow-back" size={18} color="#FF69B4" />
+                  <Text style={styles.continueShoppingText}>Продолжить покупки</Text>
+                </TouchableOpacity>
+              )}
               ListFooterComponent={
-                <OrderForm
-                  deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod}
-                  paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-                  customerName={customerName} setCustomerName={setCustomerName}
-                  customerPhone={customerPhone} setCustomerPhone={setCustomerPhone}
-                  customerAddress={customerAddress} setCustomerAddress={setCustomerAddress}
-                  orderComment={orderComment} setOrderComment={setOrderComment}
-                />
+                isCheckingOut ? (
+                  <OrderForm
+                    deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod}
+                    paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+                    customerName={customerName} setCustomerName={setCustomerName}
+                    customerPhone={customerPhone} setCustomerPhone={setCustomerPhone}
+                    customerAddress={customerAddress} setCustomerAddress={setCustomerAddress}
+                    orderComment={orderComment} setOrderComment={setOrderComment}
+                  />
+                ) : null
               }
             />
             <View style={styles.fixedFooter}>
@@ -295,10 +343,17 @@ const BasketScreen = ({ navigation }) => {
                   <Text style={styles.totalPrice}>₸{getTotalPrice().toLocaleString()}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.whatsappButton} onPress={handleWhatsAppOrder}>
-                <Text style={styles.whatsappButtonText}>Отправить в WhatsApp</Text>
-                <Ionicons name="logo-whatsapp" size={24} color="#fff" />
-              </TouchableOpacity>
+              {isCheckingOut ? (
+                <TouchableOpacity style={styles.whatsappButton} onPress={handleWhatsAppOrder}>
+                  <Text style={styles.whatsappButtonText}>Отправить в WhatsApp</Text>
+                  <Ionicons name="logo-whatsapp" size={24} color="#fff" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={styles.checkoutButton} onPress={() => setIsCheckingOut(true)}>
+                  <Text style={styles.checkoutButtonText}>Перейти к оформлению</Text>
+                  <Ionicons name="arrow-forward" size={22} color="#fff" />
+                </TouchableOpacity>
+              )}
             </View>
           </>
         )}
@@ -310,6 +365,7 @@ const BasketScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  checkoutHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' },
   headerTitle: { fontSize: 24, fontWeight: 'bold' },
   clearButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFE4E1', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   clearButtonText: { color: '#FF69B4', marginLeft: 5, fontWeight: '600' },
@@ -320,6 +376,18 @@ const styles = StyleSheet.create({
   listContainer: { 
     paddingHorizontal: 20, 
     paddingBottom: 260
+  },
+  continueShoppingButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    alignSelf: 'flex-start',
+  },
+  continueShoppingText: {
+    color: '#FF69B4',
+    fontWeight: '600',
+    marginLeft: 5,
+    fontSize: 16,
   },
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
@@ -369,6 +437,21 @@ const styles = StyleSheet.create({
     marginTop: 15,
   },
   whatsappButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  checkoutButton: {
+    backgroundColor: '#FF69B4',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    borderRadius: 25,
+    gap: 10,
+    marginTop: 15,
+  },
+  checkoutButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
 });
 
 export default BasketScreen;
