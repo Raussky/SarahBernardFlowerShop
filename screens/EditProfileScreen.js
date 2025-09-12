@@ -17,6 +17,8 @@ import { useAuth } from '../src/context/AuthContext';
 import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
+import * as LegacyFileSystem from 'expo-file-system/legacy';
+import { decode } from 'base-64';
 import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
 import MaskInput from 'react-native-mask-input'; // Import MaskInput
 
@@ -56,19 +58,25 @@ const EditProfileScreen = ({ navigation }) => {
 
   const uploadImage = async (uri) => {
     if (!user) return null;
+    try {
+      const base64 = await LegacyFileSystem.readAsStringAsync(uri, { encoding: LegacyFileSystem.EncodingType.Base64 });
+      const fileExt = uri.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+      const contentType = `image/${fileExt}`;
 
-    const fileExt = uri.split('.').pop();
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-    const filePath = `avatars/${fileName}`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, decode(base64), { contentType });
 
-    const response = await fetch(uri);
-    const blob = await response.blob();
-    
-    const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, blob);
-    if (uploadError) throw uploadError;
+      if (uploadError) throw uploadError;
 
-    const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-    return data.publicUrl;
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (e) {
+      console.error("Avatar upload error:", e);
+      throw e;
+    }
   };
 
   const handleSaveProfile = async () => {
