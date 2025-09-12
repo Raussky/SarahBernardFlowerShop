@@ -60,7 +60,10 @@ const OrderHistoryScreen = ({ navigation }) => {
   };
 
   const renderOrderItem = ({ item }) => (
-    <View style={styles.orderItem}>
+    <TouchableOpacity 
+      style={styles.orderItem} 
+      onPress={() => navigation.navigate('AdminOrderDetail', { orderId: item.id })}
+    >
       <View style={styles.orderHeader}>
         <Text style={styles.orderId}>Заказ #{item.id.substring(0, 8)}</Text>
         <Text style={styles.orderDate}>
@@ -73,7 +76,7 @@ const OrderHistoryScreen = ({ navigation }) => {
           <Text style={styles.statusText}>{ORDER_STATUSES[item.status] || item.status}</Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   if (loading) {
@@ -98,7 +101,7 @@ const OrderHistoryScreen = ({ navigation }) => {
         <View style={styles.emptyContainer}>
           <Ionicons name="receipt-outline" size={100} color="#FF69B4" />
           <Text style={styles.emptyText}>У вас еще нет заказов.</Text>
-          <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Home')}>
+          <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Main', { screen: 'Home' })}>
             <Text style={styles.shopButtonText}>Начать покупки</Text>
           </TouchableOpacity>
         </View>

@@ -136,7 +136,7 @@ const LoginScreen = ({ navigation }) => {
               <Text style={styles.logoText}>SB</Text>
             </View>
             <Text style={styles.title}>Sarah Bernard</Text>
-            <Text style={styles.subtitle}>Админ панель</Text>
+            {/* <Text style={styles.subtitle}>Админ панель</Text> */}
           </View>
 
           <View style={styles.form}>

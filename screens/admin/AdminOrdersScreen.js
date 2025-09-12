@@ -39,7 +39,7 @@ const AdminOrdersScreen = ({ navigation }) => {
   };
 
   const fetchOrders = useCallback(async (currentPage = 0, isRefresh = false) => {
-    if (loadingMore || (currentPage > 0 && !hasMore)) return;
+    if (loadingMore || (currentPage > 0 && !hasMore && !isRefresh)) return; // Added !isRefresh to allow refetch on refresh even if no more pages
 
     try {
       if (currentPage === 0) {
@@ -112,7 +112,10 @@ const AdminOrdersScreen = ({ navigation }) => {
   }, []);
 
   const renderOrderItem = ({ item }) => (
-    <TouchableOpacity style={styles.orderItem} onPress={() => navigation.navigate('AdminOrderDetail', { orderId: item.id })}>
+    <TouchableOpacity 
+      style={styles.orderItem} 
+      onPress={() => navigation.navigate('AdminOrderDetail', { orderId: item.id })}
+    >
       <View>
         <Text style={styles.orderId}>Заказ #{item.id.substring(0, 8)}</Text>
         <Text style={styles.orderCustomer}>{item.customer_name}</Text>
