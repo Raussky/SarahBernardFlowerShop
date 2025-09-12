@@ -28,7 +28,11 @@ const EditProductScreen = ({ navigation, route }) => {
 
   // Product state
   const [name, setName] = useState('');
+  const [nameRu, setNameRu] = useState(''); // New field
   const [description, setDescription] = useState('');
+  const [composition, setComposition] = useState(''); // New field
+  const [sizeInfo, setSizeInfo] = useState(''); // New field
+  const [careInstructions, setCareInstructions] = useState(''); // New field
   const [categoryId, setCategoryId] = useState(null);
   const [image, setImage] = useState(null); // Can be a URL or a local URI
   const [variants, setVariants] = useState([{ size: 'шт.', price: '', stock_quantity: '99' }]);
@@ -54,7 +58,11 @@ const EditProductScreen = ({ navigation, route }) => {
           if (productError) throw productError;
           
           setName(productData.name || '');
+          setNameRu(productData.name_ru || ''); // Set new field
           setDescription(productData.description || '');
+          setComposition(productData.composition || ''); // Set new field
+          setSizeInfo(productData.size_info || ''); // Set new field
+          setCareInstructions(productData.care_instructions || ''); // Set new field
           setImage(productData.image || null);
           setCategoryId(productData.category_id);
           if (productData.product_variants && productData.product_variants.length > 0) {
@@ -142,7 +150,11 @@ const EditProductScreen = ({ navigation, route }) => {
         .upsert({
           id: productId,
           name,
+          name_ru: nameRu, // Save new field
           description,
+          composition, // Save new field
+          size_info: sizeInfo, // Save new field
+          care_instructions: careInstructions, // Save new field
           category_id: categoryId,
           image: imageUrl,
         })
@@ -224,11 +236,23 @@ const EditProductScreen = ({ navigation, route }) => {
             )}
           </TouchableOpacity>
 
-          <Text style={styles.label}>Название товара</Text>
+          <Text style={styles.label}>Название товара (Русский)</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Например, Букет 'Нежность'" />
+
+          <Text style={styles.label}>Название товара (Английский, необязательно)</Text>
+          <TextInput style={styles.input} value={nameRu} onChangeText={setNameRu} placeholder="e.g., Bouquet 'Tenderness'" />
 
           <Text style={styles.label}>Описание</Text>
           <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} multiline placeholder="Краткое описание товара..." />
+
+          <Text style={styles.label}>Состав (необязательно)</Text>
+          <TextInput style={[styles.input, styles.textArea]} value={composition} onChangeText={setComposition} multiline placeholder="Например, 5 роз, 3 лилии, зелень..." />
+
+          <Text style={styles.label}>Информация о размере (необязательно)</Text>
+          <TextInput style={styles.input} value={sizeInfo} onChangeText={setSizeInfo} placeholder="Например, Высота 40 см, Диаметр 25 см" />
+
+          <Text style={styles.label}>Инструкции по уходу (необязательно)</Text>
+          <TextInput style={[styles.input, styles.textArea]} value={careInstructions} onChangeText={setCareInstructions} multiline placeholder="Например, Меняйте воду ежедневно, подрезайте стебли..." />
 
           <Text style={styles.label}>Категория</Text>
           <View style={styles.categoryContainer}>
