@@ -18,7 +18,7 @@ import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
 import * as LegacyFileSystem from 'expo-file-system/legacy';
-import { decode } from 'base64-js';
+import { toByteArray } from 'base64-js'; // ИСПРАВЛЕНО: импортируем toByteArray
 import 'react-native-url-polyfill/auto';
 import { useAuth } from '../src/context/AuthContext';
 
@@ -152,7 +152,7 @@ const EditProductScreen = ({ navigation, route }) => {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${fileName}`;
       const contentType = `image/${fileExt}`;
-      const byteArray = decode(base64);
+      const byteArray = toByteArray(base64); // ИСПРАВЛЕНО: используем toByteArray
 
       const { error } = await supabase.storage
         .from('product-images')
