@@ -19,12 +19,16 @@ const AdminOrdersScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sort, setSort] = useState({ column: 'created_at', ascending: false });
   const isFocused = useIsFocused();
 
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
-      let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+      let query = supabase
+        .from('orders')
+        .select('*')
+        .order(sort.column, { ascending: sort.ascending });
       
       if (filter !== 'all') {
         query = query.eq('status', filter);
@@ -41,13 +45,20 @@ const AdminOrdersScreen = ({ navigation }) => {
     } finally {
       setLoading(false);
     }
-  }, [filter, searchQuery]);
+  }, [filter, searchQuery, sort]);
 
   useEffect(() => {
     if (isFocused) {
       fetchOrders();
     }
   }, [isFocused, fetchOrders]);
+
+  const handleSort = (column) => {
+    setSort(prevSort => ({
+      column,
+      ascending: prevSort.column === column ? !prevSort.ascending : false,
+    }));
+  };
 
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity style={styles.orderItem} onPress={() => navigation.navigate('AdminOrderDetail', { orderId: item.id })}>
@@ -94,6 +105,17 @@ const AdminOrdersScreen = ({ navigation }) => {
           showsHorizontalScrollIndicator={false}
         />
       </View>
+      <View style={styles.sortContainer}>
+        <Text style={styles.sortLabel}>Сортировать:</Text>
+        <TouchableOpacity style={styles.sortButton} onPress={() => handleSort('created_at')}>
+          <Text style={styles.sortButtonText}>По дате</Text>
+          {sort.column === 'created_at' && <Ionicons name={sort.ascending ? 'arrow-up' : 'arrow-down'} size={16} color="#FF69B4" />}
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.sortButton} onPress={() => handleSort('total_price')}>
+          <Text style={styles.sortButtonText}>По сумме</Text>
+          {sort.column === 'total_price' && <Ionicons name={sort.ascending ? 'arrow-up' : 'arrow-down'} size={16} color="#FF69B4" />}
+        </TouchableOpacity>
+      </View>
       {loading ? (
         <ActivityIndicator size="large" color="#FF69B4" style={{ flex: 1 }} />
       ) : (
@@ -120,6 +142,10 @@ const styles = StyleSheet.create({
   activeFilterButton: { backgroundColor: '#FF69B4' },
   filterText: { color: '#333' },
   activeFilterText: { color: '#fff', fontWeight: 'bold' },
+  sortContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#eee' },
+  sortLabel: { marginRight: 10, fontSize: 14, color: '#666' },
+  sortButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 15, marginRight: 10, gap: 5 },
+  sortButtonText: { color: '#333' },
   listContent: { paddingHorizontal: 20, paddingBottom: 20 },
   orderItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },
   orderId: { fontSize: 14, fontWeight: '600' },
