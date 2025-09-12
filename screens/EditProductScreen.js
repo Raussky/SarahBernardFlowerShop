@@ -11,7 +11,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +18,6 @@ import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
 import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
-import { v4 as uuidv4 } from 'uuid';
 
 const EditProductScreen = ({ navigation, route }) => {
   const { productId } = route.params;
@@ -32,12 +30,8 @@ const EditProductScreen = ({ navigation, route }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(null);
-  const [mainImage, setMainImage] = useState(null); // Main product image
-  const [additionalImages, setAdditionalImages] = useState([]); // Array of { id, url } for product_images
-  const [variants, setVariants] = useState([{ id: null, size: 'шт.', price: '', stock_quantity: '99' }]);
-  const [composition, setComposition] = useState('');
-  const [sizeInfo, setSizeInfo] = useState('');
-  const [careInstructions, setCareInstructions] = useState('');
+  const [image, setImage] = useState(null); // Can be a URL or a local URI
+  const [variants, setVariants] = useState([{ size: 'шт.', price: '', stock_quantity: '99' }]);
   
   const [categories, setCategories] = useState([]);
 
@@ -53,24 +47,17 @@ const EditProductScreen = ({ navigation, route }) => {
           setIsNewProduct(false);
           const { data: productData, error: productError } = await supabase
             .from('products')
-            .select('*, product_variants(*), product_images(*)') // Fetch product_images
+            .select('*, product_variants(*)')
             .eq('id', productId)
             .single();
           if (productError) throw productError;
           
           setName(productData.name || '');
           setDescription(productData.description || '');
-          setMainImage(productData.image || null);
-          setAdditionalImages(productData.product_images || []); // Set additional images
+          setImage(productData.image || null);
           setCategoryId(productData.category_id);
-          setComposition(productData.composition || '');
-          setSizeInfo(productData.size_info || '');
-          setCareInstructions(productData.care_instructions || '');
-
           if (productData.product_variants && productData.product_variants.length > 0) {
             setVariants(productData.product_variants.map(v => ({ ...v, price: v.price.toString(), stock_quantity: v.stock_quantity.toString() })));
-          } else {
-            setVariants([{ id: null, size: 'шт.', price: '', stock_quantity: '99' }]);
           }
         } else {
           setIsNewProduct(true);
@@ -85,7 +72,7 @@ const EditProductScreen = ({ navigation, route }) => {
     fetchData();
   }, [productId]);
 
-  const pickImage = async (isMain = true) => {
+  const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -94,23 +81,19 @@ const EditProductScreen = ({ navigation, route }) => {
     });
 
     if (!result.canceled) {
-      if (isMain) {
-        setMainImage(result.assets[0].uri);
-      } else {
-        setAdditionalImages(prev => [...prev, { id: uuidv4(), image_url: result.assets[0].uri, isNew: true }]);
-      }
+      setImage(result.assets[0].uri);
     }
   };
 
-  const uploadImage = async (localUri, folder = 'products') => {
+  const uploadImage = async (localUri) => {
     try {
       const response = await fetch(localUri);
-      const arrayBuffer = await response.arrayBuffer();
-      const fileName = `${folder}/${uuidv4()}.jpg`; // Use uuid for unique file names
+      const arrayBuffer = await response.arrayBuffer(); // Use arrayBuffer instead of blob
+      const fileName = `public/${Date.now()}.jpg`;
       
       const { error: uploadError } = await supabase.storage
         .from('product-images')
-        .upload(fileName, arrayBuffer, {
+        .upload(fileName, arrayBuffer, { // Pass arrayBuffer to upload
           cacheControl: '3600',
           upsert: false,
           contentType: 'image/jpeg',
@@ -137,19 +120,17 @@ const EditProductScreen = ({ navigation, route }) => {
     setSaving(true);
 
     try {
-      let finalMainImageUrl = mainImage;
-      if (mainImage && mainImage.startsWith('file://')) {
-        finalMainImageUrl = await uploadImage(mainImage, 'products');
+      let imageUrl = image;
+      // If image is a local file URI, upload it first
+      if (image && image.startsWith('file://')) {
+        imageUrl = await uploadImage(image);
       }
 
       const productPayload = {
         name,
         description,
         category_id: categoryId,
-        image: finalMainImageUrl,
-        composition,
-        size_info: sizeInfo,
-        care_instructions: careInstructions,
+        image: imageUrl,
       };
 
       let savedProduct;
@@ -163,53 +144,21 @@ const EditProductScreen = ({ navigation, route }) => {
         savedProduct = data;
       }
 
-      // Handle product variants
-      const existingVariantIds = new Set(variants.filter(v => v.id).map(v => v.id));
-      const currentDbVariants = (await supabase.from('product_variants').select('id').eq('product_id', savedProduct.id)).data || [];
-      const dbVariantIds = new Set(currentDbVariants.map(v => v.id));
-
-      // Delete variants removed by user
-      const variantsToDelete = [...dbVariantIds].filter(id => !existingVariantIds.has(id));
-      if (variantsToDelete.length > 0) {
-        const { error: deleteError } = await supabase.from('product_variants').delete().in('id', variantsToDelete);
-        if (deleteError) throw deleteError;
-      }
-
-      // Upsert (insert/update) remaining variants
-      const variantsToUpsert = variants.map(v => ({
-        id: v.id, // Will be null for new variants, existing for updated
+      // Now, handle variants
+      const variantsPayload = variants.map(v => ({
         product_id: savedProduct.id,
         size: v.size,
         price: parseFloat(v.price) || 0,
         stock_quantity: parseInt(v.stock_quantity, 10) || 0,
       }));
-      const { error: upsertVariantsError } = await supabase.from('product_variants').upsert(variantsToUpsert, { onConflict: 'id' });
-      if (upsertVariantsError) throw upsertVariantsError;
 
-      // Handle additional product images
-      const existingImageIds = new Set(additionalImages.filter(img => !img.isNew).map(img => img.id));
-      const currentDbImages = (await supabase.from('product_images').select('id').eq('product_id', savedProduct.id)).data || [];
-      const dbImageIds = new Set(currentDbImages.map(img => img.id));
-
-      // Delete images removed by user
-      const imagesToDelete = [...dbImageIds].filter(id => !existingImageIds.has(id));
-      if (imagesToDelete.length > 0) {
-        const { error: deleteImagesError } = await supabase.from('product_images').delete().in('id', imagesToDelete);
-        if (deleteImagesError) throw deleteImagesError;
+      // Simple approach: delete old variants and insert new ones
+      if (!isNewProduct) {
+        const { error: deleteError } = await supabase.from('product_variants').delete().eq('product_id', savedProduct.id);
+        if (deleteError) throw deleteError;
       }
-
-      // Insert new images
-      const newImagesToUpload = additionalImages.filter(img => img.isNew);
-      const uploadedImageUrls = await Promise.all(newImagesToUpload.map(img => uploadImage(img.image_url, 'product_images')));
-      
-      const imagesToInsert = uploadedImageUrls.map(url => ({
-        product_id: savedProduct.id,
-        image_url: url,
-      }));
-      if (imagesToInsert.length > 0) {
-        const { error: insertImagesError } = await supabase.from('product_images').insert(imagesToInsert);
-        if (insertImagesError) throw insertImagesError;
-      }
+      const { error: variantsError } = await supabase.from('product_variants').insert(variantsPayload);
+      if (variantsError) throw variantsError;
 
       showToast(isNewProduct ? 'Товар успешно создан' : 'Товар успешно обновлен', 'success');
       navigation.goBack();
@@ -222,7 +171,7 @@ const EditProductScreen = ({ navigation, route }) => {
   };
 
   const handleAddVariant = () => {
-    setVariants([...variants, { id: null, size: '', price: '', stock_quantity: '99' }]);
+    setVariants([...variants, { size: '', price: '', stock_quantity: '99' }]);
   };
 
   const handleRemoveVariant = (index) => {
@@ -232,16 +181,6 @@ const EditProductScreen = ({ navigation, route }) => {
     } else {
       showToast('Должен быть хотя бы один вариант.', 'info');
     }
-  };
-
-  const handleRemoveAdditionalImage = (idToRemove) => {
-    Alert.alert('Удалить изображение?', 'Вы уверены, что хотите удалить это изображение?', [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Удалить', onPress: () => {
-          setAdditionalImages(prev => prev.filter(img => img.id !== idToRemove));
-          showToast('Изображение удалено', 'info');
-      }},
-    ]);
   };
 
   if (loading) {
@@ -262,34 +201,10 @@ const EditProductScreen = ({ navigation, route }) => {
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.label}>Основное изображение</Text>
-            <TouchableOpacity onPress={() => pickImage(true)} style={styles.imagePicker}>
-              {mainImage ? <Image source={{ uri: mainImage }} style={styles.productImage} /> : <Ionicons name="camera" size={40} color="#999" />}
-              <Text style={styles.imagePickerText}>Нажмите, чтобы выбрать основное фото</Text>
+            <TouchableOpacity onPress={pickImage} style={styles.imagePicker}>
+              {image ? <Image source={{ uri: image }} style={styles.productImage} /> : <Ionicons name="camera" size={40} color="#999" />}
+              <Text style={styles.imagePickerText}>Нажмите, чтобы выбрать фото</Text>
             </TouchableOpacity>
-
-            <Text style={styles.label}>Дополнительные изображения</Text>
-            <FlatList
-              horizontal
-              data={additionalImages}
-              keyExtractor={item => item.id}
-              renderItem={({ item }) => (
-                <View style={styles.additionalImageContainer}>
-                  <Image source={{ uri: item.image_url }} style={styles.additionalImage} />
-                  <TouchableOpacity onPress={() => handleRemoveAdditionalImage(item.id)} style={styles.removeImageButton}>
-                    <Ionicons name="close-circle" size={24} color="#FF69B4" />
-                  </TouchableOpacity>
-                </View>
-              )}
-              ListFooterComponent={
-                <TouchableOpacity onPress={() => pickImage(false)} style={styles.addAdditionalImageButton}>
-                  <Ionicons name="add" size={30} color="#999" />
-                  <Text style={styles.imagePickerText}>Добавить фото</Text>
-                </TouchableOpacity>
-              }
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.additionalImagesList}
-            />
 
             <Text style={styles.label}>Название товара</Text>
             <TextInput style={styles.input} value={name} onChangeText={setName} />
@@ -306,18 +221,9 @@ const EditProductScreen = ({ navigation, route }) => {
               ))}
             </View>
 
-            <Text style={styles.label}>Состав</Text>
-            <TextInput style={[styles.input, styles.textArea]} placeholder="Например: Роза пионовидная - 5 шт, Эустома - 3 шт" value={composition} onChangeText={setComposition} multiline />
-
-            <Text style={styles.label}>Информация о размере</Text>
-            <TextInput style={[styles.input, styles.textArea]} placeholder="Например: Высота 40 см, Ширина 30 см" value={sizeInfo} onChangeText={setSizeInfo} multiline />
-
-            <Text style={styles.label}>Инструкции по уходу</Text>
-            <TextInput style={[styles.input, styles.textArea]} placeholder="Например: Меняйте воду каждые 2 дня, подрезайте стебли" value={careInstructions} onChangeText={setCareInstructions} multiline />
-
             <Text style={styles.label}>Варианты</Text>
             {variants.map((variant, index) => (
-              <View key={variant.id || `new-${index}`} style={styles.variantSection}>
+              <View key={index} style={styles.variantSection}>
                 <View style={styles.variantRow}>
                   <View style={styles.variantInputContainer}>
                     <Text style={styles.variantLabel}>Размер</Text>
@@ -407,45 +313,6 @@ const styles = StyleSheet.create({
   addVariantText: { color: '#FF69B4', marginLeft: 5 },
   saveButton: { backgroundColor: '#FF69B4', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 30, marginBottom: 20 },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-
-  // Additional Images styles
-  additionalImagesList: {
-    paddingVertical: 10,
-  },
-  additionalImageContainer: {
-    width: 100,
-    height: 100,
-    marginRight: 10,
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative',
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  additionalImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  removeImageButton: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-  },
-  addAdditionalImageButton: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderStyle: 'dashed',
-  },
 });
 
 export default EditProductScreen;

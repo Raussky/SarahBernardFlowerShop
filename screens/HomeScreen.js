@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,6 @@ import {
   ActivityIndicator,
   ImageBackground,
   Image,
-  Dimensions,
-  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,8 +18,6 @@ import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 import { DEFAULT_CITY } from '../src/config/constants';
 import SkeletonLoader from '../src/components/SkeletonLoader';
-
-const { width } = Dimensions.get('window');
 
 const categoryImageMap = {
   '💐': 'https://images.unsplash.com/photo-1546842931-886c185b4c8c?w=500&q=80',
@@ -33,16 +29,15 @@ const categoryImageMap = {
 const HomeScreen = ({ navigation }) => {
   const [searchText, setSearchText] = useState('');
   const [categories, setCategories] = useState([]);
-  const [bestsellers, setBestsellers] = useState([]);
-  const [newArrivals, setNewArrivals] = useState([]); // Renamed from recommended
-  const [banners, setBanners] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Все');
 
-  const scrollX = useRef(new Animated.Value(0)).current;
-
   const fetchData = useCallback(async () => {
     try {
+      // Don't set loading to true on refetch
+      // setLoading(true); 
       const { data: categoriesData, error: categoriesError } = await supabase
         .from('categories')
         .select('*')
@@ -50,34 +45,13 @@ const HomeScreen = ({ navigation }) => {
       if (categoriesError) throw categoriesError;
       setCategories(categoriesData);
 
-      // Fetch Bestsellers (ordered by purchase_count)
-      const { data: bestsellersData, error: bestsellersError } = await supabase
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('*, categories(name, name_en), product_variants(*)')
-        .filter('is_archived', 'is', 'false')
-        .order('purchase_count', { ascending: false })
-        .limit(8); // Limit to a reasonable number
-      if (bestsellersError) throw bestsellersError;
-      setBestsellers(bestsellersData);
-
-      // Fetch New Arrivals (ordered by created_at)
-      const { data: newArrivalsData, error: newArrivalsError } = await supabase
-        .from('products')
-        .select('*, categories(name, name_en), product_variants(*)')
-        .filter('is_archived', 'is', 'false')
-        .order('created_at', { ascending: false })
-        .limit(8); // Limit to a reasonable number
-      if (newArrivalsError) throw newArrivalsError;
-      setNewArrivals(newArrivalsData);
-
-      // Fetch Banners
-      const { data: bannersData, error: bannersError } = await supabase
-        .from('banners')
-        .select('*')
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
-      if (bannersError) throw bannersError;
-      setBanners(bannersData);
+      if (productsError) throw productsError;
+      setProducts(productsData);
+      // setFilteredProducts(productsData); // This will be handled by the useEffect below
 
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -92,11 +66,9 @@ const HomeScreen = ({ navigation }) => {
 
   useEffect(() => {
     const channel = supabase
-      .channel('public:home_data_changes')
+      .channel('public:products_and_variants')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => fetchData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, () => fetchData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, () => fetchData())
       .subscribe();
 
     return () => {
@@ -104,8 +76,8 @@ const HomeScreen = ({ navigation }) => {
     };
   }, [fetchData]);
 
-  const getFilteredBestsellers = () => {
-    let currentFiltered = bestsellers;
+  useEffect(() => {
+    let currentFiltered = products;
 
     if (searchText) {
       const lowercasedSearchText = searchText.toLowerCase();
@@ -122,8 +94,9 @@ const HomeScreen = ({ navigation }) => {
         product.categories?.name === activeFilter || product.categories?.name_en === activeFilter
       );
     }
-    return currentFiltered;
-  };
+
+    setFilteredProducts(currentFiltered);
+  }, [searchText, activeFilter, products]);
 
   const renderBestsellerFilters = () => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
@@ -188,7 +161,7 @@ const HomeScreen = ({ navigation }) => {
             ))}
           </View>
           <SkeletonLoader width={'90%'} height={120} borderRadius={15} style={{ marginHorizontal: 20, marginBottom: 25 }} />
-          <Text style={styles.sectionTitle}>Новинки</Text>
+          <Text style={styles.sectionTitle}>Рекомендовано для Вас</Text>
           <View style={styles.productRow}>
             {[...Array(4)].map((_, i) => (
               <View key={i} style={styles.productCardSkeleton}>
@@ -242,35 +215,7 @@ const HomeScreen = ({ navigation }) => {
         </View>
       </SafeAreaView>
 
-      {banners.length > 0 ? (
-        <FlatList
-          data={banners}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={item => item.id}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-            { useNativeDriver: false }
-          )}
-          renderItem={({ item }) => (
-            <ImageBackground
-              source={{ uri: item.image_url }}
-              style={[styles.banner, { width: width - 40 }]}
-              imageStyle={{ borderRadius: 15 }}
-            >
-              <View style={styles.bannerContent}>
-                {item.title && <Text style={styles.bannerTitle}>{item.title}</Text>}
-                {item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
-                <TouchableOpacity style={styles.shopButton}>
-                  <Text style={styles.shopButtonText}>В магазин</Text>
-                </TouchableOpacity>
-              </View>
-            </ImageBackground>
-          )}
-          contentContainerStyle={styles.bannerCarouselContainer}
-        />
-      ) : (
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         <ImageBackground
           source={{ uri: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?q=80&w=2070&auto=format&fit=crop' }}
           style={styles.banner}
@@ -287,33 +232,7 @@ const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
           </View>
         </ImageBackground>
-      )}
-      {banners.length > 1 && (
-        <View style={styles.paginationDots}>
-          {banners.map((_, i) => {
-            const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
-            const dotWidth = scrollX.interpolate({
-              inputRange,
-              outputRange: [10, 20, 10],
-              extrapolate: 'clamp',
-            });
-            const opacity = scrollX.interpolate({
-              inputRange,
-              outputRange: [0.3, 1, 0.3],
-              extrapolate: 'clamp',
-            });
-            return (
-              <Animated.View
-                key={i.toString()}
-                style={[styles.dot, { width: dotWidth, opacity }]}
-              />
-            );
-          })}
-        </View>
-      )}
 
-      {/* Main ScrollView starts here */}
-      <ScrollView showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Категории</Text>
         <ScrollView 
           horizontal 
@@ -340,9 +259,9 @@ const HomeScreen = ({ navigation }) => {
         <View style={styles.bestsellerSection}>
           <Text style={styles.sectionTitle}>Бест Селлеры</Text>
           {renderBestsellerFilters()}
-          {getFilteredBestsellers().length > 0 ? (
+          {filteredProducts.length > 0 ? (
             <FlatList
-              data={getFilteredBestsellers()}
+              data={filteredProducts.slice(0, 4)} // Show only a few bestsellers
               renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
               keyExtractor={item => item.id.toString()}
               numColumns={2}
@@ -364,10 +283,10 @@ const HomeScreen = ({ navigation }) => {
         </ImageBackground>
 
         <View style={styles.recommendedSection}>
-          <Text style={styles.sectionTitle}>Новинки</Text>
-          {newArrivals.length > 0 ? (
+          <Text style={styles.sectionTitle}>Рекомендовано для Вас</Text>
+          {filteredProducts.length > 0 ? (
             <FlatList
-              data={newArrivals}
+              data={filteredProducts}
               renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
               keyExtractor={item => item.id.toString()}
               numColumns={2}
@@ -375,10 +294,10 @@ const HomeScreen = ({ navigation }) => {
               scrollEnabled={false}
             />
           ) : (
-            <Text style={styles.emptyResultsText}>Нет новых товаров.</Text>
+            <Text style={styles.emptyResultsText}>Нет товаров, соответствующих вашему запросу.</Text>
           )}
         </View>
-      </ScrollView> {/* Main ScrollView ends here */}
+      </ScrollView>
     </View>
   );
 };
@@ -397,26 +316,12 @@ const styles = StyleSheet.create({
   searchContainer: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingHorizontal: 15, height: 48, borderRadius: 12 },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 16 },
   filterButton: { backgroundColor: '#fff', width: 48, height: 48, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  bannerCarouselContainer: { paddingHorizontal: 20, paddingVertical: 20 },
-  banner: { borderRadius: 15, padding: 20, minHeight: 180, justifyContent: 'center', marginRight: 20 },
+  banner: { marginHorizontal: 20, borderRadius: 15, padding: 20, marginBottom: 25, minHeight: 180, marginTop: 20, justifyContent: 'center' },
   bannerContent: { backgroundColor: 'rgba(0,0,0,0.2)', padding: 15, borderRadius: 10 },
   bannerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 10 },
   bannerSubtitle: { fontSize: 14, color: '#fff', marginBottom: 15, lineHeight: 20 },
   shopButton: { backgroundColor: '#fff', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, alignSelf: 'flex-start' },
   shopButtonText: { color: '#FF69B4', fontWeight: 'bold' },
-  paginationDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: -10, // Adjust to position below the banner
-    marginBottom: 15,
-  },
-  dot: {
-    height: 10,
-    width: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF69B4',
-    marginHorizontal: 4,
-  },
   sectionTitle: { fontSize: 20, fontWeight: 'bold', marginHorizontal: 20, marginBottom: 15 },
   categoriesContainer: { paddingHorizontal: 30, marginBottom: 25 },
   categoryItem: { alignItems: 'center', marginRight: 20 },
@@ -443,7 +348,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   productCardSkeleton: {
-    width: (width - 60) / 2, // Adjust to match ProductCard width
+    width: 160, // Adjust to match ProductCard width
     backgroundColor: '#fff',
     borderRadius: 15,
     marginBottom: 20,

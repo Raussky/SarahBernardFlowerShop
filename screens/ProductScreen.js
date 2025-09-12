@@ -33,7 +33,6 @@ const ProductScreen = ({ navigation, route }) => {
   const isVariantOutOfStock = selectedVariant?.stock_quantity <= 0;
 
   const addToCartButtonScale = useRef(new Animated.Value(1)).current;
-  const imageScrollX = useRef(new Animated.Value(0)).current;
 
   const handleAddToCartPressIn = () => {
     Animated.spring(addToCartButtonScale, { toValue: 0.95, useNativeDriver: true }).start();
@@ -45,7 +44,7 @@ const ProductScreen = ({ navigation, route }) => {
   const fetchProductDetails = useCallback(async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('*, product_variants(*), product_images(*)') // Fetch product_images
+      .select('*, product_variants(*)')
       .eq('id', initialProduct.id)
       .single();
     
@@ -64,7 +63,6 @@ const ProductScreen = ({ navigation, route }) => {
       .channel(`public:product:${initialProduct.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `id=eq.${initialProduct.id}` }, fetchProductDetails)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants', filter: `product_id=eq.${initialProduct.id}` }, fetchProductDetails)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_images', filter: `product_id=eq.${initialProduct.id}` }, fetchProductDetails) // Listen for image changes
       .subscribe();
 
     return () => {
@@ -134,8 +132,6 @@ const ProductScreen = ({ navigation, route }) => {
     }
   };
 
-  const allImages = [{ id: 'main', image_url: product.image }, ...(product.product_images || [])];
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -149,45 +145,8 @@ const ProductScreen = ({ navigation, route }) => {
 
         <Text style={styles.productTitle}>{product.name || product.name_ru}</Text>
 
-        <View style={styles.imageGalleryContainer}>
-          <FlatList
-            data={allImages}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={item => item.id}
-            onScroll={Animated.event(
-              [{ nativeEvent: { contentOffset: { x: imageScrollX } } }],
-              { useNativeDriver: false }
-            )}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item.image_url }} style={[styles.galleryImage, { width: width - 40 }]} />
-            )}
-            contentContainerStyle={styles.galleryListContent}
-          />
-          {allImages.length > 1 && (
-            <View style={styles.imagePaginationDots}>
-              {allImages.map((_, i) => {
-                const inputRange = [(i - 1) * width, i * width, (i + 1) * width];
-                const dotWidth = imageScrollX.interpolate({
-                  inputRange,
-                  outputRange: [8, 16, 8],
-                  extrapolate: 'clamp',
-                });
-                const opacity = imageScrollX.interpolate({
-                  inputRange,
-                  outputRange: [0.3, 1, 0.3],
-                  extrapolate: 'clamp',
-                });
-                return (
-                  <Animated.View
-                    key={i.toString()}
-                    style={[styles.imageDot, { width: dotWidth, opacity }]}
-                  />
-                );
-              })}
-            </View>
-          )}
+        <View style={styles.imageContainer}>
+          <Image source={{ uri: product.image }} style={styles.mainImage} />
         </View>
 
         <View style={styles.productInfo}>
@@ -221,29 +180,9 @@ const ProductScreen = ({ navigation, route }) => {
 
           <View style={styles.detailsSection}>
             <Text style={styles.sectionTitle}>Детали продукта</Text>
-            {product.description && <Text style={styles.description}>{product.description}</Text>}
-            
-            {product.composition && (
-              <View style={styles.detailBlock}>
-                <Text style={styles.detailBlockTitle}>Состав букета</Text>
-                <Text style={styles.detailBlockText}>{product.composition}</Text>
-              </View>
-            )}
-            {product.size_info && (
-              <View style={styles.detailBlock}>
-                <Text style={styles.detailBlockTitle}>Размер</Text>
-                <Text style={styles.detailBlockText}>{product.size_info}</Text>
-              </View>
-            )}
-            {product.care_instructions && (
-              <View style={styles.detailBlock}>
-                <Text style={styles.detailBlockTitle}>Рекомендации по уходу</Text>
-                <Text style={styles.detailBlockText}>{product.care_instructions}</Text>
-              </View>
-            )}
-            {!product.description && !product.composition && !product.size_info && !product.care_instructions && (
-              <Text style={styles.description}>Красивый букет для любого случая.</Text>
-            )}
+            <Text style={styles.description}>
+              {product.description || 'Красивый букет для любого случая.'}
+            </Text>
           </View>
 
           {recommended.length > 0 && (
@@ -301,46 +240,12 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
   headerTitle: { fontSize: 18, fontWeight: '600' },
   productTitle: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, paddingHorizontal: 20 },
-  
-  imageGalleryContainer: { marginBottom: 20 },
-  galleryListContent: { paddingHorizontal: 20 },
-  galleryImage: { height: width - 40, alignSelf: 'center', borderRadius: 20, marginBottom: 15, resizeMode: 'cover' },
-  imagePaginationDots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: -10,
-  },
-  imageDot: {
-    height: 8,
-    width: 8,
-    borderRadius: 4,
-    backgroundColor: '#FF69B4',
-    marginHorizontal: 4,
-  },
-
+  imageContainer: { marginBottom: 20 },
+  mainImage: { width: width - 40, height: width - 40, alignSelf: 'center', borderRadius: 20, marginBottom: 15 },
   productInfo: { paddingHorizontal: 20, paddingBottom: 120 },
   detailsSection: { marginBottom: 25 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
-  description: { fontSize: 14, color: '#666', lineHeight: 22, marginBottom: 15 },
-  
-  detailBlock: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 10,
-  },
-  detailBlockTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 5,
-    color: '#333',
-  },
-  detailBlockText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-  },
-
+  description: { fontSize: 14, color: '#666', lineHeight: 22 },
   sizeSection: { marginBottom: 25 },
   sizeButton: { minWidth: 50, height: 50, paddingHorizontal: 15, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', marginRight: 15 },
   selectedSize: { backgroundColor: '#FF69B4', transform: [{ scale: 1.1 }] },

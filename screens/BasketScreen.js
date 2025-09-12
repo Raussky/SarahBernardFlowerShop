@@ -131,7 +131,7 @@ const BasketScreen = ({ navigation }) => {
     try {
       const { data: product, error } = await supabase
         .from('products')
-        .select('*, categories(name, name_en), product_variants(*), product_images(*)') // Fetch product_images
+        .select('*, categories(name, name_en), product_variants(*)')
         .eq('id', item.id)
         .single();
       
@@ -197,7 +197,6 @@ const BasketScreen = ({ navigation }) => {
       const { error: orderItemsError } = await supabase.from('order_items').insert(orderItems);
       if (orderItemsError) throw orderItemsError;
 
-      // Decrement stock and increment purchase counts
       const itemsToDecrement = cart.map(item => ({
         variant_id: item.variantId,
         quantity: item.quantity,
@@ -206,16 +205,6 @@ const BasketScreen = ({ navigation }) => {
       if (decrementError) {
         console.error("Stock decrement error:", decrementError);
         showToast('Ошибка при обновлении остатков', 'error');
-      }
-
-      const itemsToIncrementPurchaseCount = cart.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity,
-      }));
-      const { error: incrementError } = await supabase.rpc('increment_purchase_counts', { items_to_increment: itemsToIncrementPurchaseCount });
-      if (incrementError) {
-        console.error("Purchase count increment error:", incrementError);
-        showToast('Ошибка при обновлении счетчика покупок', 'error');
       }
 
       const orderDetails = cart.map(item => 

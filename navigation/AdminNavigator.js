@@ -6,7 +6,6 @@ import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
 import AdminOrdersScreen from '../screens/admin/AdminOrdersScreen';
 import AdminProductsScreen from '../screens/admin/AdminProductsScreen';
 import AdminCategoriesScreen from '../screens/admin/AdminCategoriesScreen';
-import AdminBannersScreen from '../screens/admin/AdminBannersScreen'; // Import new screen
 
 const Tab = createBottomTabNavigator();
 
@@ -24,8 +23,6 @@ const AdminNavigator = () => {
             iconName = focused ? 'cube' : 'cube-outline';
           } else if (route.name === 'Categories') {
             iconName = focused ? 'grid' : 'grid-outline';
-          } else if (route.name === 'Banners') { // New tab for Banners
-            iconName = focused ? 'image' : 'image-outline';
           }
           return <Ionicons name={iconName} size={size} color={color} />;
         },
@@ -38,7 +35,6 @@ const AdminNavigator = () => {
       <Tab.Screen name="Orders" component={AdminOrdersScreen} options={{ title: 'Заказы' }} />
       <Tab.Screen name="Products" component={AdminProductsScreen} options={{ title: 'Товары' }} />
       <Tab.Screen name="Categories" component={AdminCategoriesScreen} options={{ title: 'Категории' }} />
-      <Tab.Screen name="Banners" component={AdminBannersScreen} options={{ title: 'Баннеры' }} />
     </Tab.Navigator>
   );
 };

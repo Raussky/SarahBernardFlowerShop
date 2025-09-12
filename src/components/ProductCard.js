@@ -24,12 +24,11 @@ const ProductCard = ({ product, navigation }) => {
   };
 
   const heartScale = useRef(new Animated.Value(1)).current;
-  const handleHeartPress = () => {
+  const handleHeartPressIn = () => {
     Animated.sequence([
       Animated.timing(heartScale, { toValue: 1.2, duration: 100, useNativeDriver: true }),
       Animated.spring(heartScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }),
     ]).start();
-    toggleSaved(product);
   };
 
   return (
@@ -56,7 +55,10 @@ const ProductCard = ({ product, navigation }) => {
 
       <TouchableOpacity
         style={styles.heartIcon}
-        onPress={handleHeartPress}
+        onPress={() => {
+          handleHeartPressIn();
+          toggleSaved(product);
+        }}
       >
         <Animated.View style={{ transform: [{ scale: heartScale }] }}>
           <Ionicons
