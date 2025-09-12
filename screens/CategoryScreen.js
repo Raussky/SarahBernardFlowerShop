@@ -35,18 +35,11 @@ const CategoryScreen = ({ navigation, route }) => {
     try {
       let query = supabase
         .from('products')
-        .select('*, categories(name, name_en), product_variants(id, product_id, size, price, stock_quantity)') // Explicitly select columns
+        .select('*, categories(name, name_en), product_variants(id, product_id, size, price, stock_quantity)')
         .eq('category_id', category.id);
       
-      // Apply sorting
-      if (sortOption.column.includes('.')) {
-        // Handle sorting by a related table column (e.g., product_variants.price)
-        // This requires a bit more complex query or client-side sorting if not directly supported by Supabase RLS
-        // For simplicity, we'll sort client-side for nested fields, or use a workaround for Supabase
-        // For now, let's assume direct sorting for 'products' table columns and client-side for variants.
-        // A more robust solution for variant price sorting would involve a view or a function in Supabase.
-        query = query.order(sortOption.column.split('.')[0], { ascending: sortOption.ascending });
-      } else {
+      // Apply sorting ONLY for columns on the 'products' table
+      if (!sortOption.column.includes('.')) {
         query = query.order(sortOption.column, { ascending: sortOption.ascending });
       }
 
@@ -55,11 +48,12 @@ const CategoryScreen = ({ navigation, route }) => {
       if (error) throw error;
 
       let sortedData = data;
+      // Apply client-side sorting for price, as it's on a related table
       if (sortOption.column === 'product_variants.price') {
         sortedData = [...data].sort((a, b) => {
           const priceA = a.product_variants?.[0]?.price || 0;
           const priceB = b.product_variants?.[0]?.price || 0;
-          return sortOption.ascending ? priceA - priceB : priceB - a.price;
+          return sortOption.ascending ? priceA - priceB : priceB - priceA;
         });
       }
 
