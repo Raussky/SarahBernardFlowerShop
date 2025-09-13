@@ -55,11 +55,29 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const refreshProfile = async () => {
+    if (session) {
+      const { data: profileData, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error("Error refreshing profile:", error);
+        setProfile(null);
+      } else {
+        setProfile(profileData);
+      }
+    }
+  };
+
   const value = {
     session,
     user: session?.user,
     profile,
     signOut: () => supabase.auth.signOut(),
+    refreshProfile,
   };
 
   return (

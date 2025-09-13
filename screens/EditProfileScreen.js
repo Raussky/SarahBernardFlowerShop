@@ -23,7 +23,7 @@ import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
 import MaskInput from 'react-native-mask-input'; // Import MaskInput
 
 const EditProfileScreen = ({ navigation }) => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { showToast } = useToast();
 
   const [firstName, setFirstName] = useState(profile?.first_name || '');
@@ -107,6 +107,7 @@ const EditProfileScreen = ({ navigation }) => {
       if (error) throw error;
 
       showToast('Профиль успешно обновлен!', 'success');
+      await refreshProfile();
       navigation.goBack();
     } catch (error) {
       console.error("Error saving profile:", error);
