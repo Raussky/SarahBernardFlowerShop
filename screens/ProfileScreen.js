@@ -11,7 +11,7 @@ const ProfileScreen = ({ navigation }) => {
   const { showToast } = useToast();
 
   const handleSignOut = async () => {
-    const { error } = await signOut();
+    await signOut();
     if (error) {
       Alert.alert('Ошибка выхода', error.message);
     } else {
