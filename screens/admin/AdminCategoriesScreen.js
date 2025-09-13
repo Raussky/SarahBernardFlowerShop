@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, TextInput, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, TextInput, Modal, Image, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useIsFocused } from '@react-navigation/native';
 import { useToast } from '../../src/components/ToastProvider';
+import * as ImagePicker from 'expo-image-picker';
+import AdminHeader from '../../src/components/AdminHeader';
+import { decode } from 'base64-arraybuffer';
 
 const AdminCategoriesScreen = () => {
   const [categories, setCategories] = useState([]);
@@ -66,6 +69,36 @@ const AdminCategoriesScreen = () => {
     }
   };
 
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+      base64: true,
+    });
+
+    if (!result.canceled) {
+      const ext = result.assets[0].uri.substring(result.assets[0].uri.lastIndexOf('.') + 1);
+      const fileName = result.assets[0].uri.replace(/^.*[\\\/]/, '');
+      const filePath = `public/${fileName}`;
+      const contentType = `image/${ext}`;
+
+      const { data, error } = await supabase.storage
+        .from('categories')
+        .upload(filePath, decode(result.assets[0].base64), { contentType });
+
+      if (error) {
+        showToast(error.message, 'error');
+      } else {
+        const { data: urlData } = supabase.storage.from('categories').getPublicUrl(filePath);
+        setCurrentCategory(prevCategory => ({ ...prevCategory, image_url: urlData.publicUrl }));
+        console.log("Image URL set:", urlData.publicUrl);
+      }
+    }
+  };
+
   const handleDelete = (id) => {
     Alert.alert('Удалить категорию?', 'Это действие нельзя будет отменить.', [
       { text: 'Отмена' },
@@ -84,12 +117,7 @@ const AdminCategoriesScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Категории</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => openModal()}>
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <AdminHeader title="Категории" onAddPress={() => openModal()} />
       {loading ? (
         <ActivityIndicator size="large" color="#FF69B4" style={{ flex: 1 }} />
       ) : (
@@ -119,7 +147,10 @@ const AdminCategoriesScreen = () => {
             <Text style={styles.modalTitle}>{currentCategory.id ? 'Редактировать' : 'Добавить'} категорию</Text>
             <TextInput style={styles.input} placeholder="Название (e.g., Букеты)" value={currentCategory.name} onChangeText={text => setCurrentCategory({...currentCategory, name: text})} />
             <TextInput style={styles.input} placeholder="Иконка (один эмодзи, e.g., 💐)" value={currentCategory.icon} onChangeText={text => setCurrentCategory({...currentCategory, icon: text})} />
-            <TextInput style={styles.input} placeholder="URL изображения (необязательно)" value={currentCategory.image_url} onChangeText={text => setCurrentCategory({...currentCategory, image_url: text})} />
+            <Button title="Выбрать изображение" onPress={pickImage} />
+            {currentCategory.image_url ? (
+              <Image source={{ uri: currentCategory.image_url }} style={styles.selectedImagePreview} />
+            ) : null}
             <View style={styles.modalActions}>
               <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}><Text>Отмена</Text></TouchableOpacity>
               <TouchableOpacity style={styles.saveButton} onPress={handleSave}><Text style={styles.saveButtonText}>Сохранить</Text></TouchableOpacity>
@@ -133,9 +164,6 @@ const AdminCategoriesScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold' },
-  addButton: { backgroundColor: '#FF69B4', padding: 8, borderRadius: 20 },
   listContent: { paddingHorizontal: 20 },
   categoryItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },
   categoryIcon: { fontSize: 24, marginRight: 15, width: 40, textAlign: 'center' },
@@ -143,13 +171,14 @@ const styles = StyleSheet.create({
   categoryName: { flex: 1, fontSize: 16 },
   actions: { flexDirection: 'row', gap: 15 },
   modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { width: '90%', backgroundColor: '#fff', borderRadius: 15, padding: 20 },
+  modalContent: { width: '90%', backgroundColor: '#fff', borderRadius: 15, padding: 20, gap: 10 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, marginBottom: 10 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 },
   cancelButton: { padding: 10 },
   saveButton: { backgroundColor: '#FF69B4', padding: 10, borderRadius: 8 },
   saveButtonText: { color: '#fff', fontWeight: 'bold' },
+  selectedImagePreview: { width: 100, height: 100, borderRadius: 10, marginTop: 10, alignSelf: 'center' },
 });
 
 export default AdminCategoriesScreen;

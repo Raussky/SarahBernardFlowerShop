@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated }
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../context/CartContext';
 import { useToast } from './ToastProvider'; // Import useToast
+import { FONTS } from '../config/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -158,17 +159,18 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
     marginBottom: 4,
   },
   productDesc: {
     fontSize: 13,
     color: '#888',
+    fontFamily: FONTS.regular,
     marginBottom: 8,
   },
   productPrice: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONTS.bold,
     color: '#333',
   },
   addButton: {
@@ -176,9 +178,9 @@ const styles = StyleSheet.create({
     bottom: 12,
     right: 12,
     backgroundColor: '#0F172A',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -196,9 +198,9 @@ const styles = StyleSheet.create({
     bottom: 12,
     right: 12,
     backgroundColor: '#FF69B4', // Pink color for direct add
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },

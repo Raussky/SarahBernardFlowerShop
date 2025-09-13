@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../src/context/CartContext';
 import ProductCard from '../src/components/ProductCard';
 import { supabase } from '../src/integrations/supabase/client';
+import EmptyState from '../src/components/EmptyState';
 
 const SavedScreen = ({ navigation }) => {
   const { saved } = useContext(CartContext);
@@ -87,18 +88,13 @@ const SavedScreen = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         />
       ) : (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="heart-outline" size={100} color="#FF69B4" />
-          <Text style={styles.emptyText}>
-            Здесь пока пусто. Добавьте товары, которые вам нравятся, чтобы они всегда были под рукой!
-          </Text>
-          <TouchableOpacity 
-            style={styles.shopButton}
-            onPress={() => navigation.navigate('Main', { screen: 'Home' })}
-          >
-            <Text style={styles.shopButtonText}>Перейти к покупкам</Text>
-          </TouchableOpacity>
-        </View>
+       <EmptyState
+         icon="heart-outline"
+         title="В избранном пока пусто"
+         message="Добавьте товары, которые вам нравятся, чтобы они всегда были под рукой!"
+         buttonText="Перейти к покупкам"
+         onButtonPress={() => navigation.navigate('Main', { screen: 'Home' })}
+       />
       )}
     </SafeAreaView>
   );

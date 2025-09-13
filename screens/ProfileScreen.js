@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/context/AuthContext';
 import { useToast } from '../src/components/ToastProvider';
+import { FONTS } from '../src/config/theme';
 
 const ProfileScreen = ({ navigation }) => {
   const { user, profile, signOut } = useAuth();
@@ -32,7 +33,7 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={styles.headerTitle}>Профиль</Text>
       </View>
       
-      <View style={styles.content}>
+      <ScrollView style={styles.content}>
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             {profile?.avatar_url ? (
@@ -58,6 +59,15 @@ const ProfileScreen = ({ navigation }) => {
                 <Ionicons name="chevron-forward" size={20} color="#999" />
               </TouchableOpacity>
 
+              <TouchableOpacity 
+               style={styles.menuItem}
+               onPress={() => navigation.navigate('Addresses')}
+              >
+               <Ionicons name="location-outline" size={24} color="#FF69B4" />
+               <Text style={styles.menuText}>Мои адреса</Text>
+               <Ionicons name="chevron-forward" size={20} color="#999" />
+              </TouchableOpacity>
+
               {profile?.is_admin ? (
                 <TouchableOpacity 
                   style={styles.menuItem}
@@ -77,14 +87,16 @@ const ProfileScreen = ({ navigation }) => {
                   <Ionicons name="chevron-forward" size={20} color="#999" />
                 </TouchableOpacity>
               )}
+
               <TouchableOpacity 
                 style={styles.menuItem}
-                onPress={handleSignOut}
+                onPress={() => navigation.navigate('NotificationsSettings')}
               >
-                <Ionicons name="log-out-outline" size={24} color="#FF69B4" />
-                <Text style={styles.menuText}>Выйти</Text>
+                <Ionicons name="notifications-outline" size={24} color="#FF69B4" />
+                <Text style={styles.menuText}>Уведомления</Text>
                 <Ionicons name="chevron-forward" size={20} color="#999" />
               </TouchableOpacity>
+
             </>
           ) : (
             <TouchableOpacity 
@@ -98,21 +110,12 @@ const ProfileScreen = ({ navigation }) => {
           )}
         </View>
 
-        <View style={styles.menuGroup}>
-          <Text style={styles.menuGroupTitle}>Поддержка и информация</Text>
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="help-circle-outline" size={24} color="#FF69B4" />
-            <Text style={styles.menuText}>Помощь</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+        {user && (
+          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+            <Text style={styles.signOutButtonText}>Выйти из аккаунта</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="information-circle-outline" size={24} color="#FF69B4" />
-            <Text style={styles.menuText}>О приложении</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
-          </TouchableOpacity>
-        </View>
-      </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -129,7 +132,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontFamily: FONTS.bold,
   },
   content: {
     flex: 1,
@@ -188,13 +191,26 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 12,
     gap: 15,
-    marginBottom: 10, // Spacing between items within a group
+    marginBottom: 10,
   },
   menuText: {
     flex: 1,
     fontSize: 16,
     color: '#333',
   },
+ signOutButton: {
+   marginTop: 20,
+   marginBottom: 20,
+   backgroundColor: '#FFE4E1',
+   padding: 15,
+   borderRadius: 12,
+   alignItems: 'center',
+ },
+ signOutButtonText: {
+   color: '#D32F2F',
+   fontSize: 16,
+   fontWeight: '600',
+ },
 });
 
 export default ProfileScreen;

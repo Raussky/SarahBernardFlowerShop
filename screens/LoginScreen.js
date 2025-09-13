@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 
 const LoginScreen = ({ navigation }) => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'signup', 'magiclink'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -28,8 +28,22 @@ const LoginScreen = ({ navigation }) => {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
 
   const { showToast } = useToast();
+
+ useEffect(() => {
+   if (email) {
+     setEmailError(validateEmail(email));
+   }
+ }, [email]);
+
+ useEffect(() => {
+   if (password) {
+     setPasswordError(validatePassword(password));
+   }
+ }, [password]);
 
   const validateEmail = (email) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -61,7 +75,13 @@ const LoginScreen = ({ navigation }) => {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      showToast(error.message, 'error');
+      let errorMessage = 'Произошла ошибка при входе.';
+      if (error.message.includes('Invalid login credentials')) {
+        errorMessage = 'Неверный адрес электронной почты или пароль.';
+      } else if (error.message.includes('Network request failed')) {
+        errorMessage = 'Проблема с подключением к интернету. Пожалуйста, проверьте ваше соединение.';
+      }
+      showToast(errorMessage, 'error');
     } else {
       showToast('Вход выполнен успешно!', 'success');
       navigation.navigate('Main', { screen: 'Profile' });
@@ -73,12 +93,20 @@ const LoginScreen = ({ navigation }) => {
     setEmailError('');
     setPasswordError('');
     setConfirmPasswordError('');
+    setFirstNameError('');
+    setLastNameError('');
 
-    if (!isLogin && (!firstName || !lastName)) {
-      showToast('Пожалуйста, введите имя и фамилию.', 'error');
-      return;
+    let hasError = false;
+
+    if (!firstName) {
+      setFirstNameError('Имя не может быть пустым.');
+      hasError = true;
     }
-
+    if (!lastName) {
+      setLastNameError('Фамилия не может быть пустой.');
+      hasError = true;
+    }
+ 
     const emailValidation = validateEmail(email);
     const passwordValidation = validatePassword(password);
     let confirmPasswordValidation = '';
@@ -88,15 +116,16 @@ const LoginScreen = ({ navigation }) => {
     if (!confirmPassword) {
       confirmPasswordValidation = 'Подтвердите пароль.';
     }
+ 
+    if (emailValidation) { setEmailError(emailValidation); hasError = true; }
+    if (passwordValidation) { setPasswordError(passwordValidation); hasError = true; }
+    if (confirmPasswordValidation) { setConfirmPasswordError(confirmPasswordValidation); hasError = true; }
 
-    if (emailValidation || passwordValidation || confirmPasswordValidation) {
-      setEmailError(emailValidation);
-      setPasswordError(passwordValidation);
-      setConfirmPasswordError(confirmPasswordValidation);
+    if (hasError) {
       showToast('Пожалуйста, исправьте ошибки в форме.', 'error');
       return;
     }
-
+ 
     setLoading(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -109,13 +138,43 @@ const LoginScreen = ({ navigation }) => {
       },
     });
     if (error) {
-      showToast(error.message, 'error');
+      let errorMessage = 'Произошла ошибка при регистрации.';
+      if (error.message.includes('User already registered')) {
+        errorMessage = 'Пользователь с таким email уже зарегистрирован.';
+      } else if (error.message.includes('Network request failed')) {
+        errorMessage = 'Проблема с подключением к интернету. Пожалуйста, проверьте ваше соединение.';
+      }
+      showToast(errorMessage, 'error');
     } else {
       showToast('Аккаунт создан! Проверьте почту для подтверждения.', 'success');
-      setIsLogin(true);
+      setAuthMode('login');
     }
     setLoading(false);
   };
+
+  const handleMagicLink = async () => {
+   setEmailError('');
+   const emailValidation = validateEmail(email);
+   if (emailValidation) {
+     setEmailError(emailValidation);
+     showToast(emailValidation, 'error');
+     return;
+   }
+
+   setLoading(true);
+   const { error } = await supabase.auth.signInWithOtp({ email });
+   if (error) {
+     let errorMessage = 'Произошла ошибка при отправке ссылки.';
+     if (error.message.includes('Network request failed')) {
+       errorMessage = 'Проблема с подключением к интернету. Пожалуйста, проверьте ваше соединение.';
+     }
+     showToast(errorMessage, 'error');
+   } else {
+     showToast('Проверьте почту! Мы отправили вам ссылку для входа.', 'success');
+     setAuthMode('login');
+   }
+   setLoading(false);
+ };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -141,22 +200,26 @@ const LoginScreen = ({ navigation }) => {
 
           <View style={styles.form}>
             <Text style={styles.formTitle}>
-              {isLogin ? 'Вход в систему' : 'Регистрация'}
+              {authMode === 'login' && 'Вход в систему'}
+              {authMode === 'signup' && 'Регистрация'}
+              {authMode === 'magiclink' && 'Вход по ссылке'}
             </Text>
 
-            {!isLogin && (
+            {authMode === 'signup' && (
               <>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, firstNameError ? styles.inputWrapperError : {}]}>
                   <View style={styles.inputContainer}>
                     <Ionicons name="person-outline" size={20} color="#999" style={styles.inputIcon} />
-                    <TextInput style={styles.input} placeholder="Имя" value={firstName} onChangeText={setFirstName} autoCapitalize="words" placeholderTextColor="#999" />
+                    <TextInput style={styles.input} placeholder="Имя" value={firstName} onChangeText={(text) => { setFirstName(text); setFirstNameError(''); }} autoCapitalize="words" placeholderTextColor="#999" />
                   </View>
+                  {!!firstNameError && <Text style={styles.errorText}>{firstNameError}</Text>}
                 </View>
-                <View style={styles.inputWrapper}>
+                <View style={[styles.inputWrapper, lastNameError ? styles.inputWrapperError : {}]}>
                   <View style={styles.inputContainer}>
                     <Ionicons name="person-outline" size={20} color="#999" style={styles.inputIcon} />
-                    <TextInput style={styles.input} placeholder="Фамилия" value={lastName} onChangeText={setLastName} autoCapitalize="words" placeholderTextColor="#999" />
+                    <TextInput style={styles.input} placeholder="Фамилия" value={lastName} onChangeText={(text) => { setLastName(text); setLastNameError(''); }} autoCapitalize="words" placeholderTextColor="#999" />
                   </View>
+                  {!!lastNameError && <Text style={styles.errorText}>{lastNameError}</Text>}
                 </View>
               </>
             )}
@@ -169,18 +232,20 @@ const LoginScreen = ({ navigation }) => {
               {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
 
-            <View style={[styles.inputWrapper, passwordError ? styles.inputWrapperError : {}]}>
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
-                <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={(text) => { setPassword(text); setPasswordError(''); }} secureTextEntry={!showPassword} placeholderTextColor="#999" />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#999" />
-                </TouchableOpacity>
-              </View>
-              {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
-            </View>
+           {authMode !== 'magiclink' && (
+             <View style={[styles.inputWrapper, passwordError ? styles.inputWrapperError : {}]}>
+               <View style={styles.inputContainer}>
+                 <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
+                 <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={(text) => { setPassword(text); setPasswordError(''); }} secureTextEntry={!showPassword} placeholderTextColor="#999" />
+                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                   <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#999" />
+                 </TouchableOpacity>
+               </View>
+               {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+             </View>
+           )}
 
-            {!isLogin && (
+            {authMode === 'signup' && (
               <View style={[styles.inputWrapper, confirmPasswordError ? styles.inputWrapperError : {}]}>
                 <View style={styles.inputContainer}>
                   <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
@@ -190,30 +255,35 @@ const LoginScreen = ({ navigation }) => {
               </View>
             )}
 
-            <TouchableOpacity style={styles.submitButton} onPress={isLogin ? handleLogin : handleSignUp} disabled={loading}>
+            <TouchableOpacity style={styles.submitButton} onPress={authMode === 'login' ? handleLogin : authMode === 'signup' ? handleSignUp : handleMagicLink} disabled={loading}>
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.submitButtonText}>
-                  {isLogin ? 'Войти' : 'Зарегистрироваться'}
+                  {authMode === 'login' && 'Войти'}
+                  {authMode === 'signup' && 'Зарегистрироваться'}
+                  {authMode === 'magiclink' && 'Получить ссылку'}
                 </Text>
               )}
             </TouchableOpacity>
 
-            <View style={styles.switchContainer}>
-              <Text style={styles.switchText}>
-                {isLogin ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}
-              </Text>
-              <TouchableOpacity onPress={() => {
-                setIsLogin(!isLogin);
-                setEmail(''); setPassword(''); setConfirmPassword(''); setFirstName(''); setLastName('');
-                setEmailError(''); setPasswordError(''); setConfirmPasswordError('');
-              }}>
-                <Text style={styles.switchLink}>
-                  {isLogin ? 'Регистрация' : 'Войти'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+           {authMode === 'login' && (
+             <View style={styles.footerContainer}>
+               <TouchableOpacity onPress={() => setAuthMode('magiclink')}>
+                 <Text style={styles.footerLink}>Войти по ссылке</Text>
+               </TouchableOpacity>
+               <View style={styles.footerSeparator} />
+               <TouchableOpacity onPress={() => setAuthMode('signup')}>
+                 <Text style={styles.footerLink}>Регистрация</Text>
+               </TouchableOpacity>
+             </View>
+           )}
+
+           {authMode !== 'login' && (
+             <TouchableOpacity onPress={() => setAuthMode('login')}>
+               <Text style={styles.footerLink}>Назад ко входу</Text>
+             </TouchableOpacity>
+           )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -241,10 +311,11 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 16, color: '#333' },
   errorText: { color: '#FF0000', fontSize: 12, marginTop: 5, marginLeft: 15 },
   submitButton: { backgroundColor: '#FF69B4', borderRadius: 25, paddingVertical: 15, alignItems: 'center', marginBottom: 20, marginTop: 10 },
+  submitButtonDisabled: { backgroundColor: '#FF69B4', opacity: 0.6 }, // Добавлен стиль для заблокированной кнопки
   submitButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  switchContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
-  switchText: { color: '#666', marginRight: 5 },
-  switchLink: { color: '#FF69B4', fontWeight: '600' },
+  footerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20, marginBottom: 30 },
+  footerLink: { color: '#666', fontWeight: '600', fontSize: 14 },
+  footerSeparator: { height: 15, width: 1, backgroundColor: '#ccc', marginHorizontal: 15 },
 });
 
 export default LoginScreen;

@@ -17,6 +17,7 @@ import { useToast } from '../src/components/ToastProvider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../src/integrations/supabase/client';
 import RecommendedProductCard from '../src/components/RecommendedProductCard';
+import { FONTS } from '../src/config/theme';
 
 const { width } = Dimensions.get('window');
 
@@ -248,31 +249,33 @@ const ProductScreen = ({ navigation, route }) => {
           {variants.length > 0 && (
             <View style={styles.sizeSection}>
               <Text style={styles.sectionTitle}>Варианты</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.variantsScrollContainer}>
-                {variants.map((variant) => (
-                  <TouchableOpacity
-                    key={variant.id}
-                    onPress={() => setSelectedVariant(variant)}
-                    style={[
-                      styles.sizeButton,
-                      selectedVariant?.id === variant.id && styles.selectedSize,
-                      variant.stock_quantity <= 0 && styles.disabledSize,
-                    ]}
-                    disabled={variant.stock_quantity <= 0}
-                  >
-                    <Text style={[
-                      styles.sizeText,
-                      selectedVariant?.id === variant.id && styles.selectedSizeText,
-                      variant.stock_quantity <= 0 && styles.disabledSizeText,
-                    ]}>
-                      {variant.size}
-                    </Text>
-                    {variant.stock_quantity <= 0 && (
-                      <Text style={styles.outOfStockVariantText}>Нет в наличии</Text>
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+             <View style={styles.variantsContainer}>
+               {variants.map((variant) => (
+                 <TouchableOpacity
+                   key={variant.id}
+                   onPress={() => setSelectedVariant(variant)}
+                   style={[
+                     styles.sizeButton,
+                     selectedVariant?.id === variant.id && styles.selectedSize,
+                     variant.stock_quantity <= 0 && styles.disabledSize,
+                   ]}
+                   disabled={variant.stock_quantity <= 0}
+                 >
+                   <Text style={[
+                     styles.sizeText,
+                     selectedVariant?.id === variant.id && styles.selectedSizeText,
+                     variant.stock_quantity <= 0 && styles.disabledSizeText,
+                   ]}>
+                     {variant.size}
+                   </Text>
+                   {variant.stock_quantity <= 0 && (
+                     <View style={styles.outOfStockBadge}>
+                       <Text style={styles.outOfStockBadgeText}>Нет</Text>
+                     </View>
+                   )}
+                 </TouchableOpacity>
+               ))}
+             </View>
             </View>
           )}
 
@@ -355,8 +358,8 @@ const ProductScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15 },
-  headerTitle: { fontSize: 18, fontWeight: '600' },
-  productTitle: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 20, paddingHorizontal: 20 },
+  headerTitle: { fontSize: 18, fontFamily: FONTS.semiBold },
+  productTitle: { fontSize: 24, fontFamily: FONTS.bold, textAlign: 'center', marginBottom: 20, paddingHorizontal: 20 },
   imageCarouselContainer: { marginBottom: 20, position: 'relative' },
   carouselImage: { width: width - 40, height: width - 40, borderRadius: 20, marginHorizontal: 10 },
   carouselContentContainer: { paddingHorizontal: 10 },
@@ -384,19 +387,26 @@ const styles = StyleSheet.create({
   detailText: { fontSize: 14, color: '#666' },
   detailLabel: { fontWeight: '600' },
   sizeSection: { marginBottom: 25 },
-  variantsScrollContainer: { paddingRight: 10 }, // Added for horizontal scroll
-  sizeButton: { minWidth: 50, height: 50, paddingHorizontal: 15, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', marginRight: 15, position: 'relative' },
-  selectedSize: { backgroundColor: '#FF69B4', transform: [{ scale: 1.1 }] },
+  variantsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  sizeButton: { minWidth: 80, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#eee' },
+  selectedSize: { backgroundColor: '#FFE4E1', borderColor: '#FF69B4' },
   disabledSize: { backgroundColor: '#f5f5f5', opacity: 0.5 },
   sizeText: { fontSize: 16, color: '#666', fontWeight: '500' },
-  selectedSizeText: { color: '#fff', fontWeight: 'bold' },
-  disabledSizeText: { textDecorationLine: 'line-through' },
-  outOfStockVariantText: { // New style for out of stock variant
-    position: 'absolute',
-    bottom: -20,
-    fontSize: 10,
-    color: '#D32F2F',
-    fontWeight: 'bold',
+  selectedSizeText: { color: '#FF69B4', fontWeight: 'bold' },
+  disabledSizeText: { color: '#ccc' },
+  outOfStockBadge: {
+   position: 'absolute',
+   top: -5,
+   right: -5,
+   backgroundColor: '#D32F2F',
+   borderRadius: 10,
+   paddingHorizontal: 5,
+   paddingVertical: 2,
+  },
+  outOfStockBadgeText: {
+   color: '#fff',
+   fontSize: 8,
+   fontWeight: 'bold',
   },
   recommendedSection: { marginBottom: 25 },
   recommendedListContent: { paddingRight: 20 }, // Added for horizontal scroll

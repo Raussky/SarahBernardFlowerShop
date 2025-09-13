@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from '../src/context/AuthContext';
 import { useToast } from '../src/components/ToastProvider';
+import EmptyState from '../src/components/EmptyState';
 
 const ORDER_STATUSES = {
   pending: 'Новый',
@@ -98,13 +99,13 @@ const OrderHistoryScreen = ({ navigation }) => {
       </View>
 
       {orders.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="receipt-outline" size={100} color="#FF69B4" />
-          <Text style={styles.emptyText}>У вас еще нет заказов.</Text>
-          <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Main', { screen: 'Home' })}>
-            <Text style={styles.shopButtonText}>Начать покупки</Text>
-          </TouchableOpacity>
-        </View>
+       <EmptyState
+         icon="receipt-outline"
+         title="История заказов пуста"
+         message="После вашего первого заказа, вы сможете отслеживать его статус здесь."
+         buttonText="Начать покупки"
+         onButtonPress={() => navigation.navigate('Main', { screen: 'Home' })}
+       />
       ) : (
         <FlatList
           data={orders}

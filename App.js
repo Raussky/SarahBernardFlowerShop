@@ -1,7 +1,8 @@
 import 'react-native-get-random-values'; // Must be at the top
 import React, { useContext } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,6 +21,13 @@ import OrderConfirmationScreen from './screens/OrderConfirmationScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import AllCategoriesScreen from './screens/AllCategoriesScreen';
 import UserOrderDetailScreen from './screens/UserOrderDetailScreen';
+import ComboScreen from './screens/ComboScreen';
+import CheckoutScreen from './screens/CheckoutScreen';
+import AddressesScreen from './screens/AddressesScreen';
+import EditAddressScreen from './screens/EditAddressScreen';
+import NotificationsSettingsScreen from './screens/NotificationsSettingsScreen';
+import SearchScreen from './screens/SearchScreen';
+import FilterResultsScreen from './screens/FilterResultsScreen';
 
 // Import Admin Screens & Navigator
 import AdminNavigator from './navigation/AdminNavigator';
@@ -118,6 +126,17 @@ function MainTabs() {
 }
 
 export default function App() {
+ const [fontsLoaded] = useFonts({
+   'PlusJakartaSans-Regular': require('./assets/fonts/PlusJakartaSans-Regular.ttf'),
+   'PlusJakartaSans-Bold': require('./assets/fonts/PlusJakartaSans-Bold.ttf'),
+   'PlusJakartaSans-SemiBold': require('./assets/fonts/PlusJakartaSans-SemiBold.ttf'),
+   'PlusJakartaSans-Medium': require('./assets/fonts/PlusJakartaSans-Medium.ttf'),
+ });
+
+ if (!fontsLoaded) {
+   return <ActivityIndicator size="large" color="#FF69B4" />;
+ }
+
   return (
     <AuthProvider>
       <CartProvider>
@@ -135,6 +154,13 @@ export default function App() {
               <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
               <Stack.Screen name="EditProfile" component={EditProfileScreen} />
               <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
+              <Stack.Screen name="Combo" component={ComboScreen} />
+              <Stack.Screen name="Checkout" component={CheckoutScreen} />
+              <Stack.Screen name="Addresses" component={AddressesScreen} />
+              <Stack.Screen name="EditAddress" component={EditAddressScreen} />
+              <Stack.Screen name="NotificationsSettings" component={NotificationsSettingsScreen} />
+              <Stack.Screen name="Search" component={SearchScreen} />
+              <Stack.Screen name="FilterResults" component={FilterResultsScreen} />
             </Stack.Navigator>
           </NavigationContainer>
         </ToastProvider>

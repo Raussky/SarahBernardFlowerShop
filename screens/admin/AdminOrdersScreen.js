@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import EmptyState from '../../src/components/EmptyState';
+import AdminHeader from '../../src/components/AdminHeader';
 
 const ORDER_STATUSES = {
   all: 'Все',
@@ -122,17 +124,29 @@ const AdminOrdersScreen = ({ navigation }) => {
         <Text style={styles.orderDate}>{new Date(item.created_at).toLocaleString('ru-RU')}</Text>
       </View>
       <View style={{alignItems: 'flex-end'}}>
-        <Text style={styles.orderTotal}>₸{item.total_price.toLocaleString()}</Text>
-        <Text style={styles.orderStatus}>{item.status}</Text>
+        <Text style={styles.orderTotal}>₸{item.total_price ? item.total_price.toLocaleString() : 0}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.status) }]}>
+         <Text style={styles.statusText}>{ORDER_STATUSES[item.status] || item.status}</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
 
+ const getStatusColor = (status) => {
+   switch (status) {
+     case 'completed': return '#4CAF50';
+     case 'shipping': return '#2196F3';
+     case 'processing': return '#FFC107';
+     case 'cancelled': return '#F44336';
+     case 'pending':
+     default:
+       return '#9E9E9E';
+   }
+ };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Заказы</Text>
-      </View>
+      <AdminHeader title="Заказы" />
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#999" />
         <TextInput
@@ -178,7 +192,13 @@ const AdminOrdersScreen = ({ navigation }) => {
           renderItem={renderOrderItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>Нет заказов, соответствующих критериям</Text>}
+          ListEmptyComponent={
+            <EmptyState
+              title="Нет заказов"
+              message="Новые заказы появятся здесь."
+              icon="receipt-outline"
+            />
+          }
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color="#999" style={{ marginVertical: 20 }} /> : null}
@@ -193,8 +213,6 @@ const AdminOrdersScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold' },
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 20, borderRadius: 10, paddingHorizontal: 10, marginTop: 10 },
   searchInput: { flex: 1, height: 40, marginLeft: 10 },
   filterContainer: { paddingHorizontal: 20, paddingVertical: 10 },
@@ -212,7 +230,8 @@ const styles = StyleSheet.create({
   orderCustomer: { fontSize: 12, color: '#666', marginVertical: 2 },
   orderDate: { fontSize: 12, color: '#999' },
   orderTotal: { fontSize: 14, fontWeight: 'bold', color: '#FF69B4' },
-  orderStatus: { fontSize: 12, color: '#333', fontStyle: 'italic', marginTop: 2 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginTop: 4 },
+  statusText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999' },
 });
 

@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/integrations/supabase/client';
 import { useIsFocused } from '@react-navigation/native';
 import { useToast } from '../../src/components/ToastProvider';
+import EmptyState from '../../src/components/EmptyState';
+import AdminHeader from '../../src/components/AdminHeader';
 
 const AdminProductsScreen = ({ navigation }) => {
   const [products, setProducts] = useState([]);
@@ -88,13 +90,17 @@ const AdminProductsScreen = ({ navigation }) => {
         <View style={styles.productInfo}>
           <Text style={styles.productName}>{item.name}</Text>
           <Text style={styles.productCategory}>{item.categories?.name || 'Без категории'}</Text>
-          <Text style={styles.productPrice}>₸{item.product_variants[0]?.price.toLocaleString() || 'N/A'}</Text>
+          <Text style={styles.productPrice}>₸{item.product_variants[0]?.price ? item.product_variants[0].price.toLocaleString() : 'N/A'}</Text>
           {isLowStock && (
             <View style={styles.lowStockIndicator}>
               <Ionicons name="warning-outline" size={14} color="#D32F2F" />
               <Text style={styles.lowStockText}>Мало на складе</Text>
             </View>
           )}
+           <View style={styles.tagsContainer}>
+             {item.is_weekly_pick && <View style={styles.tag}><Text style={styles.tagText}>Подборка недели</Text></View>}
+             {item.purchase_count > 10 && <View style={[styles.tag, styles.bestsellerTag]}><Text style={styles.tagText}>Хит продаж</Text></View>}
+           </View>
         </View>
         <View style={styles.productActions}>
           <TouchableOpacity onPress={() => navigation.navigate('EditProduct', { productId: item.id })} style={styles.actionButton}>
@@ -110,12 +116,7 @@ const AdminProductsScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Товары</Text>
-        <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('EditProduct', { productId: null })}>
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <AdminHeader title="Товары" onAddPress={() => navigation.navigate('EditProduct', { productId: null })} />
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#999" />
         <TextInput
@@ -148,7 +149,13 @@ const AdminProductsScreen = ({ navigation }) => {
           renderItem={renderProductItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContent}
-          ListEmptyComponent={<Text style={styles.emptyText}>Нет товаров, соответствующих критериям</Text>}
+          ListEmptyComponent={
+            <EmptyState
+              title="Нет товаров"
+              message="Добавьте новый товар, чтобы он появился здесь."
+              icon="cube-outline"
+            />
+          }
         />
       )}
     </SafeAreaView>
@@ -157,9 +164,6 @@ const AdminProductsScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 },
-  headerTitle: { fontSize: 24, fontWeight: 'bold' },
-  addButton: { backgroundColor: '#FF69B4', padding: 8, borderRadius: 20 },
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', marginHorizontal: 20, borderRadius: 10, paddingHorizontal: 10, marginTop: 10 },
   searchInput: { flex: 1, height: 40, marginLeft: 10 },
   filters: { paddingHorizontal: 20, paddingTop: 10 },
@@ -173,6 +177,10 @@ const styles = StyleSheet.create({
   productName: { fontSize: 16, fontWeight: '600' },
   productCategory: { fontSize: 12, color: '#666', marginTop: 2 },
   productPrice: { fontSize: 14, color: '#FF69B4', marginTop: 5 },
+  tagsContainer: { flexDirection: 'row', marginTop: 8, gap: 5 },
+  tag: { backgroundColor: '#E0E0E0', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  bestsellerTag: { backgroundColor: '#FFC107' },
+  tagText: { fontSize: 10, fontWeight: '600' },
   productActions: { flexDirection: 'row', gap: 10 },
   actionButton: { padding: 5 },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#999' },

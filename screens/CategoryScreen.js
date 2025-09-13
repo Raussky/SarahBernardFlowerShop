@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -13,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 import SkeletonLoader from '../src/components/SkeletonLoader';
+import { FONTS } from '../src/config/theme';
 
 const CategoryScreen = ({ navigation, route }) => {
   const { category } = route.params;
@@ -32,32 +34,25 @@ const CategoryScreen = ({ navigation, route }) => {
 
   const fetchProducts = useCallback(async () => {
     if (!category?.id) return;
-    try {
-      let query = supabase
-        .from('products')
-        .select('*, categories(name, name_en), product_variants(id, product_id, size, price, stock_quantity)')
-        .eq('category_id', category.id);
-      
-      // Apply sorting ONLY for columns on the 'products' table
-      if (!sortOption.column.includes('.')) {
-        query = query.order(sortOption.column, { ascending: sortOption.ascending });
-      }
 
-      const { data, error } = await query;
-      
+    // To sort by a value in a related table (price in product_variants),
+    // we need to use a Postgres function (RPC).
+    // This function will fetch products and sort them correctly in the database.
+    const rpcFn = 'get_products_by_category_sorted';
+    
+    try {
+      const { data, error } = await supabase.rpc(rpcFn, {
+        p_category_id: category.id,
+        sort_column: sortOption.column,
+        sort_direction: sortOption.ascending ? 'ASC' : 'DESC'
+      });
+
       if (error) throw error;
 
-      let sortedData = data;
-      // Apply client-side sorting for price, as it's on a related table
-      if (sortOption.column === 'product_variants.price') {
-        sortedData = [...data].sort((a, b) => {
-          const priceA = a.product_variants?.[0]?.price || 0;
-          const priceB = b.product_variants?.[0]?.price || 0;
-          return sortOption.ascending ? priceA - priceB : priceB - priceA;
-        });
-      }
+      // The RPC function is expected to return data in the same shape as the previous query.
+      // Supabase automatically nests the related records.
+      setProducts(data);
 
-      setProducts(sortedData);
     } catch (error) {
       console.error("Error fetching products for category:", error);
     } finally {
@@ -65,16 +60,18 @@ const CategoryScreen = ({ navigation, route }) => {
     }
   }, [category, sortOption]);
 
-  useEffect(() => {
-    setLoading(true); // Reset loading state when category or sort option changes
-    fetchProducts();
-  }, [fetchProducts]);
+ useFocusEffect(
+   useCallback(() => {
+     setLoading(true);
+     fetchProducts();
+   }, [fetchProducts])
+ );
 
   useEffect(() => {
     const channel = supabase
       .channel(`public:products:category_id=eq.${category.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `category_id=eq.${category.id}` }, () => fetchProducts())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, () => fetchProducts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `category_id=eq.${category.id}` }, fetchProducts)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, fetchProducts)
       .subscribe();
 
     return () => {
@@ -233,7 +230,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontFamily: FONTS.semiBold,
   },
   categoryHeader: {
     alignItems: 'center',
@@ -256,6 +253,7 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     paddingHorizontal: 40,
+    fontFamily: FONTS.regular,
   },
   sortBar: {
     flexDirection: 'row',

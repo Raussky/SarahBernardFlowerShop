@@ -11,14 +11,15 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-} from 'react-native';
+  Switch,
+ } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
-import * as LegacyFileSystem from 'expo-file-system/legacy';
-import { toByteArray } from 'base64-js'; // ИСПРАВЛЕНО: импортируем toByteArray
+import * as FileSystem from 'expo-file-system';
+import { decode } from 'base64-arraybuffer'; // ИСПРАВЛЕНО: импортируем decode
 import 'react-native-url-polyfill/auto';
 import { useAuth } from '../src/context/AuthContext';
 
@@ -38,7 +39,8 @@ const EditProductScreen = ({ navigation, route }) => {
   const [sizeInfo, setSizeInfo] = useState('');
   const [careInstructions, setCareInstructions] = useState('');
   const [categoryId, setCategoryId] = useState(null);
-  const [images, setImages] = useState([]);
+  const [images, setImages] = useState([]); // Each image will be { uri: string, base64: string | null }
+  const [isWeeklyPick, setIsWeeklyPick] = useState(false);
   const [variants, setVariants] = useState([{ size: 'шт.', price: '', stock_quantity: '99' }]);
   const [initialVariants, setInitialVariants] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -74,6 +76,7 @@ const EditProductScreen = ({ navigation, route }) => {
           setSizeInfo(productData.size_info || '');
           setCareInstructions(productData.care_instructions || '');
           setCategoryId(productData.category_id);
+          setIsWeeklyPick(productData.is_weekly_pick || false);
 
           const allImages = [];
           if (productData.image) allImages.push(productData.image);
@@ -84,7 +87,7 @@ const EditProductScreen = ({ navigation, route }) => {
               }
             });
           }
-          setImages(allImages);
+          setImages(allImages.map(url => ({ uri: url, base64: null })));
 
           if (productData.product_variants && productData.product_variants.length > 0) {
             const formattedVariants = productData.product_variants.map(v => ({
@@ -126,25 +129,38 @@ const EditProductScreen = ({ navigation, route }) => {
   };
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (!result.canceled) {
-      setImages([...images, result.assets[0].uri]);
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: true,
+      });
+  
+      if (!result.canceled) {
+        if (result.assets && result.assets.length > 0) {
+          setImages([...images, { uri: result.assets[0].uri, base64: result.assets[0].base64 }]);
+        } else {
+          console.log('ImagePicker result.assets is empty or undefined:', result);
+          showToast('Не удалось выбрать изображение. Пожалуйста, попробуйте еще раз.', 'error');
+        }
+      }
+    } catch (error) {
+      console.error("ImagePicker Error:", error);
+      showToast(`Ошибка при выборе изображения: ${error.message}`, 'error');
     }
   };
-
+ 
   const removeImage = (index) => {
     setImages(images.filter((_, i) => i !== index));
   };
-
-  const uploadImage = async (uri) => {
+ 
+  const uploadImage = async (uri, base64Data) => { // ДОБАВЛЕНО: base64Data как аргумент
     try {
-      const base64 = await LegacyFileSystem.readAsStringAsync(uri, { encoding: LegacyFileSystem.EncodingType.Base64 });
+      console.log('Uploading image from URI:', uri);
+      // const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 }); // УДАЛЕНО: Больше не читаем из FileSystem
+      console.log('Base64 string length:', base64Data ? base64Data.length : 'null'); // Логирование длины base64
       const fileExt = uri.split('.').pop()?.toLowerCase();
       if (!fileExt || !['jpg', 'jpeg', 'png', 'webp'].includes(fileExt)) {
         throw new Error('Неподдерживаемый формат изображения');
@@ -152,20 +168,20 @@ const EditProductScreen = ({ navigation, route }) => {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${fileName}`;
       const contentType = `image/${fileExt}`;
-      const byteArray = toByteArray(base64); // ИСПРАВЛЕНО: используем toByteArray
-
+      const byteArray = decode(base64Data); // ИСПРАВЛЕНО: используем decode из base64-arraybuffer
+ 
       const { error } = await supabase.storage
         .from('product-images')
-        .upload(filePath, byteArray, { 
+        .upload(filePath, byteArray, {
           contentType,
           upsert: false
         });
-
+ 
       if (error) {
         console.error("Storage upload error:", error);
         throw new Error(`Ошибка загрузки: ${error.message}`);
       }
-
+ 
       const { data: publicUrlData } = supabase.storage
         .from('product-images')
         .getPublicUrl(filePath);
@@ -185,20 +201,24 @@ const EditProductScreen = ({ navigation, route }) => {
     
     setSaving(true);
     try {
-      if (images.some(img => img.startsWith('file://'))) {
+      if (images.some(img => typeof img === 'object' && img.uri && img.uri.startsWith('file://'))) {
         showToast('Загружаем изображения...', 'info');
       }
       
-      const uploadPromises = images.map(async (imgUri) => {
-        if (imgUri.startsWith('file://')) {
+      const uploadPromises = images.map(async (imageItem) => {
+        // Check if it's a new image object (has a base64 property, indicating it's a local file to be uploaded)
+        if (typeof imageItem === 'object' && imageItem.uri && imageItem.base64) {
           try {
-            return await uploadImage(imgUri);
+            return await uploadImage(imageItem.uri, imageItem.base64);
           } catch (error) {
-            console.error('Failed to upload image:', imgUri, error);
+            console.error('Failed to upload new image:', imageItem.uri, error);
             throw error;
           }
         }
-        return imgUri;
+        // If it's an existing image URL (string) or an object without base64 (already uploaded or invalid)
+        // In the case of an object without base64, we assume it's an existing image object from initial load
+        // and we just need its URI.
+        return typeof imageItem === 'string' ? imageItem : imageItem.uri;
       });
       
       const finalImageUrls = await Promise.all(uploadPromises);
@@ -216,6 +236,7 @@ const EditProductScreen = ({ navigation, route }) => {
           care_instructions: careInstructions,
           category_id: categoryId,
           image: mainImage,
+          is_weekly_pick: isWeeklyPick,
         })
         .select()
         .single();
@@ -284,15 +305,15 @@ const EditProductScreen = ({ navigation, route }) => {
 
           <Text style={styles.label}>Фотографии товара</Text>
           <ScrollView horizontal contentContainerStyle={styles.imageScrollView}>
-            {images.map((imgUri, index) => (
+            {images.map((image, index) => (
               <View key={index} style={styles.imageContainer}>
-                <Image source={{ uri: imgUri }} style={styles.productImage} />
+                <Image source={{ uri: image.uri }} style={styles.productImage} />
                 <TouchableOpacity style={styles.removeImageButton} onPress={() => removeImage(index)}>
                   <Ionicons name="close-circle" size={24} color="#fff" style={styles.removeImageIcon} />
                 </TouchableOpacity>
               </View>
             ))}
-            <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+            <TouchableOpacity style={styles.imagePicker} onPress={() => { console.log('Image picker button pressed'); pickImage(); }}>
               <Ionicons name="camera-outline" size={40} color="#999" />
               <Text style={styles.imagePickerText}>Добавить</Text>
             </TouchableOpacity>
@@ -328,6 +349,17 @@ const EditProductScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             ))}
           </View>
+
+          <View style={styles.switchRow}>
+           <Text style={styles.label}>Подборка недели</Text>
+           <Switch
+             trackColor={{ false: "#767577", true: "#FFC0CB" }}
+             thumbColor={isWeeklyPick ? "#FF69B4" : "#f4f3f4"}
+             ios_backgroundColor="#3e3e3e"
+             onValueChange={setIsWeeklyPick}
+             value={isWeeklyPick}
+           />
+         </View>
 
           <Text style={styles.label}>Варианты товара</Text>
           {variants.map((variant, index) => (
@@ -376,6 +408,7 @@ const styles = StyleSheet.create({
   categoryText: { color: '#333' },
   activeCategoryText: { color: '#fff', fontWeight: 'bold' },
   variantRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 10 },
   variantInput: { backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 10, borderRadius: 8, flex: 1 },
   removeButton: { padding: 5 },
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 10, padding: 10 },

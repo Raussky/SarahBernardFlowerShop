@@ -13,13 +13,23 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Разрешить $(PRODUCT_NAME) доступ к вашей фотогалерее для выбора изображений товаров.",
+        "NSCameraUsageDescription": "Разрешить $(PRODUCT_NAME) доступ к вашей камере для съемки фотографий товаров."
+      },
+      "bundleIdentifier": "com.anonymous.SarahBernardFlowerShop"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.CAMERA"
+      ],
+      "package": "com.anonymous.SarahBernardFlowerShop",
       "edgeToEdgeEnabled": true
     },
     "web": {

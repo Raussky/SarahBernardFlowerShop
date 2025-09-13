@@ -39,26 +39,31 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  const addToCart = (item) => {
-    setCart(prevCart => {
-      // Создаем уникальный ID для варианта товара (товар + размер)
-      const cartItemId = `${item.id}-${item.size}`;
-      const existingItem = prevCart.find(cartItem => cartItem.cartItemId === cartItemId);
-      
-      let newCart;
-      if (existingItem) {
-        newCart = prevCart.map(cartItem =>
-          cartItem.cartItemId === cartItemId
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
-        );
-      } else {
-        newCart = [...prevCart, { ...item, quantity: 1, cartItemId }];
-      }
-      saveData('cart', newCart);
-      return newCart;
-    });
-  };
+  const addToCart = (item, type = 'product') => {
+   setCart(prevCart => {
+     let cartItemId;
+     if (type === 'product') {
+       cartItemId = `product-${item.id}-${item.size}`;
+     } else { // combo
+       cartItemId = `combo-${item.id}`;
+     }
+
+     const existingItem = prevCart.find(cartItem => cartItem.cartItemId === cartItemId);
+     
+     let newCart;
+     if (existingItem) {
+       newCart = prevCart.map(cartItem =>
+         cartItem.cartItemId === cartItemId
+           ? { ...cartItem, quantity: cartItem.quantity + 1 }
+           : cartItem
+       );
+     } else {
+       newCart = [...prevCart, { ...item, quantity: 1, cartItemId, type }];
+     }
+     saveData('cart', newCart);
+     return newCart;
+   });
+ };
 
   const removeFromCart = (cartItemId) => {
     const newCart = cart.filter(item => item.cartItemId !== cartItemId);

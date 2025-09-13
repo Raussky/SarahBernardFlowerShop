@@ -1,190 +1,22 @@
-import React, { useContext, useState, useEffect, memo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  FlatList,
-  Image,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useContext, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../src/context/CartContext';
-import { AuthContext } from '../src/context/AuthContext';
-import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
-import { DELIVERY_COST, WHATSAPP_PHONE } from '../src/config/constants';
+import { DELIVERY_COST } from '../src/config/constants';
 import { supabase } from '../src/integrations/supabase/client';
-import { v4 as uuidv4 } from 'uuid';
-import MaskInput from 'react-native-mask-input'; // Import MaskInput
-
-// Memoized Order Form Component to prevent re-renders on text input
-const OrderForm = memo(({
-  deliveryMethod, setDeliveryMethod,
-  paymentMethod, setPaymentMethod,
-  customerName, setCustomerName,
-  customerPhone, setCustomerPhone,
-  customerAddress, setCustomerAddress,
-  orderComment, setOrderComment,
-  phoneError, nameError, addressError
-}) => {
-  const phoneMask = ['+', '7', ' ', '(', /\d/, /\d/, /\d/, ')', ' ', /\d/, /\d/, /\d/, '-', /\d/, /\d/, '-', /\d/, /\d/];
-
-  return (
-    <View style={styles.formContainer}>
-      <Text style={styles.sectionTitle}>Способ получения</Text>
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[styles.toggleButton, deliveryMethod === 'delivery' && styles.activeToggleButton]}
-          onPress={() => setDeliveryMethod('delivery')}
-        >
-          <Text style={[styles.toggleButtonText, deliveryMethod === 'delivery' && styles.activeToggleButtonText]}>Доставка</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleButton, deliveryMethod === 'pickup' && styles.activeToggleButton]}
-          onPress={() => setDeliveryMethod('pickup')}
-        >
-          <Text style={[styles.toggleButtonText, deliveryMethod === 'pickup' && styles.activeToggleButtonText]}>Самовывоз</Text>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.sectionTitle}>Ваши данные</Text>
-      <View style={styles.inputGroup}>
-        <View style={[styles.inputWrapper, nameError ? styles.inputWrapperError : {}]}>
-          <TextInput 
-            style={styles.input} 
-            placeholder="Имя" 
-            value={customerName} 
-            onChangeText={setCustomerName} 
-            placeholderTextColor="#999"
-          />
-          {!!nameError && <Text style={styles.errorText}>{nameError}</Text>}
-        </View>
-        <View style={[styles.inputWrapper, phoneError ? styles.inputWrapperError : {}]}>
-          <MaskInput 
-            style={styles.input} 
-            placeholder="Телефон" 
-            value={customerPhone} 
-            onChangeText={(masked, unmasked) => setCustomerPhone(masked)} 
-            mask={phoneMask}
-            keyboardType="phone-pad" 
-            placeholderTextColor="#999"
-          />
-          {!!phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
-        </View>
-        {deliveryMethod === 'delivery' && (
-          <View style={[styles.inputWrapper, addressError ? styles.inputWrapperError : {}]}>
-            <TextInput 
-              style={styles.input} 
-              placeholder="Адрес" 
-              value={customerAddress} 
-              onChangeText={setCustomerAddress} 
-              placeholderTextColor="#999"
-            />
-            {!!addressError && <Text style={styles.errorText}>{addressError}</Text>}
-          </View>
-        )}
-        <TextInput 
-          style={styles.input} 
-          placeholder="Комментарий к заказу" 
-          value={orderComment} 
-          onChangeText={setOrderComment} 
-          placeholderTextColor="#999"
-        />
-      </View>
-
-      <Text style={styles.sectionTitle}>Способ оплаты</Text>
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity
-          style={[styles.toggleButton, paymentMethod === 'kaspi' && styles.activeToggleButton]}
-          onPress={() => setPaymentMethod('kaspi')}
-        >
-          <Text style={[styles.toggleButtonText, paymentMethod === 'kaspi' && styles.activeToggleButtonText]}>Kaspi Перевод</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.toggleButton, paymentMethod === 'cash' && styles.activeToggleButton]}
-          onPress={() => setPaymentMethod('cash')}
-        >
-          <Text style={[styles.toggleButtonText, paymentMethod === 'cash' && styles.activeToggleButtonText]}>Наличными</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-});
+import PrimaryButton from '../src/components/PrimaryButton';
+import { FONTS } from '../src/config/theme';
+import EmptyState from '../src/components/EmptyState';
 
 const BasketScreen = ({ navigation }) => {
   const { cart, clearCart, updateItemQuantity, removeFromCart } = useContext(CartContext);
-  const { user, profile } = useContext(AuthContext);
   const { showToast } = useToast();
-
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
 
-  const [deliveryMethod, setDeliveryMethod] = useState('delivery');
-  const [paymentMethod, setPaymentMethod] = useState('kaspi');
-  const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
-  const [orderComment, setOrderComment] = useState('');
-
-  const [nameError, setNameError] = useState('');
-  const [phoneError, setPhoneError] = useState('');
-  const [addressError, setAddressError] = useState('');
-
-  useEffect(() => {
-    if (profile) {
-      setCustomerName(profile.first_name || '');
-      setCustomerPhone(profile.phone_number || ''); // Autofill phone number
-    } else if (user) {
-      setCustomerName(user.email || '');
-    }
-  }, [profile, user]);
-
-  const validateForm = () => {
-    let isValid = true;
-    setNameError('');
-    setPhoneError('');
-    setAddressError('');
-
-    if (!customerName.trim()) {
-      setNameError('Имя обязательно');
-      isValid = false;
-    }
-    
-    const unmaskedPhone = customerPhone.replace(/\D/g, ''); // Remove non-digits for validation
-    if (!unmaskedPhone) {
-      setPhoneError('Телефон обязателен');
-      isValid = false;
-    } else if (unmaskedPhone.length < 11) { // Assuming +7 (XXX) XXX-XX-XX format, 11 digits after +7
-      setPhoneError('Введите корректный номер телефона');
-      isValid = false;
-    }
-
-    if (deliveryMethod === 'delivery' && !customerAddress.trim()) {
-      setAddressError('Адрес обязателен для доставки');
-      isValid = false;
-    }
-
-    if (!isValid) {
-      showToast('Пожалуйста, заполните все обязательные поля корректно.', 'error');
-    }
-    return isValid;
-  };
-
-  const getSubtotal = () => {
-    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  };
-
-  const getTotalPrice = () => {
-    const subtotal = getSubtotal();
-    const totalDeliveryCost = deliveryMethod === 'delivery' ? DELIVERY_COST : 0;
-    return subtotal + totalDeliveryCost;
-  };
+  const getSubtotal = () => cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  const getTotalPrice = () => getSubtotal() + DELIVERY_COST; // Assuming delivery is default for summary
 
   const handleClearCart = () => {
     Alert.alert(
@@ -201,6 +33,10 @@ const BasketScreen = ({ navigation }) => {
   };
 
   const handleProductPress = async (item) => {
+    if (item.type === 'combo') {
+      navigation.navigate('Combo', { comboId: item.id });
+      return;
+    }
     if (isNavigating) return;
     setIsNavigating(true);
     try {
@@ -219,99 +55,8 @@ const BasketScreen = ({ navigation }) => {
       }
     } catch (error) {
       showToast('Не удалось открыть товар', 'error');
-      console.error("Error navigating to product:", error);
     } finally {
       setIsNavigating(false);
-    }
-  };
-
-  const handleWhatsAppOrder = async () => {
-    if (!validateForm()) {
-      return;
-    }
-
-    if (cart.length === 0) {
-      showToast('Ваша корзина пуста.', 'error');
-      return;
-    }
-
-    const subtotal = getSubtotal();
-    const total = getTotalPrice();
-    const newOrderId = uuidv4();
-
-    try {
-      const { error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          id: newOrderId,
-          user_id: user?.id || null,
-          customer_name: customerName,
-          customer_phone: customerPhone,
-          customer_address: deliveryMethod === 'delivery' ? customerAddress : null,
-          delivery_method: deliveryMethod,
-          payment_method: paymentMethod,
-          order_comment: orderComment,
-          total_price: total,
-          status: 'pending',
-        });
-
-      if (orderError) throw orderError;
-
-      const orderItems = cart.map(item => ({
-        order_id: newOrderId,
-        product_id: item.id,
-        product_variant_id: item.variantId,
-        product_name: item.name || item.nameRu,
-        product_image: item.image,
-        variant_size: item.size,
-        quantity: item.quantity,
-        price_at_purchase: item.price,
-      }));
-
-      const { error: orderItemsError } = await supabase.from('order_items').insert(orderItems);
-      if (orderItemsError) throw orderItemsError;
-
-      const itemsToDecrement = cart.map(item => ({
-        variant_id: item.variantId,
-        quantity: item.quantity,
-      }));
-      const { error: decrementError } = await supabase.rpc('decrement_stock', { items_to_decrement: itemsToDecrement });
-      if (decrementError) {
-        console.error("Stock decrement error:", decrementError);
-        showToast('Ошибка при обновлении остатков', 'error');
-      }
-
-      const orderDetails = cart.map(item => 
-        `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
-      ).join('\n');
-      
-      const message = `*Новый заказ #${newOrderId.substring(0, 8)}*\n\n` +
-                      `*Имя:* ${customerName}\n` +
-                      `*Телефон:* ${customerPhone}\n` +
-                      `*Способ получения:* ${deliveryMethod === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
-                      (deliveryMethod === 'delivery' && customerAddress ? `*Адрес:* ${customerAddress}\n` : '') +
-                      `*Способ оплаты:* ${paymentMethod === 'kaspi' ? 'Kaspi Перевод' : 'Наличными'}\n` +
-                      (orderComment ? `*Комментарий:* ${orderComment}\n` : '') +
-                      `\n*Товары:*\n${orderDetails}\n\n` +
-                      `*Подытог:* ${subtotal.toLocaleString()} ₸\n` +
-                      `*Доставка:* ${deliveryMethod === 'delivery' ? DELIVERY_COST.toLocaleString() : 0} ₸\n` +
-                      `*Итого к оплате:* ${total.toLocaleString()} ₸`;
-
-      const whatsappUrl = `whatsapp://send?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(message)}`;
-      
-      Linking.openURL(whatsappUrl).then(() => {
-        showToast('Заказ отправлен в WhatsApp и сохранен!', 'success');
-        clearCart();
-        navigation.replace('OrderConfirmation', { orderId: newOrderId });
-      }).catch(() => {
-        Alert.alert('Ошибка', 'WhatsApp не установлен на вашем устройстве, но ваш заказ успешно сохранен. Мы скоро с вами свяжемся.');
-        clearCart();
-        navigation.replace('OrderConfirmation', { orderId: newOrderId });
-      });
-
-    } catch (error) {
-      console.error("Error placing order:", error);
-      showToast(`Ошибка при оформлении заказа: ${error.message}`, 'error');
     }
   };
 
@@ -322,7 +67,11 @@ const BasketScreen = ({ navigation }) => {
         <Image source={{ uri: item.image }} style={styles.itemImage} />
         <View style={styles.itemDetails}>
           <Text style={styles.itemName} numberOfLines={1}>{item.name || item.nameRu}</Text>
-          <Text style={styles.itemSize}>Размер: {item.size}</Text>
+          {item.type === 'combo' ? (
+           <Text style={styles.itemSize}>Комбо-набор</Text>
+          ) : (
+           <Text style={styles.itemSize}>Размер: {item.size}</Text>
+          )}
           <Text style={styles.itemPrice}>₸{item.price.toLocaleString()}</Text>
         </View>
         <View style={styles.quantityControl}>
@@ -343,96 +92,55 @@ const BasketScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <View style={styles.header}>
-          {isCheckingOut ? (
-            <View style={styles.checkoutHeader}>
-              <TouchableOpacity onPress={() => setIsCheckingOut(false)}>
-                <Ionicons name="arrow-back" size={24} color="#333" />
-              </TouchableOpacity>
-              <Text style={styles.headerTitle}>Оформление заказа</Text>
-              <View style={{ width: 24 }} />
-            </View>
-          ) : (
-            <>
-              <Text style={styles.headerTitle}>Корзина</Text>
-              {cart.length > 0 && (
-                <TouchableOpacity onPress={handleClearCart} style={styles.clearButton}>
-                  <Ionicons name="trash-outline" size={20} color="#FF69B4" />
-                  <Text style={styles.clearButtonText}>Очистить</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-        </View>
-
-        {cart.length === 0 ? (
-          <View style={styles.emptyCart}>
-            <Ionicons name="cart-outline" size={100} color="#FF69B4" />
-            <Text style={styles.emptyText}>
-              Ваша корзина пуста. Добавьте что-нибудь красивое!
-            </Text>
-            <TouchableOpacity style={styles.shopButton} onPress={() => navigation.navigate('Main', { screen: 'Home' })}>
-              <Text style={styles.shopButtonText}>Перейти к покупкам</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            <FlatList
-              data={cart}
-              renderItem={renderCartItem}
-              keyExtractor={item => item.cartItemId}
-              contentContainerStyle={styles.listContainer}
-              ListHeaderComponent={!isCheckingOut && (
-                <TouchableOpacity style={styles.continueShoppingButton} onPress={() => navigation.navigate('Main', { screen: 'Home' })}>
-                  <Ionicons name="arrow-back" size={18} color="#FF69B4" />
-                  <Text style={styles.continueShoppingText}>Продолжить покупки</Text>
-                </TouchableOpacity>
-              )}
-              ListFooterComponent={
-                isCheckingOut ? (
-                  <OrderForm
-                    deliveryMethod={deliveryMethod} setDeliveryMethod={setDeliveryMethod}
-                    paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
-                    customerName={customerName} setCustomerName={setCustomerName}
-                    customerPhone={customerPhone} setCustomerPhone={setCustomerPhone}
-                    customerAddress={customerAddress} setCustomerAddress={setCustomerAddress}
-                    orderComment={orderComment} setOrderComment={setOrderComment}
-                    nameError={nameError} phoneError={phoneError} addressError={addressError}
-                  />
-                ) : null
-              }
-            />
-            <View style={styles.fixedFooter}>
-              <View style={styles.summaryContainer}>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Подытог</Text>
-                  <Text style={styles.summaryValue}>₸{getSubtotal().toLocaleString()}</Text>
-                </View>
-                <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Доставка</Text>
-                  <Text style={styles.summaryValue}>₸{deliveryMethod === 'delivery' ? DELIVERY_COST.toLocaleString() : 0}</Text>
-                </View>
-                <View style={[styles.summaryRow, styles.totalRow]}>
-                  <Text style={styles.totalLabel}>Итого</Text>
-                  <Text style={styles.totalPrice}>₸{getTotalPrice().toLocaleString()}</Text>
-                </View>
-              </View>
-              {isCheckingOut ? (
-                <TouchableOpacity style={styles.whatsappButton} onPress={handleWhatsAppOrder}>
-                  <Text style={styles.whatsappButtonText}>Отправить в WhatsApp</Text>
-                  <Ionicons name="logo-whatsapp" size={24} color="#fff" />
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.checkoutButton} onPress={() => setIsCheckingOut(true)}>
-                  <Text style={styles.checkoutButtonText}>Перейти к оформлению</Text>
-                  <Ionicons name="arrow-forward" size={22} color="#fff" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Корзина</Text>
+        {cart.length > 0 && (
+          <TouchableOpacity onPress={handleClearCart} style={styles.clearButton}>
+            <Ionicons name="trash-outline" size={20} color="#FF69B4" />
+            <Text style={styles.clearButtonText}>Очистить</Text>
+          </TouchableOpacity>
         )}
-      </KeyboardAvoidingView>
+      </View>
+
+      {cart.length === 0 ? (
+        <EmptyState
+          icon="cart-outline"
+          title="Ваша корзина пуста"
+          message="Добавьте что-нибудь красивое, чтобы сделать заказ!"
+          buttonText="Перейти к покупкам"
+          onButtonPress={() => navigation.navigate('Main', { screen: 'Home' })}
+        />
+      ) : (
+        <>
+          <FlatList
+            data={cart}
+            renderItem={renderCartItem}
+            keyExtractor={item => item.cartItemId}
+            contentContainerStyle={styles.listContainer}
+          />
+          <View style={styles.fixedFooter}>
+            <View style={styles.summaryContainer}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Подытог</Text>
+                <Text style={styles.summaryValue}>₸{getSubtotal().toLocaleString()}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Доставка (примерно)</Text>
+                <Text style={styles.summaryValue}>₸{DELIVERY_COST.toLocaleString()}</Text>
+              </View>
+              <View style={[styles.summaryRow, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Итого</Text>
+                <Text style={styles.totalPrice}>₸{getTotalPrice().toLocaleString()}</Text>
+              </View>
+            </View>
+            <PrimaryButton
+              title="Перейти к оформлению"
+              onPress={() => navigation.navigate('Checkout')}
+              icon="arrow-forward"
+            />
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -440,30 +148,10 @@ const BasketScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  checkoutHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' },
-  headerTitle: { fontSize: 24, fontWeight: 'bold' },
+  headerTitle: { fontSize: 24, fontFamily: FONTS.bold },
   clearButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFE4E1', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  clearButtonText: { color: '#FF69B4', marginLeft: 5, fontWeight: '600' },
-  emptyCart: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 18, color: '#999', marginTop: 20, marginBottom: 30, textAlign: 'center', paddingHorizontal: 40 },
-  shopButton: { backgroundColor: '#FF69B4', paddingHorizontal: 30, paddingVertical: 12, borderRadius: 25 },
-  shopButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  listContainer: { 
-    paddingHorizontal: 20, 
-    paddingBottom: 260
-  },
-  continueShoppingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
-    alignSelf: 'flex-start',
-  },
-  continueShoppingText: {
-    color: '#FF69B4',
-    fontWeight: '600',
-    marginLeft: 5,
-    fontSize: 16,
-  },
+  clearButtonText: { color: '#FF69B4', marginLeft: 5, fontFamily: FONTS.semiBold },
+  listContainer: { paddingHorizontal: 20, paddingBottom: 260 },
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
   itemDetails: { flex: 1 },
@@ -473,63 +161,14 @@ const styles = StyleSheet.create({
   quantityControl: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   quantityText: { fontSize: 18, fontWeight: 'bold', minWidth: 20, textAlign: 'center' },
   deleteButton: { marginLeft: 15, padding: 5 },
-  formContainer: { marginTop: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, marginTop: 10 },
-  toggleContainer: { flexDirection: 'row', borderRadius: 12, borderWidth: 1, borderColor: '#FF69B4', overflow: 'hidden' },
-  toggleButton: { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: '#fff' },
-  activeToggleButton: { backgroundColor: '#FF69B4' },
-  toggleButtonText: { fontSize: 16, color: '#FF69B4', fontWeight: '600' },
-  activeToggleButtonText: { color: '#fff' },
-  inputGroup: { gap: 10 },
-  inputWrapper: { marginBottom: 10 },
-  input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, fontSize: 16 },
-  inputWrapperError: { borderColor: '#FF0000', borderWidth: 1, borderRadius: 10 },
-  errorText: { color: '#FF0000', fontSize: 12, marginTop: 5, marginLeft: 15 },
-  fixedFooter: { 
-    position: 'absolute', 
-    bottom: 80,
-    left: 0, 
-    right: 0, 
-    backgroundColor: '#fff', 
-    paddingHorizontal: 20, 
-    paddingTop: 15, 
-    paddingBottom: 10,
-    borderTopWidth: 1, 
-    borderTopColor: '#f0f0f0', 
-  },
-  summaryContainer: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 15 },
+  fixedFooter: { position: 'absolute', bottom: 80, left: 0, right: 0, backgroundColor: '#fff', padding: 20, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  summaryContainer: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 15, marginBottom: 15 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   summaryLabel: { fontSize: 16, color: '#666' },
   summaryValue: { fontSize: 16, fontWeight: '600' },
   totalRow: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 4 },
   totalLabel: { fontSize: 18, fontWeight: 'bold' },
   totalPrice: { fontSize: 20, fontWeight: 'bold', color: '#FF69B4' },
-  whatsappButton: { 
-    backgroundColor: '#25D366', 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingVertical: 15, 
-    borderRadius: 25, 
-    gap: 10,
-    marginTop: 15,
-  },
-  whatsappButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  checkoutButton: {
-    backgroundColor: '#FF69B4',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 15,
-    borderRadius: 25,
-    gap: 10,
-    marginTop: 15,
-  },
-  checkoutButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
 });
 
 export default BasketScreen;
