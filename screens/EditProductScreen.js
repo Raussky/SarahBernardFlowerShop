@@ -224,20 +224,25 @@ const EditProductScreen = ({ navigation, route }) => {
       const finalImageUrls = await Promise.all(uploadPromises);
       
       const mainImage = finalImageUrls.length > 0 ? finalImageUrls[0] : null;
+      const productPayload = {
+        name,
+        name_ru: nameRu,
+        description,
+        composition,
+        size_info: sizeInfo,
+        care_instructions: careInstructions,
+        category_id: categoryId,
+        image: mainImage,
+        is_weekly_pick: isWeeklyPick,
+      };
+
+      if (!isNewProduct) {
+        productPayload.id = productId;
+      }
+
       const { data: productData, error: productError } = await supabase
         .from('products')
-        .upsert({
-          id: productId,
-          name,
-          name_ru: nameRu,
-          description,
-          composition,
-          size_info: sizeInfo,
-          care_instructions: careInstructions,
-          category_id: categoryId,
-          image: mainImage,
-          is_weekly_pick: isWeeklyPick,
-        })
+        .upsert(productPayload)
         .select()
         .single();
       if (productError) throw productError;
