@@ -11,14 +11,11 @@ const ProfileScreen = ({ navigation }) => {
   const { showToast } = useToast();
 
   const handleSignOut = async () => {
-    try {
-      const { error } = await signOut();
-      if (error) {
-        throw error;
-      }
-      showToast('Вы успешно вышли', 'info');
-    } catch (error) {
+    const { error } = await signOut();
+    if (error) {
       Alert.alert('Ошибка выхода', error.message);
+    } else {
+      showToast('Вы успешно вышли', 'info');
     }
   };
 

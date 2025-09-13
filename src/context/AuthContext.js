@@ -9,48 +9,50 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const fetchSessionAndProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      
+      if (session) {
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle(); // Changed to maybeSingle()
+        
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found", which maybeSingle handles by returning null data
+          console.error("Error fetching profile:", error);
+          setProfile(null);
+        } else {
+          setProfile(profileData); // profileData will be null if no profile found
+        }
+      }
+      setLoading(false);
+    };
+
+    fetchSessionAndProfile();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session) {
-        // Fetch profile when session is available
-        supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
-          .then(({ data: profileData, error }) => {
-            if (error && error.code !== 'PGRST116') {
-              console.error("Error fetching profile on auth change:", error);
-              setProfile(null);
-            } else {
-              setProfile(profileData);
-            }
-            setLoading(false);
-          });
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle(); // Changed to maybeSingle()
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error("Error fetching profile on auth change:", error);
+          setProfile(null);
+        } else {
+          setProfile(profileData);
+        }
       } else {
         setProfile(null);
-        setLoading(false);
       }
     });
 
-    // Initial session fetch
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle()
-          .then(({ data: profileData, error }) => {
-            if (error && error.code !== 'PGRST116') {
-              console.error("Error fetching profile:", error);
-              setProfile(null);
-            } else {
-              setProfile(profileData);
-            }
-            setLoading(false);
-          });
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const refreshProfile = async () => {
@@ -75,11 +77,14 @@ export const AuthProvider = ({ children }) => {
     user: session?.user,
     profile,
     signOut: async () => {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error("Error signing out:", error);
+      if (session) {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error("Error signing out:", error);
+        }
+        return { error };
       }
-      return { error };
+      return { error: null };
     },
     refreshProfile,
   };
