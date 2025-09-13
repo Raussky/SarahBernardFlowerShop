@@ -59,7 +59,7 @@ const EditProfileScreen = ({ navigation }) => {
   const uploadImage = async (uri) => {
     if (!user) return null;
     try {
-      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
+      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
       const fileExt = uri.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`; // User-specific folder path
