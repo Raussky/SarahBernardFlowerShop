@@ -18,7 +18,7 @@ import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
 import { readAsStringAsync } from 'expo-file-system/legacy';
-import { decode } from 'base-64';
+import { decode } from 'base64-arraybuffer';
 import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
 import MaskInput from 'react-native-mask-input'; // Import MaskInput
 
