@@ -259,12 +259,18 @@ const EditProductScreen = ({ navigation, route }) => {
       }
 
       const variantsToUpsert = variants.map(v => ({
-        id: v.id,
+        ...v,
         product_id: savedProductId,
-        size: v.size,
         price: parseFloat(v.price) || 0,
         stock_quantity: parseInt(v.stock_quantity, 10) || 0,
       }));
+      
+      // When creating a new product, the variant IDs will be undefined, so we need to remove them
+      // from the payload so that the database can generate them automatically.
+      if (isNewProduct) {
+        variantsToUpsert.forEach(v => delete v.id);
+      }
+
       await supabase.from('product_variants').upsert(variantsToUpsert);
 
       const currentVariantIds = new Set(variants.map(v => v.id).filter(Boolean));
