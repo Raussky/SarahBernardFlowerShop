@@ -77,13 +77,16 @@ export const AuthProvider = ({ children }) => {
     user: session?.user,
     profile,
     signOut: async () => {
-      if (session) {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          console.error("Error signing out:", error);
-        }
+      const { error } = await supabase.auth.signOut();
+
+      // We only care about errors that are NOT AuthSessionMissingError
+      if (error && error.name !== 'AuthSessionMissingError') {
+        console.error("Error signing out:", error);
         return { error };
       }
+      
+      // In case of success (error is null) or AuthSessionMissingError,
+      // we consider the sign-out successful from the UI perspective.
       return { error: null };
     },
     refreshProfile,
