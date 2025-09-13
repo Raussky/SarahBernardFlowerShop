@@ -13,6 +13,7 @@ import {
   Dimensions,
   Animated,
   Modal,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -323,106 +324,110 @@ const HomeScreen = ({ navigation }) => {
        visible={filterModalVisible}
        onRequestClose={() => setFilterModalVisible(false)}
      >
-       <View style={styles.modalContainer}>
-         <View style={styles.modalContent}>
-           <ScrollView>
-             <View style={styles.modalHeader}>
-               <Text style={styles.modalTitle}>Фильтры</Text>
-               <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                 <Ionicons name="close" size={24} color="#333" />
-               </TouchableOpacity>
-             </View>
-             <Text style={styles.filterLabel}>Категории</Text>
-             <View style={styles.categoriesContainerModal}>
-               {categories.map((category) => (
-                 <TouchableOpacity
-                   key={category.id}
-                   style={[
-                     styles.categoryButton,
-                     selectedCategories.includes(category.id) && styles.categoryButtonSelected,
-                   ]}
-                   onPress={() => {
-                     const newSelectedCategories = selectedCategories.includes(category.id)
-                       ? selectedCategories.filter((id) => id !== category.id)
-                       : [...selectedCategories, category.id];
-                     setSelectedCategories(newSelectedCategories);
-                   }}
-                 >
-                   <Text
-                     style={[
-                       styles.categoryButtonText,
-                       selectedCategories.includes(category.id) && styles.categoryButtonTextSelected,
-                     ]}
+       <TouchableWithoutFeedback onPress={() => setFilterModalVisible(false)}>
+         <View style={styles.modalContainer}>
+           <TouchableWithoutFeedback>
+             <View style={styles.modalContent}>
+               <ScrollView>
+                 <View style={styles.modalHeader}>
+                   <Text style={styles.modalTitle}>Фильтры</Text>
+                   <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                     <Ionicons name="close" size={24} color="#333" />
+                   </TouchableOpacity>
+                 </View>
+                 <Text style={styles.filterLabel}>Категории</Text>
+                 <View style={styles.categoriesContainerModal}>
+                   {categories.map((category) => (
+                     <TouchableOpacity
+                       key={category.id}
+                       style={[
+                         styles.categoryButton,
+                         selectedCategories.includes(category.id) && styles.categoryButtonSelected,
+                       ]}
+                       onPress={() => {
+                         const newSelectedCategories = selectedCategories.includes(category.id)
+                           ? selectedCategories.filter((id) => id !== category.id)
+                           : [...selectedCategories, category.id];
+                         setSelectedCategories(newSelectedCategories);
+                       }}
+                     >
+                       <Text
+                         style={[
+                           styles.categoryButtonText,
+                           selectedCategories.includes(category.id) && styles.categoryButtonTextSelected,
+                         ]}
+                       >
+                         {category.name}
+                       </Text>
+                     </TouchableOpacity>
+                   ))}
+                 </View>
+                 <Text style={styles.filterLabel}>Цена: ₸{priceRange[0]} - ₸{priceRange[1]}</Text>
+                 <Slider
+                   style={{width: '100%', height: 40}}
+                   minimumValue={0}
+                   maximumValue={50000}
+                   step={1000}
+                   value={priceRange[1]}
+                   onValueChange={(value) => setPriceRange([priceRange[0], value])}
+                   minimumTrackTintColor="#FF69B4"
+                   maximumTrackTintColor="#000000"
+                 />
+                 <Text style={styles.filterLabel}>Сортировать по</Text>
+                 <View style={styles.sortContainer}>
+                   <TouchableOpacity
+                     style={[styles.sortButton, sortBy === 'created_at' && styles.sortButtonSelected]}
+                     onPress={() => setSortBy('created_at')}
                    >
-                     {category.name}
-                   </Text>
+                     <Text style={[styles.sortButtonText, sortBy === 'created_at' && styles.sortButtonTextSelected]}>
+                       Новизне
+                     </Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity
+                     style={[styles.sortButton, sortBy === 'price' && styles.sortButtonSelected]}
+                     onPress={() => setSortBy('price')}
+                   >
+                     <Text style={[styles.sortButtonText, sortBy === 'price' && styles.sortButtonTextSelected]}>
+                       Цене
+                     </Text>
+                   </TouchableOpacity>
+                 </View>
+                 <View style={styles.sortContainer}>
+                   <TouchableOpacity
+                     style={[styles.sortButton, sortDirection === 'asc' && styles.sortButtonSelected]}
+                     onPress={() => setSortDirection('asc')}
+                   >
+                     <Text style={[styles.sortButtonText, sortDirection === 'asc' && styles.sortButtonTextSelected]}>
+                       Возрастанию
+                     </Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity
+                     style={[styles.sortButton, sortDirection === 'desc' && styles.sortButtonSelected]}
+                     onPress={() => setSortDirection('desc')}
+                   >
+                     <Text style={[styles.sortButtonText, sortDirection === 'desc' && styles.sortButtonTextSelected]}>
+                       Убыванию
+                     </Text>
+                   </TouchableOpacity>
+                 </View>
+                 <TouchableOpacity
+                   style={styles.applyButton}
+                   onPress={() =>
+                     handleFilterApply({
+                       priceRange: priceRange,
+                       categories: selectedCategories,
+                       sortBy: sortBy,
+                       sortDirection: sortDirection,
+                     })
+                   }
+                 >
+                   <Text style={styles.applyButtonText}>Применить</Text>
                  </TouchableOpacity>
-               ))}
+               </ScrollView>
              </View>
-             <Text style={styles.filterLabel}>Цена: ₸{priceRange[0]} - ₸{priceRange[1]}</Text>
-             <Slider
-               style={{width: '100%', height: 40}}
-               minimumValue={0}
-               maximumValue={50000}
-               step={1000}
-               value={priceRange[1]}
-               onValueChange={(value) => setPriceRange([priceRange[0], value])}
-               minimumTrackTintColor="#FF69B4"
-               maximumTrackTintColor="#000000"
-             />
-             <Text style={styles.filterLabel}>Сортировать по</Text>
-             <View style={styles.sortContainer}>
-               <TouchableOpacity
-                 style={[styles.sortButton, sortBy === 'created_at' && styles.sortButtonSelected]}
-                 onPress={() => setSortBy('created_at')}
-               >
-                 <Text style={[styles.sortButtonText, sortBy === 'created_at' && styles.sortButtonTextSelected]}>
-                   Новизне
-                 </Text>
-               </TouchableOpacity>
-               <TouchableOpacity
-                 style={[styles.sortButton, sortBy === 'price' && styles.sortButtonSelected]}
-                 onPress={() => setSortBy('price')}
-               >
-                 <Text style={[styles.sortButtonText, sortBy === 'price' && styles.sortButtonTextSelected]}>
-                   Цене
-                 </Text>
-               </TouchableOpacity>
-             </View>
-             <View style={styles.sortContainer}>
-               <TouchableOpacity
-                 style={[styles.sortButton, sortDirection === 'asc' && styles.sortButtonSelected]}
-                 onPress={() => setSortDirection('asc')}
-               >
-                 <Text style={[styles.sortButtonText, sortDirection === 'asc' && styles.sortButtonTextSelected]}>
-                   Возрастанию
-                 </Text>
-               </TouchableOpacity>
-               <TouchableOpacity
-                 style={[styles.sortButton, sortDirection === 'desc' && styles.sortButtonSelected]}
-                 onPress={() => setSortDirection('desc')}
-               >
-                 <Text style={[styles.sortButtonText, sortDirection === 'desc' && styles.sortButtonTextSelected]}>
-                   Убыванию
-                 </Text>
-               </TouchableOpacity>
-             </View>
-             <TouchableOpacity
-               style={styles.applyButton}
-               onPress={() =>
-                 handleFilterApply({
-                   priceRange: priceRange,
-                   categories: selectedCategories,
-                   sortBy: sortBy,
-                   sortDirection: sortDirection,
-                 })
-               }
-             >
-               <Text style={styles.applyButtonText}>Применить</Text>
-             </TouchableOpacity>
-           </ScrollView>
+           </TouchableWithoutFeedback>
          </View>
-       </View>
+       </TouchableWithoutFeedback>
      </Modal>
     </View>
   );
