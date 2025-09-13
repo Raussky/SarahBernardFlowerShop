@@ -326,7 +326,12 @@ const HomeScreen = ({ navigation }) => {
        <View style={styles.modalContainer}>
          <View style={styles.modalContent}>
            <ScrollView>
-             <Text style={styles.modalTitle}>Фильтры</Text>
+             <View style={styles.modalHeader}>
+               <Text style={styles.modalTitle}>Фильтры</Text>
+               <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                 <Ionicons name="close" size={24} color="#333" />
+               </TouchableOpacity>
+             </View>
              <Text style={styles.filterLabel}>Категории</Text>
              <View style={styles.categoriesContainerModal}>
                {categories.map((category) => (
@@ -462,7 +467,8 @@ const styles = StyleSheet.create({
   productRow: { justifyContent: 'space-between', paddingHorizontal: 20 },
   modalContainer: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '50%' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold' },
   filterLabel: { fontSize: 16, fontWeight: '600', marginTop: 20, marginBottom: 10 },
   categoriesContainerModal: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
   categoryButton: {
