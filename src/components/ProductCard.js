@@ -82,7 +82,9 @@ const ProductCard = ({ product, navigation }) => {
           activeOpacity={0.9}
           disabled={isOutOfStock}
         >
-            <Image ref={imageRef} source={{ uri: product.image }} style={styles.productImage} transition={300} />
+            <Animated.View ref={imageRef}>
+              <Image source={{ uri: product.image }} style={styles.productImage} transition={300} />
+            </Animated.View>
           {isOutOfStock && (
             <View style={styles.outOfStockOverlay}>
               <Text style={styles.outOfStockText}>Нет в наличии</Text>

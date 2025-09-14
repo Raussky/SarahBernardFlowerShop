@@ -11,8 +11,8 @@ import { supabase } from '../src/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import MaskInput from 'react-native-mask-input';
 import PrimaryButton from '../src/components/PrimaryButton';
-import TimePickerModal from '../src/components/TimePickerModal'; // Импорт TimePickerModal
-import WhatsappInfoModal from '../src/components/WhatsappInfoModal'; // Импорт WhatsappInfoModal
+import TimePickerModal from '../src/components/TimePickerModal';
+import WhatsappInfoModal from '../src/components/WhatsappInfoModal';
 
 const CheckoutScreen = ({ navigation }) => {
   const { cart, clearCart } = useContext(CartContext);
@@ -25,16 +25,16 @@ const CheckoutScreen = ({ navigation }) => {
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [orderComment, setOrderComment] = useState('');
-  const [deliveryTime, setDeliveryTime] = useState(''); // Новое состояние для времени доставки
-  const [currentStep, setCurrentStep] = useState(1); // 1: Данные, 2: Подтверждение
+  const [deliveryTime, setDeliveryTime] = useState('');
+  const [currentStep, setCurrentStep] = useState(1);
 
   const [nameError, setNameError] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [addressError, setAddressError] = useState('');
-  const [deliveryTimeError, setDeliveryTimeError] = useState(''); // Новое состояние для ошибки времени доставки
+  const [deliveryTimeError, setDeliveryTimeError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isTimePickerVisible, setIsTimePickerVisible] = useState(false); // Новое состояние для видимости TimePickerModal
-  const [isWhatsappInfoModalVisible, setIsWhatsappInfoModalVisible] = useState(false); // Новое состояние для видимости модального окна WhatsApp
+  const [isTimePickerVisible, setIsTimePickerVisible] = useState(false);
+  const [isWhatsappInfoModalVisible, setIsWhatsappInfoModalVisible] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -67,7 +67,7 @@ const CheckoutScreen = ({ navigation }) => {
     setNameError('');
     setPhoneError('');
     setAddressError('');
-    setDeliveryTimeError(''); // Сброс ошибки времени доставки
+    setDeliveryTimeError('');
  
     if (!customerName.trim()) {
       setNameError('Имя обязательно');
@@ -102,141 +102,126 @@ const CheckoutScreen = ({ navigation }) => {
   const getSubtotal = () => cart.reduce((total, item) => total + item.price * item.quantity, 0);
   const getTotalPrice = () => getSubtotal() + (deliveryMethod === 'delivery' ? DELIVERY_COST : 0);
  
+  const finalizeOrder = (orderId) => {
+    clearCart();
+    setCurrentStep(2);
+    navigation.replace('OrderConfirmation', { orderId });
+  };
+
+  const getErrorMessage = (error) => {
+    console.error('Ошибка при оформлении заказа:', error);
+    if (error.message.includes('Network request failed')) {
+      return 'Проблема с подключением к интернету. Пожалуйста, проверьте ваше соединение.';
+    }
+    if (error.message.includes('duplicate key value violates unique constraint')) {
+      return 'Ошибка базы данных: Пожалуйста, попробуйте еще раз.';
+    }
+    if (error.message.includes('decrement_stock') || error.message.includes('decrement_stock_from_combo')) {
+      return 'Ошибка при обновлении запасов товаров. Пожалуйста, попробуйте еще раз.';
+    }
+    return 'Произошла ошибка при оформлении заказа.';
+  };
+
   const handlePlaceOrder = async () => {
-    if (!validateForm()) return;
-    if (cart.length === 0) {
-      showToast('Ваша корзина пуста.', 'error');
+    if (!validateForm() || cart.length === 0) {
+      if (cart.length === 0) showToast('Ваша корзина пуста.', 'error');
       return;
     }
- 
+
     setIsSubmitting(true);
     const subtotal = getSubtotal();
     const total = getTotalPrice();
     const newOrderId = uuidv4();
- 
+
     try {
-      const { error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          id: newOrderId,
-          user_id: user?.id || null,
-          customer_name: customerName,
-          customer_phone: customerPhone,
-          customer_address: deliveryMethod === 'delivery' ? customerAddress : null,
-          delivery_method: deliveryMethod,
-          payment_method: paymentMethod,
-          order_comment: orderComment,
-          delivery_time: deliveryMethod === 'delivery' ? deliveryTime : null, // Добавлено время доставки
-          total_price: total,
-          status: 'pending',
-        });
- 
+      const orderData = {
+        id: newOrderId,
+        user_id: user?.id || null,
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_address: deliveryMethod === 'delivery' ? customerAddress : null,
+        delivery_method: deliveryMethod,
+        payment_method: paymentMethod,
+        order_comment: orderComment,
+        delivery_time: deliveryMethod === 'delivery' ? deliveryTime : null,
+        total_price: total,
+        status: 'pending',
+      };
+      const { error: orderError } = await supabase.from('orders').insert(orderData);
       if (orderError) throw orderError;
- 
-      const orderItems = cart.map(item => {
-        if (item.type === 'combo') {
-          return {
-            order_id: newOrderId,
-            combo_id: item.id,
-            product_name: item.name,
-            product_image: item.image,
-            quantity: item.quantity,
-            price_at_purchase: item.price,
-          };
-        }
-        return {
-          order_id: newOrderId,
-          product_id: item.id,
-          product_variant_id: item.variantId,
-          product_name: item.name || item.nameRu,
-          product_image: item.image,
-          variant_size: item.size,
-          quantity: item.quantity,
-          price_at_purchase: item.price,
-        };
-      });
- 
+
+      const orderItems = cart.map(item => ({
+        order_id: newOrderId,
+        combo_id: item.type === 'combo' ? item.id : null,
+        product_id: item.type === 'product' ? item.id : null,
+        product_variant_id: item.type === 'product' ? item.variantId : null,
+        product_name: item.name || item.nameRu,
+        product_image: item.image,
+        variant_size: item.type === 'product' ? item.size : null,
+        quantity: item.quantity,
+        price_at_purchase: item.price,
+      }));
       const { error: orderItemsError } = await supabase.from('order_items').insert(orderItems);
       if (orderItemsError) throw orderItemsError;
- 
-      const productsToUpdate = cart.filter(item => item.type === 'product');
+
+      // Update stock and purchase counts
+      const productsToUpdate = cart.filter(item => item.type === 'product').map(item => ({ variant_id: item.variantId, quantity: item.quantity }));
       if (productsToUpdate.length > 0) {
-        const itemsForDb = productsToUpdate.map(item => ({
-          variant_id: item.variantId,
-          quantity: item.quantity,
-        }));
-        const { error: decrementError } = await supabase.rpc('decrement_stock', { items_to_decrement: itemsForDb });
+        const { error: decrementError } = await supabase.rpc('decrement_stock', { items_to_decrement: productsToUpdate });
         if (decrementError) console.error("Stock decrement error:", decrementError);
-        const { error: incrementError } = await supabase.rpc('increment_purchase_counts', { items: itemsForDb });
+        const { error: incrementError } = await supabase.rpc('increment_purchase_counts', { items: productsToUpdate });
         if (incrementError) console.error("Purchase count increment error:", incrementError);
       }
- 
+
       const combosToUpdate = cart.filter(item => item.type === 'combo');
       for (const combo of combosToUpdate) {
-        const { error: comboDecrementError } = await supabase.rpc('decrement_stock_from_combo', {
-          p_combo_id: combo.id,
-          p_quantity: combo.quantity,
-        });
+        const { error: comboDecrementError } = await supabase.rpc('decrement_stock_from_combo', { p_combo_id: combo.id, p_quantity: combo.quantity });
         if (comboDecrementError) console.error("Combo stock decrement error:", comboDecrementError);
       }
- 
-      const orderDetails = cart.map(item => {
-        if (item.type === 'combo') {
-          return `- ${item.name} (Комбо, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`;
-        }
-        return `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`;
-      }).join('\n');
+
+      const orderDetails = cart.map(item =>
+        item.type === 'combo'
+          ? `- ${item.name} (Комбо, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
+          : `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
+      ).join('\n');
       
       const message = `*Новый заказ #${newOrderId.substring(0, 8)}*\n\n` +
                       `*Имя:* ${customerName}\n` +
                       `*Телефон:* ${customerPhone}\n` +
                       `*Способ получения:* ${deliveryMethod === 'delivery' ? 'Доставка' : 'Самовывоз'}\n` +
-                      (deliveryMethod === 'delivery' && customerAddress ? `*Адрес:* ${customerAddress}\n` : '') +
-                      (deliveryMethod === 'delivery' && deliveryTime ? `*Время доставки:* ${deliveryTime}\n` : '') + // Добавлено время доставки в сообщение WhatsApp
+                      (deliveryMethod === 'delivery' ? `*Адрес:* ${customerAddress}\n` : '') +
+                      (deliveryMethod === 'delivery' ? `*Время доставки:* ${deliveryTime}\n` : '') +
                       `*Способ оплаты:* ${paymentMethod === 'kaspi' ? 'Kaspi Перевод' : 'Наличными'}\n` +
                       (orderComment ? `*Комментарий:* ${orderComment}\n` : '') +
                       `\n*Товары:*\n${orderDetails}\n\n` +
                       `*Подытог:* ${subtotal.toLocaleString()} ₸\n` +
                       `*Доставка:* ${deliveryMethod === 'delivery' ? DELIVERY_COST.toLocaleString() : 0} ₸\n` +
                       `*Итого к оплате:* ${total.toLocaleString()} ₸`;
- 
+
       const whatsappUrl = `whatsapp://send?phone=${WHATSAPP_PHONE}&text=${encodeURIComponent(message)}`;
       
-      Linking.openURL(whatsappUrl).then(() => {
+      try {
+        await Linking.openURL(whatsappUrl);
         showToast('Заказ отправлен в WhatsApp и сохранен!', 'success');
-        clearCart();
-        setCurrentStep(2); // Устанавливаем шаг 2 после успешной отправки
-        navigation.replace('OrderConfirmation', { orderId: newOrderId });
-      }).catch(() => {
+        finalizeOrder(newOrderId);
+      } catch {
         Alert.alert(
           'WhatsApp не установлен',
           `Ваш заказ успешно сохранен, и мы свяжемся с вами в ближайшее время. Вы также можете позвонить нам по номеру ${WHATSAPP_PHONE}.`,
           [
-            { text: 'ОК', style: 'cancel', onPress: () => {
-              clearCart();
-              setCurrentStep(2);
-              navigation.replace('OrderConfirmation', { orderId: newOrderId });
-            }},
-            { text: 'Позвонить', onPress: () => {
-              Linking.openURL(`tel:${WHATSAPP_PHONE}`);
-              clearCart();
-              setCurrentStep(2);
-              navigation.replace('OrderConfirmation', { orderId: newOrderId });
-            }},
+            { text: 'ОК', style: 'cancel', onPress: () => finalizeOrder(newOrderId) },
+            {
+              text: 'Позвонить',
+              onPress: () => {
+                Linking.openURL(`tel:${WHATSAPP_PHONE}`);
+                finalizeOrder(newOrderId);
+              }
+            },
           ]
         );
-      });
- 
-    } catch (error) {
-      console.error('Ошибка при оформлении заказа:', error); // Добавлено подробное логирование
-      let errorMessage = 'Произошла ошибка при оформлении заказа.';
-      if (error.message.includes('Network request failed')) {
-        errorMessage = 'Проблема с подключением к интернету. Пожалуйста, проверьте ваше соединение.';
-      } else if (error.message.includes('duplicate key value violates unique constraint')) {
-        errorMessage = 'Ошибка базы данных: Пожалуйста, попробуйте еще раз.';
-      } else if (error.message.includes('decrement_stock') || error.message.includes('decrement_stock_from_combo')) {
-        errorMessage = 'Ошибка при обновлении запасов товаров. Пожалуйста, попробуйте еще раз.';
       }
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
       showToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
@@ -247,7 +232,9 @@ const CheckoutScreen = ({ navigation }) => {
  
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardContainer}>
+        
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} disabled={isSubmitting}>
             <Ionicons name="arrow-back" size={24} color="#333" />
@@ -256,7 +243,7 @@ const CheckoutScreen = ({ navigation }) => {
           <View style={{ width: 24 }} />
         </View>
 
-        {/* Progress Bar / Step Indicator */}
+        {/* Progress Bar */}
         <View style={styles.progressBarContainer}>
           {['Данные', 'Подтверждение'].map((step, index) => (
             <View key={index} style={styles.progressStep}>
@@ -266,110 +253,140 @@ const CheckoutScreen = ({ navigation }) => {
           ))}
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.formContainer}>
-            <Text style={styles.sectionTitle}>Способ получения</Text>
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity
-                style={[styles.toggleButton, deliveryMethod === 'delivery' && styles.activeToggleButton]}
-                onPress={() => setDeliveryMethod('delivery')}
-                disabled={isSubmitting}
-              >
-                <Text style={[styles.toggleButtonText, deliveryMethod === 'delivery' && styles.activeToggleButtonText]}>Доставка</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleButton, deliveryMethod === 'pickup' && styles.activeToggleButton]}
-                onPress={() => setDeliveryMethod('pickup')}
-                disabled={isSubmitting}
-              >
-                <Text style={[styles.toggleButtonText, deliveryMethod === 'pickup' && styles.activeToggleButtonText]}>Самовывоз</Text>
-              </TouchableOpacity>
-            </View>
- 
-            <Text style={styles.sectionTitle}>Ваши данные</Text>
-            <View style={styles.inputGroup}>
-              <View style={[styles.inputWrapper, nameError ? styles.inputWrapperError : {}]}>
+        {/* Main Content */}
+        <View style={styles.content}>
+          {/* Scrollable Form */}
+          <ScrollView 
+            style={styles.scrollViewContainer}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.formContainer}>
+              
+              {/* Delivery Method */}
+              <Text style={styles.sectionTitle}>Способ получения</Text>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[styles.toggleButton, deliveryMethod === 'delivery' && styles.activeToggleButton]}
+                  onPress={() => setDeliveryMethod('delivery')}
+                  disabled={isSubmitting}
+                >
+                  <Text style={[styles.toggleButtonText, deliveryMethod === 'delivery' && styles.activeToggleButtonText]}>Доставка</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleButton, deliveryMethod === 'pickup' && styles.activeToggleButton]}
+                  onPress={() => setDeliveryMethod('pickup')}
+                  disabled={isSubmitting}
+                >
+                  <Text style={[styles.toggleButtonText, deliveryMethod === 'pickup' && styles.activeToggleButtonText]}>Самовывоз</Text>
+                </TouchableOpacity>
+              </View>
+   
+              {/* Customer Data */}
+              <Text style={styles.sectionTitle}>Ваши данные</Text>
+              <View style={styles.inputGroup}>
+                <View style={[styles.inputWrapper, nameError ? styles.inputWrapperError : {}]}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Имя"
+                    value={customerName}
+                    onChangeText={(text) => { setCustomerName(text); setNameError(''); }}
+                    placeholderTextColor="#999"
+                    editable={!isSubmitting}
+                  />
+                  {!!nameError && <Text style={styles.errorText}>{nameError}</Text>}
+                </View>
+                
+                <View style={[styles.inputWrapper, phoneError ? styles.inputWrapperError : {}]}>
+                  <MaskInput
+                    style={styles.input}
+                    placeholder="Телефон"
+                    value={customerPhone}
+                    onChangeText={(masked, unmasked) => { setCustomerPhone(masked); setPhoneError(''); }}
+                    mask={phoneMask}
+                    keyboardType="phone-pad"
+                    placeholderTextColor="#999"
+                    editable={!isSubmitting}
+                  />
+                  {!!phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
+                </View>
+                
+                {deliveryMethod === 'delivery' && (
+                  <>
+                    <View style={[styles.inputWrapper, addressError ? styles.inputWrapperError : {}]}>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Адрес"
+                        value={customerAddress}
+                        onChangeText={(text) => { setCustomerAddress(text); setAddressError(''); }}
+                        placeholderTextColor="#999"
+                        editable={!isSubmitting}
+                      />
+                      {!!addressError && <Text style={styles.errorText}>{addressError}</Text>}
+                    </View>
+                    
+                    {/* Delivery Time Picker */}
+                    <View style={[styles.inputWrapper, deliveryTimeError ? styles.inputWrapperError : {}]}>
+                      <TouchableOpacity
+                        style={styles.input}
+                        onPress={() => setIsTimePickerVisible(true)}
+                        disabled={isSubmitting}
+                      >
+                        <Text style={deliveryTime ? styles.inputText : styles.placeholderText}>
+                          {deliveryTime || "Выберите время доставки"}
+                        </Text>
+                      </TouchableOpacity>
+                      {!!deliveryTimeError && <Text style={styles.errorText}>{deliveryTimeError}</Text>}
+                    </View>
+                  </>
+                )}
+                
                 <TextInput
                   style={styles.input}
-                  placeholder="Имя"
-                  value={customerName}
-                  onChangeText={(text) => { setCustomerName(text); setNameError(''); }}
+                  placeholder="Комментарий к заказу"
+                  value={orderComment}
+                  onChangeText={setOrderComment}
                   placeholderTextColor="#999"
                   editable={!isSubmitting}
+                  multiline
                 />
-                {!!nameError && <Text style={styles.errorText}>{nameError}</Text>}
               </View>
-              <View style={[styles.inputWrapper, phoneError ? styles.inputWrapperError : {}]}>
-                <MaskInput
-                  style={styles.input}
-                  placeholder="Телефон"
-                  value={customerPhone}
-                  onChangeText={(masked, unmasked) => { setCustomerPhone(masked); setPhoneError(''); }}
-                  mask={phoneMask}
-                  keyboardType="phone-pad"
-                  placeholderTextColor="#999"
-                  editable={!isSubmitting}
-                />
-                {!!phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
+   
+              {/* Payment Method */}
+              <Text style={styles.sectionTitle}>Способ оплаты</Text>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[styles.toggleButton, paymentMethod === 'kaspi' && styles.activeToggleButton]}
+                  onPress={() => setPaymentMethod('kaspi')}
+                  disabled={isSubmitting}
+                >
+                  <Text style={[styles.toggleButtonText, paymentMethod === 'kaspi' && styles.activeToggleButtonText]}>Kaspi Перевод</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleButton, paymentMethod === 'cash' && styles.activeToggleButton]}
+                  onPress={() => setPaymentMethod('cash')}
+                  disabled={isSubmitting}
+                >
+                  <Text style={[styles.toggleButtonText, paymentMethod === 'cash' && styles.activeToggleButtonText]}>Наличными</Text>
+                </TouchableOpacity>
               </View>
-              {deliveryMethod === 'delivery' && (
-                <>
-                  <View style={[styles.inputWrapper, addressError ? styles.inputWrapperError : {}]}>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Адрес"
-                      value={customerAddress}
-                      onChangeText={(text) => { setCustomerAddress(text); setAddressError(''); }}
-                      placeholderTextColor="#999"
-                      editable={!isSubmitting}
-                    />
-                    {!!addressError && <Text style={styles.errorText}>{addressError}</Text>}
-                  </View>
-                  {/* Delivery Time Picker */}
-                  <View style={[styles.inputWrapper, deliveryTimeError ? styles.inputWrapperError : {}]}>
-                    <TouchableOpacity
-                      style={styles.input}
-                      onPress={() => setIsTimePickerVisible(true)} // Открытие модального окна
-                      disabled={isSubmitting}
-                    >
-                      <Text style={deliveryTime ? styles.inputText : styles.placeholderText}>
-                        {deliveryTime || "Выберите время доставки"}
-                      </Text>
-                    </TouchableOpacity>
-                    {!!deliveryTimeError && <Text style={styles.errorText}>{deliveryTimeError}</Text>}
-                  </View>
-                </>
-              )}
-              <TextInput
-                style={styles.input}
-                placeholder="Комментарий к заказу"
-                value={orderComment}
-                onChangeText={setOrderComment}
-                placeholderTextColor="#999"
-                editable={!isSubmitting}
-              />
+              
             </View>
- 
-            <Text style={styles.sectionTitle}>Способ оплаты</Text>
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity
-                style={[styles.toggleButton, paymentMethod === 'kaspi' && styles.activeToggleButton]}
-                onPress={() => setPaymentMethod('kaspi')}
-                disabled={isSubmitting}
-              >
-                <Text style={[styles.toggleButtonText, paymentMethod === 'kaspi' && styles.activeToggleButtonText]}>Kaspi Перевод</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleButton, paymentMethod === 'cash' && styles.activeToggleButton]}
-                onPress={() => setPaymentMethod('cash')}
-                disabled={isSubmitting}
-              >
-                <Text style={[styles.toggleButtonText, paymentMethod === 'cash' && styles.activeToggleButtonText]}>Наличными</Text>
-              </TouchableOpacity>
+            <View style={styles.buttonContainer}>
+            <PrimaryButton
+              title="Отправить в WhatsApp"
+              onPress={() => setIsWhatsappInfoModalVisible(true)}
+              loading={isSubmitting}
+              icon="logo-whatsapp"
+            />
             </View>
-          </View>
-        </ScrollView>
-        <View style={styles.fixedFooter}>
+          </ScrollView>
+          
+        </View>
+
+        {/* Summary Footer - Fixed at bottom */}
+        <View style={styles.summaryFooter}>
           <View style={styles.summaryContainer}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Подытог</Text>
@@ -384,14 +401,11 @@ const CheckoutScreen = ({ navigation }) => {
               <Text style={styles.totalPrice}>₸{getTotalPrice().toLocaleString()}</Text>
             </View>
           </View>
-          <PrimaryButton
-            title="Отправить в WhatsApp"
-            onPress={() => setIsWhatsappInfoModalVisible(true)} // Открытие модального окна перед отправкой
-            loading={isSubmitting}
-            icon="logo-whatsapp"
-          />
         </View>
+
       </KeyboardAvoidingView>
+
+      {/* Modals */}
       <TimePickerModal
         isVisible={isTimePickerVisible}
         onClose={() => setIsTimePickerVisible(false)}
@@ -401,6 +415,7 @@ const CheckoutScreen = ({ navigation }) => {
           setIsTimePickerVisible(false);
         }}
       />
+      
       <WhatsappInfoModal
         isVisible={isWhatsappInfoModalVisible}
         onClose={() => setIsWhatsappInfoModalVisible(false)}
@@ -409,15 +424,37 @@ const CheckoutScreen = ({ navigation }) => {
           handlePlaceOrder();
         }}
       />
+      
     </SafeAreaView>
   );
 };
  
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold' },
-  progressBarContainer: { // New style for progress bar
+  container: { 
+    flex: 1, 
+    backgroundColor: '#fff' 
+  },
+  
+  keyboardContainer: {
+    flex: 1,
+  },
+  
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingVertical: 15, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#f0f0f0' 
+  },
+  
+  headerTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold' 
+  },
+  
+  progressBarContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingVertical: 10,
@@ -425,9 +462,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  
   progressStep: {
     alignItems: 'center',
   },
+  
   progressDot: {
     width: 10,
     height: 10,
@@ -435,40 +474,169 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
     marginBottom: 5,
   },
+  
   activeProgressDot: {
     backgroundColor: '#FF69B4',
   },
+  
   progressText: {
     fontSize: 12,
     color: '#666',
   },
+  
   activeProgressText: {
     fontWeight: 'bold',
     color: '#FF69B4',
   },
-  scrollContent: { padding: 20, paddingBottom: 260 },
+
+  content: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  
+  scrollViewContainer: {
+    flex: 1,
+  },
+  
+  scrollContent: { 
+    padding: 20,
+    paddingBottom: 20,
+    flexGrow: 1,
+  },
+  
   formContainer: {},
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, marginTop: 10 },
-  toggleContainer: { flexDirection: 'row', borderRadius: 12, borderWidth: 1, borderColor: '#FF69B4', overflow: 'hidden' },
-  toggleButton: { flex: 1, paddingVertical: 12, alignItems: 'center', backgroundColor: '#fff' },
-  activeToggleButton: { backgroundColor: '#FF69B4' },
-  toggleButtonText: { fontSize: 16, color: '#FF69B4', fontWeight: '600' },
-  activeToggleButtonText: { color: '#fff' },
-  inputGroup: { gap: 10 },
-  inputWrapper: { marginBottom: 10 },
-  input: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 10, fontSize: 16 },
-  inputWrapperError: { borderColor: '#FF0000', borderWidth: 1, borderRadius: 10 },
-  errorText: { color: '#FF0000', fontSize: 12, marginTop: 5, marginLeft: 15 },
-  inputText: { fontSize: 16, color: '#333' }, // New style for input text
-  placeholderText: { fontSize: 16, color: '#999' }, // New style for placeholder text
-  fixedFooter: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#fff', padding: 20, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
-  summaryContainer: { backgroundColor: '#f9f9f9', borderRadius: 12, padding: 15, marginBottom: 15 },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  summaryLabel: { fontSize: 16, color: '#666' },
-  summaryValue: { fontSize: 16, fontWeight: '600' },
-  totalRow: { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 4 },
-  totalLabel: { fontSize: 18, fontWeight: 'bold' },
-  totalPrice: { fontSize: 20, fontWeight: 'bold', color: '#FF69B4' },
+  
+  sectionTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    marginBottom: 15, 
+    marginTop: 10 
+  },
+  
+  toggleContainer: { 
+    flexDirection: 'row', 
+    borderRadius: 12, 
+    borderWidth: 1, 
+    borderColor: '#FF69B4', 
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  
+  toggleButton: { 
+    flex: 1, 
+    paddingVertical: 12, 
+    alignItems: 'center', 
+    backgroundColor: '#fff' 
+  },
+  
+  activeToggleButton: { 
+    backgroundColor: '#FF69B4' 
+  },
+  
+  toggleButtonText: { 
+    fontSize: 16, 
+    color: '#FF69B4', 
+    fontWeight: '600' 
+  },
+  
+  activeToggleButtonText: { 
+    color: '#fff' 
+  },
+  
+  inputGroup: { 
+    gap: 10,
+    marginBottom: 20,
+  },
+  
+  inputWrapper: { 
+    marginBottom: 10 
+  },
+  
+  input: { 
+    backgroundColor: '#f5f5f5', 
+    padding: 15, 
+    borderRadius: 10, 
+    fontSize: 16 
+  },
+  
+  inputWrapperError: { 
+    borderColor: '#FF0000', 
+    borderWidth: 1, 
+    borderRadius: 10 
+  },
+  
+  errorText: { 
+    color: '#FF0000', 
+    fontSize: 12, 
+    marginTop: 5, 
+    marginLeft: 15 
+  },
+  
+  inputText: { 
+    fontSize: 16, 
+    color: '#333' 
+  },
+  
+  placeholderText: { 
+    fontSize: 16, 
+    color: '#999' 
+  },
+
+  buttonContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    paddingBottom: 10,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  
+  summaryFooter: {
+    backgroundColor: '#fff', 
+    padding: 20, 
+    borderTopWidth: 1, 
+    borderTopColor: '#f0f0f0',
+  },
+  
+  summaryContainer: { 
+    backgroundColor: '#f9f9f9', 
+    borderRadius: 12, 
+    padding: 15 
+  },
+  
+  summaryRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    marginBottom: 8 
+  },
+  
+  summaryLabel: { 
+    fontSize: 16, 
+    color: '#666' 
+  },
+  
+  summaryValue: { 
+    fontSize: 16, 
+    fontWeight: '600' 
+  },
+  
+  totalRow: { 
+    borderTopWidth: 1, 
+    borderTopColor: '#eee', 
+    paddingTop: 8, 
+    marginTop: 4 
+  },
+  
+  totalLabel: { 
+    fontSize: 18, 
+    fontWeight: 'bold' 
+  },
+  
+  totalPrice: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    color: '#FF69B4' 
+  },
 });
  
 export default CheckoutScreen;
