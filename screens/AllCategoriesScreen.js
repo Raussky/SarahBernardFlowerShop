@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import SkeletonLoader from '../src/components/SkeletonLoader';
+import AnimatedListItem from '../src/components/AnimatedListItem';
 
 const AllCategoriesScreen = ({ navigation }) => {
   const [categories, setCategories] = useState([]);
@@ -30,24 +31,37 @@ const AllCategoriesScreen = ({ navigation }) => {
     fetchCategories();
   }, [fetchCategories]);
 
-  const renderCategoryItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.categoryItem}
-      onPress={() => navigation.navigate('Category', { category: item })}
-    >
-      <View style={styles.categoryIcon}>
-        {item.image_url ? (
-          <Image 
-            source={{ uri: item.image_url }} 
-            style={styles.categoryImage} 
-          />
-        ) : (
-          <Text style={styles.categoryEmoji}>{item.icon || '💐'}</Text>
-        )}
-      </View>
-      <Text style={styles.categoryName}>{item.name}</Text>
-    </TouchableOpacity>
-  );
+  const renderCategoryItem = ({ item, index }) => {
+    const handlePress = () => {
+      // Special navigation for the "Combos" category
+      if (item.name === 'Комбо' || item.name === 'Выгодные комбо') {
+        navigation.navigate('AllCombos');
+      } else {
+        navigation.navigate('Category', { category: item });
+      }
+    };
+
+    return (
+      <AnimatedListItem index={index}>
+        <TouchableOpacity
+          style={styles.categoryItem}
+          onPress={handlePress}
+        >
+          <View style={styles.categoryIcon}>
+            {item.image_url ? (
+              <Image
+                source={{ uri: item.image_url }}
+                style={styles.categoryImage}
+              />
+            ) : (
+              <Text style={styles.categoryEmoji}>{item.icon || '💐'}</Text>
+            )}
+          </View>
+          <Text style={styles.categoryName}>{item.name}</Text>
+        </TouchableOpacity>
+      </AnimatedListItem>
+    );
+  };
 
   if (loading) {
     return (

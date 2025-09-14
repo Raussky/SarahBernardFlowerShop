@@ -24,15 +24,13 @@ export const getHomeScreenSecondaryData = async () => {
       readyShowcaseRes,
       combosRes,
       weeklyPicksRes,
-      premiumBouquetsRes,
-      recommendedRes
+      premiumBouquetsRes
     ] = await Promise.all([
-      supabase.rpc('get_best_sellers', { limit_count: 10 }),
-      supabase.rpc('get_products_by_category_name', { category_name_param: 'Готовая ветрина', limit_count: 10 }),
-      supabase.from('combos').select('*').eq('is_active', true).order('created_at', { ascending: false }),
-      supabase.rpc('get_products_by_category_name', { category_name_param: 'Недельная подборка', limit_count: 10 }),
-      supabase.rpc('get_products_by_category_name', { category_name_param: 'Премиум букеты', limit_count: 10 }),
-      supabase.from('products').select('*, categories(name, name_en), product_variants(*)').limit(10)
+      supabase.rpc('get_best_sellers', { limit_count: 6 }),
+      supabase.rpc('get_products_by_category_name', { category_name_param: 'Готовая ветрина', limit_count: 6 }),
+      supabase.from('combos').select('*').eq('is_active', true).order('created_at', { ascending: false }).limit(6),
+      supabase.rpc('get_products_by_category_name', { category_name_param: 'Недельная подборка', limit_count: 6 }),
+      supabase.rpc('get_products_by_category_name', { category_name_param: 'Премиум букеты', limit_count: 6 }),
     ]);
 
     return {
@@ -41,7 +39,6 @@ export const getHomeScreenSecondaryData = async () => {
       combos: combosRes.data || [],
       weeklyPicks: weeklyPicksRes.data || [],
       premiumBouquets: premiumBouquetsRes.data || [],
-      recommendedProducts: (recommendedRes.data || []).sort(() => Math.random() - 0.5),
     };
   } catch (error) {
     console.error("Error fetching secondary home screen data:", error);

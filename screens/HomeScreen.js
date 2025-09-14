@@ -229,12 +229,52 @@ const HomeScreen = ({ navigation }) => {
         </View>
       ) : (
         <>
-          <ProductSection title="Бест Селлеры" products={secondaryData?.bestSellers} navigation={navigation} />
-          <ProductSection title="Готовая ветрина" products={secondaryData?.readyShowcase} navigation={navigation} layout="carousel" />
-          <ProductSection title="Выгодные комбо" products={secondaryData?.combos} navigation={navigation} layout="carousel" type="combo" />
-          <ProductSection title="Недельная подборка" products={secondaryData?.weeklyPicks} navigation={navigation} layout="carousel" />
-          <ProductSection title="Премиум букеты" products={secondaryData?.premiumBouquets} navigation={navigation} />
-          <ProductSection title="Рекомендовано для Вас" products={secondaryData?.recommendedProducts} navigation={navigation} />
+          <ProductSection
+            title="Бест Селлеры"
+            products={secondaryData?.bestSellers}
+            navigation={navigation}
+            onSeeAllPress={() => navigation.navigate('FilterResults', {
+              specialFilter: 'bestsellers',
+              title: 'Бест Селлеры'
+            })}
+          />
+          <ProductSection
+            title="Готовая ветрина"
+            products={secondaryData?.readyShowcase}
+            navigation={navigation}
+            layout="carousel"
+            onSeeAllPress={() => {
+              const category = categories.find(c => c.name === 'Готовая ветрина');
+              if (category) navigation.navigate('Category', { category });
+            }}
+          />
+          <ProductSection
+            title="Выгодные комбо"
+            products={secondaryData?.combos}
+            navigation={navigation}
+            layout="carousel"
+            type="combo"
+            onSeeAllPress={() => navigation.navigate('AllCombos')}
+          />
+          <ProductSection
+            title="Недельная подборка"
+            products={secondaryData?.weeklyPicks}
+            navigation={navigation}
+            layout="carousel"
+            onSeeAllPress={() => {
+              const category = categories.find(c => c.name === 'Недельная подборка');
+              if (category) navigation.navigate('Category', { category });
+            }}
+          />
+          <ProductSection
+            title="Премиум букеты"
+            products={secondaryData?.premiumBouquets}
+            navigation={navigation}
+            onSeeAllPress={() => {
+              const category = categories.find(c => c.name === 'Премиум букеты');
+              if (category) navigation.navigate('Category', { category });
+            }}
+          />
         </>
       )}
      </ScrollView>
@@ -380,7 +420,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 20, fontFamily: FONTS.bold, marginHorizontal: 20, marginBottom: 15 },
   categoriesContainer: { paddingHorizontal: 20, marginBottom: 25 },
   categoryItem: { alignItems: 'center', marginRight: 20 },
-  categoryIcon: { width: 70, height: 70, borderRadius: 35, marginBottom: 8, overflow: 'hidden', backgroundColor: '#FFE4E1', justifyContent: 'center', alignItems: 'center' },
+  categoryIcon: { width: 70, height: 70, borderRadius: 20, marginBottom: 8, overflow: 'hidden', backgroundColor: '#FFE4E1', justifyContent: 'center', alignItems: 'center' },
   categoryImage: { width: '100%', height: '100%' },
   categoryEmoji: { fontSize: 30 },
   categoryName: { fontSize: 12, color: '#666' },

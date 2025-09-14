@@ -1,22 +1,36 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
+import React, { useRef } from 'react';
+import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const PrimaryButton = ({ title, onPress, disabled, loading, icon }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
+  };
+
   return (
     <TouchableOpacity
-      style={[styles.button, disabled && styles.buttonDisabled]}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled || loading}
+      activeOpacity={0.9}
     >
-      {loading ? (
-        <ActivityIndicator color="#fff" />
-      ) : (
-        <View style={styles.content}>
-          {icon && <Ionicons name={icon} size={22} color="#fff" style={styles.icon} />}
-          <Text style={styles.text}>{title}</Text>
-        </View>
-      )}
+      <Animated.View style={[styles.button, disabled && styles.buttonDisabled, { transform: [{ scale }] }]}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <View style={styles.content}>
+            {icon && <Ionicons name={icon} size={22} color="#fff" style={styles.icon} />}
+            <Text style={styles.text}>{title}</Text>
+          </View>
+        )}
+      </Animated.View>
     </TouchableOpacity>
   );
 };

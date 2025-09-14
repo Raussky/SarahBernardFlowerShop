@@ -5,13 +5,16 @@ import { CartContext } from '../context/CartContext';
 import { useToast } from './ToastProvider';
 import { FONTS } from '../config/theme';
 import VariantSelectorModal from './VariantSelectorModal';
+import { AnimationContext } from '../context/AnimationContext';
 
 const { width } = Dimensions.get('window');
 
 const ProductCard = ({ product, navigation }) => {
   const { toggleSaved, saved, addToCart } = useContext(CartContext);
+  const { startAddToCartAnimation } = useContext(AnimationContext);
   const { showToast } = useToast();
   const isSaved = saved.find(i => i.id === product.id);
+  const imageRef = useRef(null);
 
   const [isModalVisible, setModalVisible] = useState(false);
 
@@ -40,8 +43,13 @@ const ProductCard = ({ product, navigation }) => {
   };
 
   const handleAddToCart = (item) => {
-    addToCart(item);
-    showToast('Товар добавлен в корзину', 'success');
+    imageRef.current.measure((_fx, _fy, _w, _h, px, py) => {
+      startAddToCartAnimation({ x: px, y: py }, item.image);
+    });
+    setTimeout(() => {
+      addToCart(item);
+      showToast('Товар добавлен в корзину', 'success');
+    }, 500); // Delay cart update to allow animation to start
   };
 
   const handleAddToCartPress = () => {
@@ -73,7 +81,7 @@ const ProductCard = ({ product, navigation }) => {
           activeOpacity={0.9}
           disabled={isOutOfStock}
         >
-          <Image source={{ uri: product.image }} style={styles.productImage} />
+            <Image ref={imageRef} source={{ uri: product.image }} style={styles.productImage} />
           {isOutOfStock && (
             <View style={styles.outOfStockOverlay}>
               <Text style={styles.outOfStockText}>Нет в наличии</Text>
@@ -103,11 +111,15 @@ const ProductCard = ({ product, navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.addToCartButton, isOutOfStock && styles.addButtonDisabled]}
           onPress={handleAddToCartPress}
+          onPressIn={handleCardPressIn}
+          onPressOut={handleCardPressOut}
           disabled={isOutOfStock}
+          activeOpacity={0.9}
         >
-          <Ionicons name="add" size={20} color="#fff" />
+          <Animated.View style={[styles.addToCartButton, isOutOfStock && styles.addButtonDisabled, { transform: [{ scale: cardScale }] }]}>
+            <Ionicons name="add" size={20} color="#fff" />
+          </Animated.View>
         </TouchableOpacity>
       </Animated.View>
       
@@ -164,34 +176,41 @@ const styles = StyleSheet.create({
     padding: 5,
   },
   productInfo: {
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 50, // Add more padding at the bottom for the absolute positioned button
   },
   productName: {
-    fontSize: 15,
-    fontFamily: FONTS.semiBold,
+    fontSize: 16, // Slightly larger
+    fontFamily: FONTS.bold, // Bolder
     marginBottom: 4,
   },
   productDesc: {
-    fontSize: 13,
-    color: '#888',
+    fontSize: 12, // Slightly smaller
+    color: '#999', // Lighter color
     fontFamily: FONTS.regular,
     marginBottom: 8,
   },
   productPrice: {
-    fontSize: 16,
+    fontSize: 18, // Larger
     fontFamily: FONTS.bold,
-    color: '#333',
+    color: '#FF69B4', // Brand color
   },
   addToCartButton: {
     position: 'absolute',
     bottom: 12,
     right: 12,
-    backgroundColor: '#0F172A',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    backgroundColor: '#333',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
   },
   addButtonDisabled: {
     backgroundColor: '#ccc',

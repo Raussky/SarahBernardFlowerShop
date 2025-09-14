@@ -1,12 +1,41 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ProductCard from '../src/components/ProductCard';
 import { FONTS } from '../src/config/theme';
+import { supabase } from '../src/integrations/supabase/client';
+import EmptyState from '../src/components/EmptyState';
 
 const FilterResultsScreen = ({ route, navigation }) => {
-  const { filteredProducts } = route.params;
+  const { filteredProducts: initialProducts, title = 'Результаты фильтра', specialFilter } = route.params;
+  const [products, setProducts] = useState(initialProducts || []);
+  const [loading, setLoading] = useState(!initialProducts);
+
+  useEffect(() => {
+    const fetchSpecialFilter = async () => {
+      if (specialFilter === 'bestsellers') {
+        setLoading(true);
+        const { data, error } = await supabase.rpc('get_best_sellers', { limit_count: 100 }); // Fetch all
+        if (!error) {
+          setProducts(data);
+        }
+        setLoading(false);
+      }
+    };
+
+    if (specialFilter) {
+      fetchSpecialFilter();
+    }
+  }, [specialFilter]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color="#FF6B6B" style={{ flex: 1 }} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -14,22 +43,23 @@ const FilterResultsScreen = ({ route, navigation }) => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Результаты фильтра</Text>
+        <Text style={styles.headerTitle}>{title}</Text>
       </View>
-      {filteredProducts.length > 0 ? (
-        <FlatList
-          data={filteredProducts}
-          renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
-          keyExtractor={(item) => `filtered-${item.id}`}
-          numColumns={2}
-          columnWrapperStyle={styles.productRow}
-          contentContainerStyle={styles.listContainer}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>По вашему запросу ничего не найдено.</Text>
-        </View>
-      )}
+      <FlatList
+        data={products}
+        renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
+        keyExtractor={(item) => `filtered-${item.id}`}
+        numColumns={2}
+        columnWrapperStyle={styles.productRow}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={
+          <EmptyState
+            icon="search-outline"
+            title="Ничего не найдено"
+            message="Попробуйте изменить фильтры или поисковый запрос."
+          />
+        }
+      />
     </SafeAreaView>
   );
 };
@@ -60,15 +90,6 @@ const styles = StyleSheet.create({
   productRow: {
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#999',
   },
 });
 

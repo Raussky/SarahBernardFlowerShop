@@ -5,7 +5,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createSharedElementStackNavigator } from 'react-navigation-shared-element';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import screens
@@ -21,6 +21,7 @@ import OrderHistoryScreen from './screens/OrderHistoryScreen';
 import OrderConfirmationScreen from './screens/OrderConfirmationScreen';
 import EditProfileScreen from './screens/EditProfileScreen';
 import AllCategoriesScreen from './screens/AllCategoriesScreen';
+import AllCombosScreen from './screens/AllCombosScreen';
 import UserOrderDetailScreen from './screens/UserOrderDetailScreen';
 import ComboScreen from './screens/ComboScreen';
 import CheckoutScreen from './screens/CheckoutScreen';
@@ -37,9 +38,10 @@ import AdminNavigator from './navigation/AdminNavigator';
 import { ToastProvider } from './src/components/ToastProvider';
 import { CartContext, CartProvider } from './src/context/CartContext';
 import { AuthProvider } from './src/context/AuthContext';
+import { AnimationProvider } from './src/context/AnimationContext';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+const Stack = createSharedElementStackNavigator();
 
 const CartIconWithBadge = ({ color }) => {
   const { cart } = useContext(CartContext);
@@ -142,30 +144,33 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <CartProvider>
-          <ToastProvider>
-            <NavigationContainer>
-              <Stack.Navigator screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="Main" component={MainTabs} />
-                <Stack.Screen name="Product" component={ProductScreen} />
-                <Stack.Screen name="Login" component={LoginScreen} />
-                <Stack.Screen name="Admin" component={AdminNavigator} />
-                <Stack.Screen name="Category" component={CategoryScreen} />
-                <Stack.Screen name="EditProduct" component={EditProductScreen} />
-                <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-                <Stack.Screen name="UserOrderDetail" component={UserOrderDetailScreen} />
-                <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
-                <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-                <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
-                <Stack.Screen name="Combo" component={ComboScreen} />
-                <Stack.Screen name="Checkout" component={CheckoutScreen} />
-                <Stack.Screen name="Addresses" component={AddressesScreen} />
-                <Stack.Screen name="EditAddress" component={EditAddressScreen} />
-                <Stack.Screen name="NotificationsSettings" component={NotificationsSettingsScreen} />
-                <Stack.Screen name="Search" component={SearchScreen} />
-                <Stack.Screen name="FilterResults" component={FilterResultsScreen} />
-              </Stack.Navigator>
-            </NavigationContainer>
-          </ToastProvider>
+          <AnimationProvider>
+            <ToastProvider>
+              <NavigationContainer>
+                <Stack.Navigator screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="Main" component={MainTabs} />
+                  <Stack.Screen name="Product" component={ProductScreen} />
+                  <Stack.Screen name="Login" component={LoginScreen} />
+                  <Stack.Screen name="Admin" component={AdminNavigator} />
+                  <Stack.Screen name="Category" component={CategoryScreen} />
+                  <Stack.Screen name="EditProduct" component={EditProductScreen} />
+                  <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+                  <Stack.Screen name="UserOrderDetail" component={UserOrderDetailScreen} />
+                  <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+                  <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                  <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
+                  <Stack.Screen name="AllCombos" component={AllCombosScreen} />
+                  <Stack.Screen name="Combo" component={ComboScreen} />
+                  <Stack.Screen name="Checkout" component={CheckoutScreen} />
+                  <Stack.Screen name="Addresses" component={AddressesScreen} />
+                  <Stack.Screen name="EditAddress" component={EditAddressScreen} />
+                  <Stack.Screen name="NotificationsSettings" component={NotificationsSettingsScreen} />
+                  <Stack.Screen name="Search" component={SearchScreen} />
+                  <Stack.Screen name="FilterResults" component={FilterResultsScreen} />
+                </Stack.Navigator>
+              </NavigationContainer>
+            </ToastProvider>
+          </AnimationProvider>
         </CartProvider>
       </AuthProvider>
     </GestureHandlerRootView>

@@ -28,8 +28,7 @@ const ProductScreen = ({ navigation, route }) => {
   const { addToCart } = useContext(CartContext);
   const { showToast } = useToast();
   
-  const variants = product?.product_variants || [];
-  const [selectedVariant, setSelectedVariant] = useState(variants.length > 0 ? variants[0] : null);
+  const [selectedVariant, setSelectedVariant] = useState(null);
   const [recommended, setRecommended] = useState([]);
   const [productImages, setProductImages] = useState([]);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -46,19 +45,24 @@ const ProductScreen = ({ navigation, route }) => {
     Animated.spring(addToCartButtonScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
   };
 
+  // Effect to set the initial variant ONLY when the product data changes
+  useEffect(() => {
+    const variants = product?.product_variants || [];
+    if (variants.length > 0) {
+      // If a variant is already selected, try to find it in the new list.
+      // Otherwise, default to the first one.
+      const currentSelected = variants.find(v => v.id === selectedVariant?.id) || variants[0];
+      setSelectedVariant(currentSelected);
+    }
+  }, [product]);
+
   const fetchProductDetails = useCallback(async () => {
     const { data, error } = await getProductDetails(initialProduct.id);
-    
     if (error) {
       showToast('Ошибка загрузки деталей товара', 'error');
       setProduct(null);
     } else if (data) {
       setProduct(data);
-      const currentSelectedId = selectedVariant?.id;
-      const newVariants = data.product_variants || [];
-      const newSelectedVariant = newVariants.find(v => v.id === currentSelectedId) || (newVariants.length > 0 ? newVariants[0] : null);
-      setSelectedVariant(newSelectedVariant);
-
       const images = data.product_images ? data.product_images.map(img => img.image_url) : [];
       if (data.image && !images.includes(data.image)) {
         images.unshift(data.image);
@@ -68,7 +72,7 @@ const ProductScreen = ({ navigation, route }) => {
       setProduct(null);
       showToast('Товар не найден', 'error');
     }
-  }, [initialProduct.id, selectedVariant, showToast]);
+  }, [initialProduct.id, showToast]);
 
   useEffect(() => {
     fetchProductDetails();
@@ -232,40 +236,59 @@ const ProductScreen = ({ navigation, route }) => {
               </View>
             </>
           ) : (
-            <Image source={{ uri: product.image }} style={styles.mainImage} />
+              <Image source={{ uri: product.image }} style={styles.mainImage} />
           )}
         </View>
 
         <View style={styles.productInfo}>
-          {variants.length > 0 && (
+          {(product?.product_variants || []).length > 0 && (
             <View style={styles.sizeSection}>
               <Text style={styles.sectionTitle}>Варианты</Text>
              <View style={styles.variantsContainer}>
-               {variants.map((variant) => (
-                 <TouchableOpacity
-                   key={variant.id}
-                   onPress={() => setSelectedVariant(variant)}
-                   style={[
-                     styles.sizeButton,
-                     selectedVariant?.id === variant.id && styles.selectedSize,
-                     variant.stock_quantity <= 0 && styles.disabledSize,
-                   ]}
-                   disabled={variant.stock_quantity <= 0}
-                 >
-                   <Text style={[
-                     styles.sizeText,
-                     selectedVariant?.id === variant.id && styles.selectedSizeText,
-                     variant.stock_quantity <= 0 && styles.disabledSizeText,
-                   ]}>
-                     {variant.size}
-                   </Text>
-                   {variant.stock_quantity <= 0 && (
-                     <View style={styles.outOfStockBadge}>
-                       <Text style={styles.outOfStockBadgeText}>Нет</Text>
-                     </View>
-                   )}
-                 </TouchableOpacity>
-               ))}
+               {(product?.product_variants || []).map((variant) => {
+                 const variantScale = useRef(new Animated.Value(1)).current;
+
+                 const handleVariantPressIn = () => {
+                   Animated.spring(variantScale, { toValue: 0.9, useNativeDriver: true }).start();
+                 };
+
+                 const handleVariantPressOut = () => {
+                   Animated.spring(variantScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
+                 };
+
+                 return (
+                   <TouchableOpacity
+                     key={variant.id}
+                     onPress={() => setSelectedVariant(variant)}
+                     onPressIn={handleVariantPressIn}
+                     onPressOut={handleVariantPressOut}
+                     disabled={variant.stock_quantity <= 0}
+                     activeOpacity={0.9}
+                   >
+                     <Animated.View
+                       style={[
+                         styles.sizeButton,
+                         selectedVariant?.id === variant.id && styles.selectedSize,
+                         variant.stock_quantity <= 0 && styles.disabledSize,
+                         { transform: [{ scale: variantScale }] }
+                       ]}
+                     >
+                       <Text style={[
+                         styles.sizeText,
+                         selectedVariant?.id === variant.id && styles.selectedSizeText,
+                         variant.stock_quantity <= 0 && styles.disabledSizeText,
+                       ]}>
+                         {variant.size}
+                       </Text>
+                       {variant.stock_quantity <= 0 && (
+                         <View style={styles.outOfStockBadge}>
+                           <Text style={styles.outOfStockBadgeText}>Нет</Text>
+                         </View>
+                       )}
+                     </Animated.View>
+                   </TouchableOpacity>
+                 );
+               })}
              </View>
             </View>
           )}
