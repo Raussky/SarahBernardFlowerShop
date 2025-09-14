@@ -1,16 +1,19 @@
-import React, { useContext, useRef } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../context/CartContext';
-import { useToast } from './ToastProvider'; // Import useToast
+import { useToast } from './ToastProvider';
 import { FONTS } from '../config/theme';
+import VariantSelectorModal from './VariantSelectorModal';
 
 const { width } = Dimensions.get('window');
 
 const ProductCard = ({ product, navigation }) => {
-  const { toggleSaved, saved, addToCart } = useContext(CartContext); // Add addToCart
-  const { showToast } = useToast(); // Use toast
+  const { toggleSaved, saved, addToCart } = useContext(CartContext);
+  const { showToast } = useToast();
   const isSaved = saved.find(i => i.id === product.id);
+
+  const [isModalVisible, setModalVisible] = useState(false);
 
   const displayPrice = product.product_variants && product.product_variants.length > 0
     ? product.product_variants[0].price
@@ -19,7 +22,6 @@ const ProductCard = ({ product, navigation }) => {
   const isOutOfStock = !product.product_variants || product.product_variants.every(v => v.stock_quantity <= 0);
   const hasSingleVariant = product.product_variants && product.product_variants.length === 1;
   const singleVariant = hasSingleVariant ? product.product_variants[0] : null;
-  const canAddToCartDirectly = hasSingleVariant && !isOutOfStock;
 
   const cardScale = useRef(new Animated.Value(1)).current;
   const handleCardPressIn = () => {
@@ -37,9 +39,16 @@ const ProductCard = ({ product, navigation }) => {
     ]).start();
   };
 
-  const handleDirectAddToCart = () => {
-    if (canAddToCartDirectly && singleVariant) {
-      const item = {
+  const handleAddToCart = (item) => {
+    addToCart(item);
+    showToast('Товар добавлен в корзину', 'success');
+  };
+
+  const handleAddToCartPress = () => {
+    if (isOutOfStock) return;
+
+    if (hasSingleVariant && singleVariant) {
+      handleAddToCart({
         id: product.id,
         name: product.name,
         nameRu: product.name_ru,
@@ -48,67 +57,67 @@ const ProductCard = ({ product, navigation }) => {
         price: singleVariant.price,
         variantId: singleVariant.id,
         stock_quantity: singleVariant.stock_quantity,
-      };
-      addToCart(item);
-      showToast('Товар добавлен в корзину', 'success');
+      });
+    } else {
+      setModalVisible(true);
     }
   };
 
   return (
-    <Animated.View style={[styles.productCard, { transform: [{ scale: cardScale }] }]}>
-      <TouchableOpacity
-        onPress={() => navigation.navigate('Product', { product })}
-        onPressIn={handleCardPressIn}
-        onPressOut={handleCardPressOut}
-        activeOpacity={0.9}
-        disabled={isOutOfStock}
-      >
-        <Image source={{ uri: product.image }} style={styles.productImage} />
-        {isOutOfStock && (
-          <View style={styles.outOfStockOverlay}>
-            <Text style={styles.outOfStockText}>Нет в наличии</Text>
-          </View>
-        )}
-        <View style={styles.productInfo}>
-          <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
-          <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name || 'Категория'}</Text>
-          <Text style={styles.productPrice}>₸{displayPrice.toLocaleString()}</Text>
-        </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.heartIcon}
-        onPress={() => {
-          handleHeartPressIn();
-          toggleSaved(product);
-        }}
-      >
-        <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-          <Ionicons
-            name={isSaved ? "heart" : "heart-outline"}
-            size={24}
-            color={isSaved ? "#FF69B4" : "#fff"}
-          />
-        </Animated.View>
-      </TouchableOpacity>
-
-      {canAddToCartDirectly ? (
+    <>
+      <Animated.View style={[styles.productCard, { transform: [{ scale: cardScale }] }]}>
         <TouchableOpacity
-          style={styles.addToCartButton}
-          onPress={handleDirectAddToCart}
+          onPress={() => navigation.navigate('Product', { product })}
+          onPressIn={handleCardPressIn}
+          onPressOut={handleCardPressOut}
+          activeOpacity={0.9}
+          disabled={isOutOfStock}
+        >
+          <Image source={{ uri: product.image }} style={styles.productImage} />
+          {isOutOfStock && (
+            <View style={styles.outOfStockOverlay}>
+              <Text style={styles.outOfStockText}>Нет в наличии</Text>
+            </View>
+          )}
+          <View style={styles.productInfo}>
+            <Text style={styles.productName} numberOfLines={1}>{product.name || product.name_ru}</Text>
+            <Text style={styles.productDesc} numberOfLines={1}>{product.categories?.name || 'Категория'}</Text>
+            <Text style={styles.productPrice}>₸{displayPrice.toLocaleString()}</Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.heartIcon}
+          onPress={() => {
+            handleHeartPressIn();
+            toggleSaved(product);
+          }}
+        >
+          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+            <Ionicons
+              name={isSaved ? "heart" : "heart-outline"}
+              size={24}
+              color={isSaved ? "#FF69B4" : "#fff"}
+            />
+          </Animated.View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.addToCartButton, isOutOfStock && styles.addButtonDisabled]}
+          onPress={handleAddToCartPress}
+          disabled={isOutOfStock}
         >
           <Ionicons name="add" size={20} color="#fff" />
         </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={[styles.addButton, isOutOfStock && styles.addButtonDisabled]}
-          onPress={() => navigation.navigate('Product', { product })}
-          disabled={isOutOfStock}
-        >
-          <Text style={styles.addButtonText}>+</Text>
-        </TouchableOpacity>
-      )}
-    </Animated.View>
+      </Animated.View>
+      
+      <VariantSelectorModal
+        isVisible={isModalVisible}
+        onClose={() => setModalVisible(false)}
+        product={product}
+        onAddToCart={handleAddToCart}
+      />
+    </>
   );
 };
 
@@ -173,7 +182,7 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     color: '#333',
   },
-  addButton: {
+  addToCartButton: {
     position: 'absolute',
     bottom: 12,
     right: 12,
@@ -186,23 +195,6 @@ const styles = StyleSheet.create({
   },
   addButtonDisabled: {
     backgroundColor: '#ccc',
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    lineHeight: 24,
-  },
-  addToCartButton: { // New style for direct add to cart
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-    backgroundColor: '#FF69B4', // Pink color for direct add
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
 

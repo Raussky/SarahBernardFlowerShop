@@ -16,6 +16,7 @@ import { CartContext } from '../src/context/CartContext';
 import { useToast } from '../src/components/ToastProvider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../src/integrations/supabase/client';
+import { getProductDetails, getRecommendedProducts } from '../src/services/api';
 import RecommendedProductCard from '../src/components/RecommendedProductCard';
 import { FONTS } from '../src/config/theme';
 
@@ -46,16 +47,11 @@ const ProductScreen = ({ navigation, route }) => {
   };
 
   const fetchProductDetails = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, product_variants(id, product_id, size, price, stock_quantity), product_images(*)')
-      .eq('id', initialProduct.id)
-      .maybeSingle(); // Use maybeSingle() here too
+    const { data, error } = await getProductDetails(initialProduct.id);
     
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found"
-      console.error("Error fetching product details:", error);
+    if (error) {
       showToast('Ошибка загрузки деталей товара', 'error');
-      setProduct(null); // Or handle as appropriate
+      setProduct(null);
     } else if (data) {
       setProduct(data);
       const currentSelectedId = selectedVariant?.id;
@@ -69,10 +65,10 @@ const ProductScreen = ({ navigation, route }) => {
       }
       setProductImages(images);
     } else {
-      setProduct(null); // Product not found
+      setProduct(null);
       showToast('Товар не найден', 'error');
     }
-  }, [initialProduct.id, selectedVariant]);
+  }, [initialProduct.id, selectedVariant, showToast]);
 
   useEffect(() => {
     fetchProductDetails();
@@ -91,18 +87,13 @@ const ProductScreen = ({ navigation, route }) => {
 
   useEffect(() => {
     const fetchRecommended = async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, product_variants(id, product_id, size, price, stock_quantity)')
-        .neq('id', product.id)
-        .order('purchase_count', { ascending: false })
-        .limit(5);
-      
+      if (!product?.id) return;
+      const { data, error } = await getRecommendedProducts(product.id);
       if (!error && data) {
         setRecommended(data);
       }
     };
-    if (product) { // Only fetch recommended if product details are loaded
+    if (product) {
       fetchRecommended();
     }
   }, [product?.id]); // Depend on product.id

@@ -15,6 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../../src/components/ToastProvider';
 import { supabase } from '../../src/integrations/supabase/client';
+import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
+import 'react-native-url-polyfill/auto';
 
 const EditComboScreen = ({ navigation, route }) => {
   const { comboId } = route.params || {};
@@ -33,7 +36,7 @@ const EditComboScreen = ({ navigation, route }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState(null); // Will store { uri, base64 } for new images or just URL for existing
   const [isActive, setIsActive] = useState(true);
   const [comboItems, setComboItems] = useState([]); // To store { product_variant_id, quantity }
 
@@ -80,52 +83,100 @@ const EditComboScreen = ({ navigation, route }) => {
     fetchData();
   }, [comboId]);
 
+  const pickImage = async () => {
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        base64: true,
+      });
+  
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImage({ uri: result.assets[0].uri, base64: result.assets[0].base64 });
+      }
+    } catch (error) {
+      showToast(`Ошибка при выборе изображения: ${error.message}`, 'error');
+    }
+  };
+
+  const uploadImage = async (base64Data, uri) => {
+    try {
+      const fileExt = uri.split('.').pop()?.toLowerCase() ?? 'jpg';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+      const contentType = `image/${fileExt}`;
+      const byteArray = decode(base64Data);
+
+      const { error } = await supabase.storage
+        .from('combo-images')
+        .upload(filePath, byteArray, { contentType, upsert: false });
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage
+        .from('combo-images')
+        .getPublicUrl(filePath);
+      
+      return publicUrlData.publicUrl;
+    } catch (error) {
+      console.error("Upload error:", error);
+      throw error;
+    }
+  };
+
   const handleSave = async () => {
-   if (!name || !price || comboItems.length === 0) {
-     showToast('Пожалуйста, заполните название, цену и добавьте хотя бы один товар.', 'error');
-     return;
-   }
+    if (!name || !price || comboItems.length === 0) {
+      showToast('Пожалуйста, заполните название, цену и добавьте хотя бы один товар.', 'error');
+      return;
+    }
 
-   setSaving(true);
-   try {
-     const { data: savedCombo, error: comboError } = await supabase
-       .from('combos')
-       .upsert({
-         id: comboId,
-         name,
-         description,
-         price: parseFloat(price),
-         image, // Image upload logic to be added later
-         is_active: isActive,
-       })
-       .select()
-       .single();
+    setSaving(true);
+    try {
+      let imageUrl = typeof image === 'string' ? image : null; // Keep existing image URL if not changed
 
-     if (comboError) throw comboError;
+      // If a new image was picked, upload it
+      if (image && typeof image === 'object' && image.base64) {
+        showToast('Загружаем изображение...', 'info');
+        imageUrl = await uploadImage(image.base64, image.uri);
+      }
 
-     const savedComboId = savedCombo.id;
+      const { data: savedCombo, error: comboError } = await supabase
+        .from('combos')
+        .upsert({
+          id: comboId,
+          name,
+          description,
+          price: parseFloat(price),
+          image: imageUrl,
+          is_active: isActive,
+        })
+        .select()
+        .single();
 
-     // Delete old items
-     await supabase.from('combo_items').delete().eq('combo_id', savedComboId);
+      if (comboError) throw comboError;
 
-     // Insert new items
-     const itemsToInsert = comboItems.map(item => ({
-       combo_id: savedComboId,
-       product_variant_id: item.product_variant_id,
-       quantity: item.quantity,
-     }));
+      const savedComboId = savedCombo.id;
 
-     const { error: itemsError } = await supabase.from('combo_items').insert(itemsToInsert);
-     if (itemsError) throw itemsError;
+      // Delete old items and insert new ones
+      await supabase.from('combo_items').delete().eq('combo_id', savedComboId);
+      const itemsToInsert = comboItems.map(item => ({
+        combo_id: savedComboId,
+        product_variant_id: item.product_variant_id,
+        quantity: item.quantity,
+      }));
+      const { error: itemsError } = await supabase.from('combo_items').insert(itemsToInsert);
+      if (itemsError) throw itemsError;
 
-     showToast(`Комбо успешно ${isNewCombo ? 'создано' : 'обновлено'}!`, 'success');
-     navigation.goBack();
+      showToast(`Комбо успешно ${isNewCombo ? 'создано' : 'обновлено'}!`, 'success');
+      navigation.goBack();
 
-   } catch (error) {
-     showToast(`Ошибка сохранения: ${error.message}`, 'error');
-   } finally {
-     setSaving(false);
-   }
+    } catch (error) {
+      showToast(`Ошибка сохранения: ${error.message}`, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
  const handleSearch = (text) => {
@@ -224,6 +275,18 @@ const handleRemoveItem = (indexToRemove) => {
         <Text style={styles.label}>Цена (₸)</Text>
         <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Например, 15000" keyboardType="numeric" />
 
+        <Text style={styles.label}>Изображение комбо</Text>
+        <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
+          {image ? (
+            <Image source={{ uri: typeof image === 'string' ? image : image.uri }} style={styles.comboImage} />
+          ) : (
+            <>
+              <Ionicons name="camera-outline" size={30} color="#999" />
+              <Text style={styles.imagePickerText}>Выбрать фото</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
         <Text style={styles.label}>Товары в наборе</Text>
         {comboItems.map((item, index) => (
            <View key={index} style={styles.comboItem}>
@@ -257,6 +320,24 @@ const styles = StyleSheet.create({
   label: { fontSize: 16, fontWeight: '500', color: '#333', marginTop: 20, marginBottom: 8 },
   input: { backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 12, borderRadius: 10, fontSize: 16 },
   textArea: { height: 100, textAlignVertical: 'top' },
+  imagePicker: {
+    height: 150,
+    width: '100%',
+    borderRadius: 10,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  comboImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePickerText: {
+    color: '#999',
+    marginTop: 5,
+  },
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 10, padding: 10 },
   addButtonText: { color: '#FF69B4', fontWeight: 'bold' },
   comboItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 10, marginBottom: 10 },

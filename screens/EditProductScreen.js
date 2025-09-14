@@ -40,7 +40,6 @@ const EditProductScreen = ({ navigation, route }) => {
   const [careInstructions, setCareInstructions] = useState('');
   const [categoryId, setCategoryId] = useState(null);
   const [images, setImages] = useState([]); // Each image will be { uri: string, base64: string | null }
-  const [isWeeklyPick, setIsWeeklyPick] = useState(false);
   const [variants, setVariants] = useState([{ size: 'шт.', price: '', stock_quantity: '99' }]);
   const [initialVariants, setInitialVariants] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -76,7 +75,6 @@ const EditProductScreen = ({ navigation, route }) => {
           setSizeInfo(productData.size_info || '');
           setCareInstructions(productData.care_instructions || '');
           setCategoryId(productData.category_id);
-          setIsWeeklyPick(productData.is_weekly_pick || false);
 
           const allImages = [];
           if (productData.image) allImages.push(productData.image);
@@ -233,7 +231,6 @@ const EditProductScreen = ({ navigation, route }) => {
         care_instructions: careInstructions,
         category_id: categoryId,
         image: mainImage,
-        is_weekly_pick: isWeeklyPick,
       };
 
       if (!isNewProduct) {
@@ -258,20 +255,41 @@ const EditProductScreen = ({ navigation, route }) => {
         await supabase.from('product_images').insert(imagesToInsert);
       }
 
-      const variantsToUpsert = variants.map(v => ({
-        ...v,
-        product_id: savedProductId,
-        price: parseFloat(v.price) || 0,
-        stock_quantity: parseInt(v.stock_quantity, 10) || 0,
-      }));
-      
-      // When creating a new product, the variant IDs will be undefined, so we need to remove them
-      // from the payload so that the database can generate them automatically.
-      if (isNewProduct) {
-        variantsToUpsert.forEach(v => delete v.id);
+      // --- START: NEW LOGIC FOR SAVING VARIANTS ---
+
+      // 1. Separate new variants from existing ones
+      const variantsToInsert = variants
+        .filter(v => !v.id)
+        .map(v => ({
+          product_id: savedProductId,
+          size: v.size,
+          price: parseFloat(v.price) || 0,
+          stock_quantity: parseInt(v.stock_quantity, 10) || 0,
+        }));
+
+      const variantsToUpdate = variants
+        .filter(v => v.id)
+        .map(v => ({
+          id: v.id,
+          product_id: savedProductId,
+          size: v.size,
+          price: parseFloat(v.price) || 0,
+          stock_quantity: parseInt(v.stock_quantity, 10) || 0,
+        }));
+
+      // 2. Perform insert for new variants
+      if (variantsToInsert.length > 0) {
+        const { error: insertError } = await supabase.from('product_variants').insert(variantsToInsert);
+        if (insertError) throw insertError;
       }
 
-      await supabase.from('product_variants').upsert(variantsToUpsert);
+      // 3. Perform upsert for existing variants (safe because they all have IDs)
+      if (variantsToUpdate.length > 0) {
+        const { error: updateError } = await supabase.from('product_variants').upsert(variantsToUpdate);
+        if (updateError) throw updateError;
+      }
+      
+      // --- END: NEW LOGIC FOR SAVING VARIANTS ---
 
       const currentVariantIds = new Set(variants.map(v => v.id).filter(Boolean));
       const variantsToDelete = initialVariants.filter(v => !currentVariantIds.has(v.id));
@@ -317,7 +335,7 @@ const EditProductScreen = ({ navigation, route }) => {
           <Text style={styles.label}>Фотографии товара</Text>
           <ScrollView horizontal contentContainerStyle={styles.imageScrollView}>
             {images.map((image, index) => (
-              <View key={index} style={styles.imageContainer}>
+              <View key={image.uri} style={styles.imageContainer}>
                 <Image source={{ uri: image.uri }} style={styles.productImage} />
                 <TouchableOpacity style={styles.removeImageButton} onPress={() => removeImage(index)}>
                   <Ionicons name="close-circle" size={24} color="#fff" style={styles.removeImageIcon} />
@@ -360,17 +378,6 @@ const EditProductScreen = ({ navigation, route }) => {
               </TouchableOpacity>
             ))}
           </View>
-
-          <View style={styles.switchRow}>
-           <Text style={styles.label}>Подборка недели</Text>
-           <Switch
-             trackColor={{ false: "#767577", true: "#FFC0CB" }}
-             thumbColor={isWeeklyPick ? "#FF69B4" : "#f4f3f4"}
-             ios_backgroundColor="#3e3e3e"
-             onValueChange={setIsWeeklyPick}
-             value={isWeeklyPick}
-           />
-         </View>
 
           <Text style={styles.label}>Варианты товара</Text>
           {variants.map((variant, index) => (

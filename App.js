@@ -1,6 +1,7 @@
 import 'react-native-get-random-values'; // Must be at the top
 import React, { useContext } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -138,34 +139,36 @@ export default function App() {
  }
 
   return (
-    <AuthProvider>
-      <CartProvider>
-        <ToastProvider>
-          <NavigationContainer>
-            <Stack.Navigator screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="Main" component={MainTabs} />
-              <Stack.Screen name="Product" component={ProductScreen} />
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Admin" component={AdminNavigator} />
-              <Stack.Screen name="Category" component={CategoryScreen} />
-              <Stack.Screen name="EditProduct" component={EditProductScreen} />
-              <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-              <Stack.Screen name="UserOrderDetail" component={UserOrderDetailScreen} />
-              <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
-              <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-              <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
-              <Stack.Screen name="Combo" component={ComboScreen} />
-              <Stack.Screen name="Checkout" component={CheckoutScreen} />
-              <Stack.Screen name="Addresses" component={AddressesScreen} />
-              <Stack.Screen name="EditAddress" component={EditAddressScreen} />
-              <Stack.Screen name="NotificationsSettings" component={NotificationsSettingsScreen} />
-              <Stack.Screen name="Search" component={SearchScreen} />
-              <Stack.Screen name="FilterResults" component={FilterResultsScreen} />
-            </Stack.Navigator>
-          </NavigationContainer>
-        </ToastProvider>
-      </CartProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <CartProvider>
+          <ToastProvider>
+            <NavigationContainer>
+              <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="Main" component={MainTabs} />
+                <Stack.Screen name="Product" component={ProductScreen} />
+                <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen name="Admin" component={AdminNavigator} />
+                <Stack.Screen name="Category" component={CategoryScreen} />
+                <Stack.Screen name="EditProduct" component={EditProductScreen} />
+                <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+                <Stack.Screen name="UserOrderDetail" component={UserOrderDetailScreen} />
+                <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+                <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
+                <Stack.Screen name="Combo" component={ComboScreen} />
+                <Stack.Screen name="Checkout" component={CheckoutScreen} />
+                <Stack.Screen name="Addresses" component={AddressesScreen} />
+                <Stack.Screen name="EditAddress" component={EditAddressScreen} />
+                <Stack.Screen name="NotificationsSettings" component={NotificationsSettingsScreen} />
+                <Stack.Screen name="Search" component={SearchScreen} />
+                <Stack.Screen name="FilterResults" component={FilterResultsScreen} />
+              </Stack.Navigator>
+            </NavigationContainer>
+          </ToastProvider>
+        </CartProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

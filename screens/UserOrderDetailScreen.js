@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import { useToast } from '../src/components/ToastProvider';
 import { useAuth } from '../src/context/AuthContext';
+import { CartContext } from '../src/context/CartContext';
+import { cancelOrder, getOrderItems, getProductDetails } from '../src/services/api';
 
 const ORDER_STATUSES = {
   pending: 'Новый',
@@ -20,6 +22,7 @@ const UserOrderDetailScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
   const { user } = useAuth();
+  const { addToCart } = useContext(CartContext);
 
   const fetchOrderDetails = async () => {
     if (!user) {
@@ -49,6 +52,60 @@ const UserOrderDetailScreen = ({ route, navigation }) => {
   useEffect(() => {
     fetchOrderDetails();
   }, [orderId, user]);
+
+  const handleCancelOrder = () => {
+    Alert.alert('Отменить заказ?', 'Вы уверены? Это действие нельзя будет отменить.', [
+      { text: 'Назад' },
+      { text: 'Отменить', style: 'destructive', onPress: async () => {
+          const { data, error } = await cancelOrder(orderId, user.id);
+          if (error) {
+            showToast('Ошибка отмены заказа', 'error');
+          } else if (data.includes('not found')) {
+            showToast('Заказ не найден', 'error');
+          } else if (data.includes('no longer be cancelled')) {
+            showToast('Этот заказ уже нельзя отменить', 'warning');
+          } else {
+            showToast('Заказ успешно отменен', 'success');
+            fetchOrderDetails(); // Refresh details
+          }
+        }}
+    ]);
+  };
+
+  const handleRepeatOrder = async () => {
+    showToast('Добавляем товары в корзину...', 'info');
+    const { data: items, error } = await getOrderItems(orderId);
+    if (error) {
+      showToast('Не удалось получить состав заказа', 'error');
+      return;
+    }
+
+    for (const item of items) {
+      if (item.product_variant_id) {
+        // This is a regular product
+        const cartItem = {
+          id: item.product_id,
+          name: item.product_name,
+          image: item.product_image,
+          size: item.variant_size,
+          price: item.price_at_purchase,
+          variantId: item.product_variant_id,
+        };
+        addToCart(cartItem);
+      } else if (item.combo_id) {
+        // This is a combo
+        const cartItem = {
+          id: item.combo_id,
+          name: item.product_name,
+          image: item.product_image,
+          price: item.price_at_purchase,
+        };
+        addToCart(cartItem, 'combo');
+      }
+    }
+    showToast('Все товары из заказа добавлены в корзину!', 'success');
+    navigation.navigate('Basket');
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -120,9 +177,22 @@ const UserOrderDetailScreen = ({ route, navigation }) => {
             <Text style={styles.statusText}>{ORDER_STATUSES[order.status] || order.status}</Text>
           </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+
+       <View style={styles.actionsSection}>
+         <TouchableOpacity style={styles.repeatButton} onPress={handleRepeatOrder}>
+           <Ionicons name="repeat-outline" size={20} color="#fff" />
+           <Text style={styles.buttonText}>Повторить заказ</Text>
+         </TouchableOpacity>
+         {order.status === 'pending' && (
+           <TouchableOpacity style={styles.cancelButton} onPress={handleCancelOrder}>
+             <Ionicons name="close-circle-outline" size={20} color="#D32F2F" />
+             <Text style={styles.cancelButtonText}>Отменить заказ</Text>
+           </TouchableOpacity>
+         )}
+       </View>
+     </ScrollView>
+   </SafeAreaView>
+ );
 };
 
 const styles = StyleSheet.create({
@@ -160,6 +230,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+ actionsSection: {
+   marginTop: 10,
+   paddingHorizontal: 10,
+ },
+ repeatButton: {
+   flexDirection: 'row',
+   alignItems: 'center',
+   justifyContent: 'center',
+   backgroundColor: '#FF69B4',
+   paddingVertical: 15,
+   borderRadius: 10,
+   gap: 10,
+   marginBottom: 10,
+ },
+ buttonText: {
+   color: '#fff',
+   fontSize: 16,
+   fontWeight: 'bold',
+ },
+ cancelButton: {
+   flexDirection: 'row',
+   alignItems: 'center',
+   justifyContent: 'center',
+   backgroundColor: '#FFE4E1',
+   paddingVertical: 15,
+   borderRadius: 10,
+   gap: 10,
+ },
+ cancelButtonText: {
+   color: '#D32F2F',
+   fontSize: 16,
+   fontWeight: '600',
+ },
 });
 
 export default UserOrderDetailScreen;

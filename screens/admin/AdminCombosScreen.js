@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../src/integrations/supabase/client';
+import { getCombos, deleteCombo } from '../../src/services/api';
 import { useToast } from '../../src/components/ToastProvider';
 import EmptyState from '../../src/components/EmptyState';
 import AdminHeader from '../../src/components/AdminHeader';
@@ -16,13 +16,13 @@ const AdminCombosScreen = ({ navigation }) => {
   const fetchCombos = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('combos')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setCombos(data);
+      const { data, error } = await getCombos();
+      if (error) {
+        showToast(error.message, 'error');
+        setCombos([]);
+      } else {
+        setCombos(data);
+      }
     } catch (error) {
       showToast(error.message, 'error');
     } finally {
@@ -36,14 +36,41 @@ const AdminCombosScreen = ({ navigation }) => {
    }, [])
  );
 
+  const handleDelete = (combo) => {
+    Alert.alert(
+      'Удалить комбо?',
+      `Вы уверены, что хотите удалить "${combo.name}"? Это действие нельзя будет отменить.`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        { text: 'Удалить', style: 'destructive', onPress: async () => {
+            try {
+              const { error } = await deleteCombo(combo.id);
+              if (error) throw error;
+              showToast('Комбо успешно удалено', 'success');
+              fetchCombos(); // Refresh the list
+            } catch (error) {
+              showToast(error.message, 'error');
+            }
+          }}
+      ]
+    );
+  };
+
   const renderItem = ({ item }) => (
-    <TouchableOpacity style={styles.itemContainer} onPress={() => navigation.navigate('EditCombo', { comboId: item.id })}>
-      <View style={styles.itemInfo}>
+    <View style={styles.itemContainer}>
+      <TouchableOpacity style={styles.itemInfoTouchable} onPress={() => navigation.navigate('EditCombo', { comboId: item.id })}>
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemPrice}>{item.price} ₸</Text>
+      </TouchableOpacity>
+      <View style={styles.actions}>
+        <TouchableOpacity onPress={() => navigation.navigate('EditCombo', { comboId: item.id })} style={styles.actionButton}>
+          <Ionicons name="create-outline" size={22} color="#333" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionButton}>
+          <Ionicons name="trash-outline" size={22} color="#D32F2F" />
+        </TouchableOpacity>
       </View>
-      <Ionicons name="chevron-forward" size={24} color="#ccc" />
-    </TouchableOpacity>
+    </View>
   );
 
   if (loading) {
@@ -92,7 +119,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
-  itemInfo: {
+  itemInfoTouchable: {
     flex: 1,
   },
   itemName: {
@@ -107,6 +134,14 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: '#999',
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  actionButton: {
+    padding: 5,
   },
 });
 

@@ -2,15 +2,18 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-const AdminHeader = ({ title, onAddPress }) => {
+const AdminHeader = ({ title, onAddPress, children }) => {
   return (
     <View style={styles.header}>
       <Text style={styles.headerTitle}>{title}</Text>
-      {onAddPress && (
-        <TouchableOpacity style={styles.addButton} onPress={onAddPress}>
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
-      )}
+      <View style={styles.actionsContainer}>
+        {children}
+        {onAddPress && (
+          <TouchableOpacity style={styles.addButton} onPress={onAddPress}>
+            <Ionicons name="add" size={24} color="#fff" />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 };
@@ -29,6 +32,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   addButton: {
     backgroundColor: '#FF69B4',

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from '../src/context/AuthContext';
 import { useToast } from '../src/components/ToastProvider';
+import { useFocusEffect } from '@react-navigation/native';
 import EmptyState from '../src/components/EmptyState';
 
 const ORDER_STATUSES = {
@@ -21,32 +22,34 @@ const OrderHistoryScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { showToast } = useToast();
 
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (!user) {
-        setLoading(false);
-        return;
-      }
+  const fetchOrders = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        setOrders(data);
-      } catch (error) {
-        showToast('Не удалось загрузить историю заказов', 'error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchOrders();
+      if (error) throw error;
+      setOrders(data);
+    } catch (error) {
+      showToast('Не удалось загрузить историю заказов', 'error');
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchOrders();
+    }, [fetchOrders])
+  );
 
   const getStatusColor = (status) => {
     switch (status) {

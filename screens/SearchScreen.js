@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { supabase } from '../src/integrations/supabase/client';
+import { searchProducts } from '../src/services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProductCard from '../src/components/ProductCard';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -13,11 +14,15 @@ const SearchScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Загрузка истории поиска из локального хранилища при монтировании
     const loadSearchHistory = async () => {
-      // В реальном приложении здесь будет логика загрузки из AsyncStorage или подобного
-      // Для примера, используем заглушку
-      setSearchHistory(['Цветы', 'Букеты', 'Розы']);
+      try {
+        const history = await AsyncStorage.getItem('search_history');
+        if (history) {
+          setSearchHistory(JSON.parse(history));
+        }
+      } catch (e) {
+        console.error("Failed to load search history.", e);
+      }
     };
     loadSearchHistory();
   }, []);
@@ -62,19 +67,19 @@ const SearchScreen = ({ navigation }) => {
     setLoading(true);
     setSuggestions([]); // Очищаем предложения при выполнении полного поиска
 
-    // Добавление запроса в историю поиска
-    if (!searchHistory.includes(query)) {
-      setSearchHistory(prevHistory => [query, ...prevHistory.slice(0, 4)]); // Сохраняем до 5 последних запросов
-      // В реальном приложении здесь будет логика сохранения в локальное хранилище
+    // Save search query to history
+    const newHistory = [query, ...searchHistory.filter(item => item !== query)].slice(0, 5);
+    setSearchHistory(newHistory);
+    try {
+      await AsyncStorage.setItem('search_history', JSON.stringify(newHistory));
+    } catch (e) {
+      console.error("Failed to save search history.", e);
     }
 
-    const { data, error } = await supabase
-      .from('products')
-      .select('*, categories(name, name_en), product_variants(*)')
-      .ilike('name', `%${query}%`);
+    const { data, error } = await searchProducts(query);
     
     if (!error) {
-      setResults(data);
+      setResults(data || []);
     }
     setLoading(false);
   };
@@ -89,9 +94,13 @@ const SearchScreen = ({ navigation }) => {
     performSearch(historyItem);
   };
 
-  const clearSearchHistory = () => {
+  const clearSearchHistory = async () => {
     setSearchHistory([]);
-    // В реальном приложении здесь будет логика очистки из локального хранилища
+    try {
+      await AsyncStorage.removeItem('search_history');
+    } catch (e) {
+      console.error("Failed to clear search history.", e);
+    }
   };
 
   return (

@@ -20,7 +20,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../src/integrations/supabase/client';
-import ProductCard from '../src/components/ProductCard';
+import { getHomeScreenInitialData, getHomeScreenSecondaryData, filterProducts } from '../src/services/api';
+import ProductSection from '../src/components/ProductSection';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 import MainBanner from '../src/components/MainBanner';
 import { FONTS } from '../src/config/theme';
@@ -28,16 +29,14 @@ import { FONTS } from '../src/config/theme';
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
+  // State for initial data
   const [categories, setCategories] = useState([]);
   const [banners, setBanners] = useState([]);
-  const [bestSellers, setBestSellers] = useState([]);
-  const [readyShowcase, setReadyShowcase] = useState([]);
-  const [combos, setCombos] = useState([]);
-  const [weeklyPicks, setWeeklyPicks] = useState([]);
-  const [premiumBouquets, setPremiumBouquets] = useState([]);
-  const [recommendedProducts, setRecommendedProducts] = useState([]);
-  
-  const [loading, setLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // State for secondary (lazy-loaded) data
+  const [secondaryData, setSecondaryData] = useState(null);
+  const [secondaryLoading, setSecondaryLoading] = useState(true);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [priceRange, setPriceRange] = useState([0, 50000]);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -49,91 +48,60 @@ const HomeScreen = ({ navigation }) => {
   const handleFilterApply = async (filters) => {
     setFilterModalVisible(false);
     setLoading(true);
-    const { data, error } = await supabase.rpc('filter_products', {
-      p_category_ids: filters.categories,
-      p_min_price: filters.priceRange[0],
-      p_max_price: filters.priceRange[1],
-      p_sort_column: filters.sortBy,
-      p_sort_direction: filters.sortDirection,
-    });
+    const { data, error } = await filterProducts(filters);
     setLoading(false);
     if (!error) {
       navigation.navigate('FilterResults', { filteredProducts: data });
     }
    };
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [
-        categoriesRes,
-        bannersRes,
-        bestSellersRes,
-        readyShowcaseRes,
-        combosRes,
-        weeklyPicksRes,
-        premiumBouquetsRes,
-        recommendedRes
-      ] = await Promise.all([
-        supabase.from('categories').select('*').order('created_at', { ascending: true }),
-        supabase.from('banners').select('*').eq('is_active', true).order('created_at', { ascending: false }),
-        supabase.rpc('get_best_sellers', { limit_count: 10 }),
-        supabase.rpc('get_products_by_category_name', { category_name_param: 'Готовая ветрина', limit_count: 10 }),
-        supabase.from('combos').select('*').eq('is_active', true).order('created_at', { ascending: false }),
-        supabase.from('products').select('*, categories(name, name_en), product_variants(*)').eq('is_weekly_pick', true).order('created_at', { ascending: false }),
-        supabase.rpc('get_products_by_category_name', { category_name_param: 'Премиум букеты', limit_count: 10 }),
-        supabase.from('products').select('*, categories(name, name_en), product_variants(*)').limit(10)
-      ]);
-
-      if (categoriesRes.error) throw categoriesRes.error;
-      setCategories(categoriesRes.data);
-
-      if (bannersRes.error) throw bannersRes.error;
-      setBanners(bannersRes.data);
-
-      if (bestSellersRes.error) throw bestSellersRes.error;
-      setBestSellers(bestSellersRes.data);
-
-      if (readyShowcaseRes.error) throw readyShowcaseRes.error;
-      setReadyShowcase(readyShowcaseRes.data);
-
-      if (combosRes.error) throw combosRes.error;
-      setCombos(combosRes.data);
-
-      if (weeklyPicksRes.error) throw weeklyPicksRes.error;
-      setWeeklyPicks(weeklyPicksRes.data);
-
-      if (premiumBouquetsRes.error) throw premiumBouquetsRes.error;
-      setPremiumBouquets(premiumBouquetsRes.data);
-      
-      if (recommendedRes.error) throw recommendedRes.error;
-      setRecommendedProducts(recommendedRes.data.sort(() => Math.random() - 0.5));
-
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
+  const fetchInitialData = useCallback(async () => {
+    setInitialLoading(true);
+    const initialData = await getHomeScreenInitialData();
+    if (initialData) {
+      setCategories(initialData.categories);
+      setBanners(initialData.banners);
     }
+    setInitialLoading(false);
   }, []);
+
+  // This effect fetches secondary data only once after the initial data is loaded
+  useEffect(() => {
+    if (!initialLoading) {
+      const fetchSecondaryData = async () => {
+        setSecondaryLoading(true);
+        const data = await getHomeScreenSecondaryData();
+        if (data) {
+          setSecondaryData(data);
+        }
+        setSecondaryLoading(false);
+      };
+      fetchSecondaryData();
+    }
+  }, [initialLoading]);
 
   useFocusEffect(
     useCallback(() => {
-      fetchData();
-    }, [fetchData])
+      // Reset and fetch initial data when screen comes into focus
+      setSecondaryData(null); // Clear old data
+      fetchInitialData();
+    }, [fetchInitialData])
   );
 
+  // Realtime updates can be simplified or made more granular if needed
   useEffect(() => {
     const channel = supabase
       .channel('public:home_screen_data')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        // On any change, refetch everything for simplicity for now
+        fetchInitialData();
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchData]);
+  }, [fetchInitialData]);
 
   const handleShopNowPress = () => {
     if (scrollViewRef.current && showcaseLayoutY.current) {
@@ -176,7 +144,7 @@ const HomeScreen = ({ navigation }) => {
     { useNativeDriver: false }
   );
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <View style={styles.container}>
         <StatusBar style="light" />
@@ -251,72 +219,24 @@ const HomeScreen = ({ navigation }) => {
          </TouchableOpacity>
        </ScrollView>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Бест Селлеры</Text>
-        {bestSellers.length > 0 ? (
-          <FlatList data={bestSellers} renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />} keyExtractor={item => `bs-${item.id}`} numColumns={2} columnWrapperStyle={styles.productRow} scrollEnabled={false} />
-        ) : (
-          <Text style={styles.emptySectionText}>Хитов продаж пока нет.</Text>
-        )}
-      </View>
-
-      <View style={styles.section} onLayout={(event) => { showcaseLayoutY.current = event.nativeEvent.layout.y; }}>
-        <Text style={styles.sectionTitle}>Готовая ветрина</Text>
-        {readyShowcase.length > 0 ? (
-          <FlatList data={readyShowcase} renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />} keyExtractor={item => `rs-${item.id}`} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }} />
-          ) : (
-            <Text style={styles.emptySectionText}>Товаров в этой категории пока нет.</Text>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Выгодные комбо</Text>
-        {combos.length > 0 ? (
-          <FlatList
-            data={combos}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.comboCard} onPress={() => navigation.navigate('Combo', { comboId: item.id })}>
-                <Image source={{ uri: item.image || 'https://placehold.co/600x400' }} style={styles.comboImage} />
-                <Text style={styles.comboName} numberOfLines={2}>{item.name}</Text>
-                <Text style={styles.comboPrice}>₸{item.price.toLocaleString()}</Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={item => `cb-${item.id}`}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 20 }}
-          />
-        ) : (
-          <Text style={styles.emptySectionText}>Комбо-наборов пока нет.</Text>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Недельная подборка</Text>
-        {weeklyPicks.length > 0 ? (
-          <FlatList data={weeklyPicks} renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />} keyExtractor={item => `wp-${item.id}`} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20 }} />
-        ) : (
-          <Text style={styles.emptySectionText}>Подборки на эту неделю пока нет.</Text>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Премиум букеты</Text>
-        {premiumBouquets.length > 0 ? (
-          <FlatList data={premiumBouquets} renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />} keyExtractor={item => `pb-${item.id}`} numColumns={2} columnWrapperStyle={styles.productRow} scrollEnabled={false} />
-        ) : (
-          <Text style={styles.emptySectionText}>Премиум букетов пока нет.</Text>
-        )}
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Рекомендовано для Вас</Text>
-        {recommendedProducts.length > 0 ? (
-          <FlatList data={recommendedProducts} renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />} keyExtractor={item => `rec-${item.id}`} numColumns={2} columnWrapperStyle={styles.productRow} scrollEnabled={false} />
-        ) : (
-          <Text style={styles.emptySectionText}>Нет рекомендованных товаров.</Text>
-        )}
-      </View>
+      {secondaryLoading ? (
+        <View style={{ paddingHorizontal: 20, marginTop: 25 }}>
+          <SkeletonLoader width={200} height={20} borderRadius={4} style={{ marginBottom: 15 }} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <SkeletonLoader width={(width - 50) / 2} height={250} borderRadius={15} />
+            <SkeletonLoader width={(width - 50) / 2} height={250} borderRadius={15} />
+          </View>
+        </View>
+      ) : (
+        <>
+          <ProductSection title="Бест Селлеры" products={secondaryData?.bestSellers} navigation={navigation} />
+          <ProductSection title="Готовая ветрина" products={secondaryData?.readyShowcase} navigation={navigation} layout="carousel" />
+          <ProductSection title="Выгодные комбо" products={secondaryData?.combos} navigation={navigation} layout="carousel" type="combo" />
+          <ProductSection title="Недельная подборка" products={secondaryData?.weeklyPicks} navigation={navigation} layout="carousel" />
+          <ProductSection title="Премиум букеты" products={secondaryData?.premiumBouquets} navigation={navigation} />
+          <ProductSection title="Рекомендовано для Вас" products={secondaryData?.recommendedProducts} navigation={navigation} />
+        </>
+      )}
      </ScrollView>
      <Modal
        animationType="slide"

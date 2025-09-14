@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../src/integrations/supabase/client';
@@ -14,19 +14,43 @@ const AdminDashboardScreen = () => {
     datasets: [{ data: [] }],
   });
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('week'); // 'week', 'month', 'year'
 
   const fetchAnalytics = async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc('get_dashboard_analytics');
+    
+    const endDate = new Date();
+    let startDate = new Date();
+    
+    if (timeRange === 'week') {
+      startDate.setDate(endDate.getDate() - 7);
+    } else if (timeRange === 'month') {
+      startDate.setMonth(endDate.getMonth() - 1);
+    } else if (timeRange === 'year') {
+      startDate.setFullYear(endDate.getFullYear() - 1);
+    }
+
+    const { data, error } = await supabase.rpc('get_dashboard_analytics', {
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString()
+    });
     if (!error) setAnalytics(data);
 
-    const { data: chartApiData, error: chartError } = await supabase.rpc('get_sales_chart_data');
-    if (!chartError) {
+    const { data: chartApiData, error: chartError } = await supabase.rpc('get_sales_chart_data', {
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString()
+    });
+    if (!chartError && chartApiData) {
       const labels = chartApiData.map(item => new Date(item.sale_day).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
       const dataPoints = chartApiData.map(item => item.total_revenue);
       setChartData({
-        labels,
-        datasets: [{ data: dataPoints }],
+        labels: labels.length > 0 ? labels : ['No Data'],
+        datasets: [{ data: dataPoints.length > 0 ? dataPoints : [0] }],
+      });
+    } else {
+      setChartData({
+        labels: ['No Data'],
+        datasets: [{ data: [0] }],
       });
     }
     setLoading(false);
@@ -35,7 +59,7 @@ const AdminDashboardScreen = () => {
   useFocusEffect(
     useCallback(() => {
       fetchAnalytics();
-    }, [])
+    }, [timeRange])
   );
 
   if (loading) {
@@ -46,6 +70,18 @@ const AdminDashboardScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <AdminHeader title="Сводка" />
+        
+        <View style={styles.timeRangeContainer}>
+          <TouchableOpacity style={[styles.timeRangeButton, timeRange === 'week' && styles.activeButton]} onPress={() => setTimeRange('week')}>
+            <Text style={[styles.timeRangeText, timeRange === 'week' && styles.activeText]}>Неделя</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.timeRangeButton, timeRange === 'month' && styles.activeButton]} onPress={() => setTimeRange('month')}>
+            <Text style={[styles.timeRangeText, timeRange === 'month' && styles.activeText]}>Месяц</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.timeRangeButton, timeRange === 'year' && styles.activeButton]} onPress={() => setTimeRange('year')}>
+            <Text style={[styles.timeRangeText, timeRange === 'year' && styles.activeText]}>Год</Text>
+          </TouchableOpacity>
+        </View>
         
         <View style={styles.grid}>
           <View style={styles.card}>
@@ -85,20 +121,44 @@ const AdminDashboardScreen = () => {
 };
 
 const chartConfig = {
-  backgroundColor: "#e26a00",
-  backgroundGradientFrom: "#fb8c00",
-  backgroundGradientTo: "#ffa726",
+  backgroundColor: "#ffffff",
+  backgroundGradientFrom: "#ffffff",
+  backgroundGradientTo: "#ffffff",
   decimalPlaces: 0,
-  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-  labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
+  color: (opacity = 1) => `rgba(255, 105, 180, ${opacity})`, // Pink color for the line
+  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`, // Black color for labels
   style: { borderRadius: 16 },
-  propsForDots: { r: "6", strokeWidth: "2", stroke: "#ffa726" }
+  propsForDots: { r: "6", strokeWidth: "2", stroke: "#FF69B4" }
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   content: { padding: 20 },
+  timeRangeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 5,
+    marginBottom: 20,
+  },
+  timeRangeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 15,
+  },
+  timeRangeText: {
+    textAlign: 'center',
+    fontWeight: '600',
+    color: '#999',
+  },
+  activeButton: {
+    backgroundColor: '#FF69B4',
+  },
+  activeText: {
+    color: '#fff',
+  },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   card: { width: '48%', backgroundColor: '#fff', borderRadius: 15, padding: 20, marginBottom: 15, alignItems: 'center' },
   cardValue: { fontSize: 22, fontWeight: 'bold', marginVertical: 8 },

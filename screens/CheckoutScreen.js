@@ -43,6 +43,23 @@ const CheckoutScreen = ({ navigation }) => {
     } else if (user) {
       setCustomerName(user.email || '');
     }
+
+    const fetchDefaultAddress = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from('addresses')
+          .select('address_line1')
+          .eq('user_id', user.id)
+          .eq('is_default', true)
+          .maybeSingle();
+        
+        if (data && data.address_line1) {
+          setCustomerAddress(data.address_line1);
+        }
+      }
+    };
+
+    fetchDefaultAddress();
   }, [profile, user]);
 
   const validateForm = () => {
