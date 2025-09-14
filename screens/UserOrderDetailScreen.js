@@ -151,6 +151,7 @@ const UserOrderDetailScreen = ({ route, navigation }) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Информация о заказе</Text>
           <Text style={styles.infoText}><Text style={styles.infoLabel}>Дата:</Text> {new Date(order.created_at).toLocaleString('ru-RU')}</Text>
+          {order.delivery_time && <Text style={styles.infoText}><Text style={styles.infoLabel}>Время доставки:</Text> {order.delivery_time}</Text>}
           <Text style={styles.infoText}><Text style={styles.infoLabel}>Способ получения:</Text> {order.delivery_method === 'delivery' ? 'Доставка' : 'Самовывоз'}</Text>
           {order.customer_address && <Text style={styles.infoText}><Text style={styles.infoLabel}>Адрес доставки:</Text> {order.customer_address}</Text>}
           <Text style={styles.infoText}><Text style={styles.infoLabel}>Способ оплаты:</Text> {order.payment_method === 'kaspi' ? 'Kaspi Перевод' : 'Наличными'}</Text>

@@ -15,8 +15,11 @@ const BasketScreen = ({ navigation }) => {
   const { showToast } = useToast();
   const [isNavigating, setIsNavigating] = useState(false);
 
-  const getSubtotal = () => cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  const getTotalPrice = () => getSubtotal() + DELIVERY_COST; // Assuming delivery is default for summary
+  const getSubtotal = () => cart.reduce((total, item) => {
+    const price = item.product_variants?.price || item.combos?.price || 0;
+    return total + price * item.quantity;
+  }, 0);
+  const getTotalPrice = () => getSubtotal() + DELIVERY_COST;
 
   const handleClearCart = () => {
     Alert.alert(
@@ -33,62 +36,54 @@ const BasketScreen = ({ navigation }) => {
   };
 
   const handleProductPress = async (item) => {
-    if (item.type === 'combo') {
-      navigation.navigate('Combo', { comboId: item.id });
-      return;
-    }
-    if (isNavigating) return;
-    setIsNavigating(true);
-    try {
-      const { data: product, error } = await supabase
-        .from('products')
-        .select('*, categories(name, name_en), product_variants(*)')
-        .eq('id', item.id)
-        .single();
-      
-      if (error) throw error;
+    const productDetails = item.product_variants?.products || item.combos;
+    if (!productDetails) return;
 
-      if (product) {
-        navigation.navigate('Product', { product });
-      } else {
-        showToast('Товар не найден', 'error');
-      }
-    } catch (error) {
-      showToast('Не удалось открыть товар', 'error');
-    } finally {
-      setIsNavigating(false);
+    if (item.combo_id) {
+      navigation.navigate('Combo', { comboId: productDetails.id });
+    } else {
+      navigation.navigate('Product', { product: productDetails });
     }
   };
 
-  const renderCartItem = ({ item }) => (
-    <TouchableOpacity onPress={() => handleProductPress(item)} activeOpacity={0.7} disabled={isNavigating}>
-      <View style={styles.cartItem}>
-        {isNavigating && <ActivityIndicator style={StyleSheet.absoluteFill} color="#FF69B4" />}
-        <Image source={{ uri: item.image }} style={styles.itemImage} />
-        <View style={styles.itemDetails}>
-          <Text style={styles.itemName} numberOfLines={1}>{item.name || item.nameRu}</Text>
-          {item.type === 'combo' ? (
-           <Text style={styles.itemSize}>Комбо-набор</Text>
-          ) : (
-           <Text style={styles.itemSize}>Размер: {item.size}</Text>
-          )}
-          <Text style={styles.itemPrice}>₸{item.price.toLocaleString()}</Text>
-        </View>
-        <View style={styles.quantityControl}>
-          <TouchableOpacity onPress={() => updateItemQuantity(item.cartItemId, item.quantity - 1)}>
-            <Ionicons name="remove-circle-outline" size={28} color="#FF69B4" />
+  const renderCartItem = ({ item }) => {
+    const productDetails = item.product_variants?.products || item.combos;
+    const variantDetails = item.product_variants;
+    const price = variantDetails?.price || productDetails?.price || 0;
+
+    if (!productDetails) {
+      return <View style={styles.cartItem}><Text>Товар не найден</Text></View>;
+    }
+
+    return (
+      <TouchableOpacity onPress={() => handleProductPress(item)} activeOpacity={0.7}>
+        <View style={styles.cartItem}>
+          <Image source={{ uri: item.combos?.image || item.product_variants?.products?.image }} style={styles.itemImage} />
+          <View style={styles.itemDetails}>
+            <Text style={styles.itemName} numberOfLines={1}>{productDetails.name}</Text>
+            {item.combo_id ? (
+              <Text style={styles.itemSize}>Комбо-набор</Text>
+            ) : (
+              <Text style={styles.itemSize}>Размер: {variantDetails?.size}</Text>
+            )}
+            <Text style={styles.itemPrice}>₸{price.toLocaleString()}</Text>
+          </View>
+          <View style={styles.quantityControl}>
+            <TouchableOpacity onPress={() => updateItemQuantity(item.id, item.quantity - 1)}>
+              <Ionicons name="remove-circle-outline" size={28} color="#FF69B4" />
+            </TouchableOpacity>
+            <Text style={styles.quantityText}>{item.quantity}</Text>
+            <TouchableOpacity onPress={() => updateItemQuantity(item.id, item.quantity + 1)}>
+              <Ionicons name="add-circle-outline" size={28} color="#FF69B4" />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.deleteButton} onPress={() => removeFromCart(item.id)}>
+            <Ionicons name="trash-outline" size={24} color="#999" />
           </TouchableOpacity>
-          <Text style={styles.quantityText}>{item.quantity}</Text>
-          <TouchableOpacity onPress={() => updateItemQuantity(item.cartItemId, item.quantity + 1)}>
-            <Ionicons name="add-circle-outline" size={28} color="#FF69B4" />
-          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.deleteButton} onPress={() => removeFromCart(item.cartItemId)}>
-          <Ionicons name="trash-outline" size={24} color="#999" />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -115,7 +110,7 @@ const BasketScreen = ({ navigation }) => {
           <FlatList
             data={cart}
             renderItem={renderCartItem}
-            keyExtractor={item => item.cartItemId}
+            keyExtractor={item => item.id.toString()}
             contentContainerStyle={styles.listContainer}
           />
           <View style={styles.fixedFooter}>

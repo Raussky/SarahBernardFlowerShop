@@ -46,7 +46,9 @@
     "uuid": "^13.0.0"
   },
   "devDependencies": {
+    "@types/react": "~19.1.10",
     "babel-preset-expo": "^54.0.1",
-    "react-native-dotenv": "^3.4.11"
+    "react-native-dotenv": "^3.4.11",
+    "typescript": "~5.9.2"
   }
 }

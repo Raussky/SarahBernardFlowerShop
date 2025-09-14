@@ -1,0 +1,4 @@
+# Supabase project configuration
+
+[functions.order-cancellation-notifier]
+  

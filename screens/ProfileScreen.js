@@ -14,14 +14,12 @@ const ProfileScreen = ({ navigation }) => {
     const { error } = await signOut();
     if (error) {
       Alert.alert('Ошибка выхода', error.message);
-    } else {
-      showToast('Вы успешно вышли', 'info');
     }
+    // Always show toast on sign out attempt, as the user is effectively logged out.
+    showToast('Вы успешно вышли', 'info');
   };
 
-  const displayName = profile?.first_name && profile?.last_name 
-    ? `${profile.first_name} ${profile.last_name}` 
-    : user?.email || 'Гость';
+  const displayName = profile?.first_name || user?.email || 'Гость';
   
   const displayAvatarLetter = profile?.first_name 
     ? profile.first_name.charAt(0).toUpperCase() 
@@ -43,7 +41,7 @@ const ProfileScreen = ({ navigation }) => {
             )}
           </View>
           <Text style={styles.storeName}>{displayName}</Text>
-          <Text style={styles.storeDescription}>Магазин цветов</Text>
+          {profile?.phone && <Text style={styles.storeDescription}>{profile.phone}</Text>}
         </View>
 
         <View style={styles.menuGroup}>

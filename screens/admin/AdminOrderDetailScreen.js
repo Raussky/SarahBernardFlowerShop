@@ -99,6 +99,10 @@ const AdminOrderDetailScreen = ({ route, navigation }) => {
             <Text style={styles.detailValue}>{new Date(order.created_at).toLocaleString('ru-RU')}</Text>
           </View>
           <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Время доставки</Text>
+            <Text style={styles.detailValue}>{order.delivery_time || 'Не указано'}</Text>
+          </View>
+          <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Сумма</Text>
             <Text style={styles.detailValue}>₸{order.total_price.toLocaleString()}</Text>
           </View>
@@ -116,7 +120,7 @@ const AdminOrderDetailScreen = ({ route, navigation }) => {
           </View>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Адрес</Text>
-            <Text style={styles.detailValue}>{order.shipping_address}</Text>
+            <Text style={styles.detailValue}>{order.customer_address}</Text>
           </View>
         </View>
 

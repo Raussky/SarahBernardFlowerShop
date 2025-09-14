@@ -37,6 +37,7 @@ const ProductScreen = ({ navigation, route }) => {
 
   const addToCartButtonScale = useRef(new Animated.Value(1)).current;
   const scrollX = useRef(new Animated.Value(0)).current;
+  const variantScales = useRef({}).current;
 
   const handleAddToCartPressIn = () => {
     Animated.spring(addToCartButtonScale, { toValue: 0.95, useNativeDriver: true }).start();
@@ -246,33 +247,37 @@ const ProductScreen = ({ navigation, route }) => {
               <Text style={styles.sectionTitle}>Варианты</Text>
              <View style={styles.variantsContainer}>
                {(product?.product_variants || []).map((variant) => {
-                 const variantScale = useRef(new Animated.Value(1)).current;
-
-                 const handleVariantPressIn = () => {
-                   Animated.spring(variantScale, { toValue: 0.9, useNativeDriver: true }).start();
-                 };
-
-                 const handleVariantPressOut = () => {
-                   Animated.spring(variantScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
-                 };
-
-                 return (
-                   <TouchableOpacity
-                     key={variant.id}
-                     onPress={() => setSelectedVariant(variant)}
-                     onPressIn={handleVariantPressIn}
-                     onPressOut={handleVariantPressOut}
-                     disabled={variant.stock_quantity <= 0}
-                     activeOpacity={0.9}
-                   >
-                     <Animated.View
-                       style={[
-                         styles.sizeButton,
-                         selectedVariant?.id === variant.id && styles.selectedSize,
-                         variant.stock_quantity <= 0 && styles.disabledSize,
-                         { transform: [{ scale: variantScale }] }
-                       ]}
-                     >
+                 // Ensure a ref exists for each variant
+                 if (!variantScales[variant.id]) {
+                   variantScales[variant.id] = new Animated.Value(1);
+                 }
+                 const variantScale = variantScales[variant.id];
+ 
+                  const handleVariantPressIn = () => {
+                    Animated.spring(variantScale, { toValue: 0.9, useNativeDriver: true }).start();
+                  };
+ 
+                  const handleVariantPressOut = () => {
+                    Animated.spring(variantScale, { toValue: 1, friction: 3, tension: 40, useNativeDriver: true }).start();
+                  };
+ 
+                  return (
+                    <TouchableOpacity
+                      key={variant.id}
+                      onPress={() => setSelectedVariant(variant)}
+                      onPressIn={handleVariantPressIn}
+                      onPressOut={handleVariantPressOut}
+                      disabled={variant.stock_quantity <= 0}
+                      activeOpacity={0.9}
+                    >
+                      <Animated.View
+                        style={[
+                          styles.sizeButton,
+                          selectedVariant?.id === variant.id && styles.selectedSize,
+                          variant.stock_quantity <= 0 && styles.disabledSize,
+                          { transform: [{ scale: variantScale }] }
+                        ]}
+                      >
                        <Text style={[
                          styles.sizeText,
                          selectedVariant?.id === variant.id && styles.selectedSizeText,

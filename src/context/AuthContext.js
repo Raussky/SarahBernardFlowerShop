@@ -86,7 +86,9 @@ export const AuthProvider = ({ children }) => {
       }
       
       // In case of success (error is null) or AuthSessionMissingError,
-      // we consider the sign-out successful from the UI perspective.
+      // we manually clear the session and profile to ensure the UI updates.
+      setSession(null);
+      setProfile(null);
       return { error: null };
     },
     refreshProfile,

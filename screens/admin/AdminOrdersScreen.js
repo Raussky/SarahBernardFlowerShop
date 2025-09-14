@@ -26,7 +26,7 @@ const AdminOrdersScreen = ({ navigation }) => {
   const [hasMore, setHasMore] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('pending');
   const [searchQuery, setSearchQuery] = useState('');
   const [sort, setSort] = useState({ column: 'created_at', ascending: false });
   const isFocused = useIsFocused();

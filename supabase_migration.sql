@@ -1,67 +1,25 @@
-CREATE OR REPLACE FUNCTION get_products_by_category_sorted(
-  p_category_id BIGINT,
-  sort_column TEXT,
-  sort_direction TEXT,
-  min_price NUMERIC DEFAULT NULL,
-  max_price NUMERIC DEFAULT NULL
-)
-RETURNS TABLE (
-  -- columns from products table
-  id BIGINT,
-  created_at TIMESTAMPTZ,
-  name TEXT,
-  name_ru TEXT,
-  description TEXT,
-  description_ru TEXT,
-  image TEXT,
-  category_id BIGINT,
-  purchase_count INT,
-  -- nested product_variants
-  product_variants JSONB
-) AS $$
-BEGIN
-  RETURN QUERY
-  SELECT
-    p.id,
-    p.created_at,
-    p.name,
-    p.name_ru,
-    p.description,
-    p.description_ru,
-    p.image,
-    p.category_id,
-    p.purchase_count,
-    (
-      SELECT jsonb_agg(pv)
-      FROM product_variants pv
-      WHERE pv.product_id = p.id
-    ) AS product_variants
-  FROM
-    products p
-  WHERE
-    p.category_id = p_category_id
-    AND (
-      min_price IS NULL OR EXISTS (
-        SELECT 1
-        FROM product_variants pv
-        WHERE pv.product_id = p.id AND pv.price >= min_price
-      )
-    )
-    AND (
-      max_price IS NULL OR EXISTS (
-        SELECT 1
-        FROM product_variants pv
-        WHERE pv.product_id = p.id AND pv.price <= max_price
-      )
-    )
-  ORDER BY
-    CASE
-      WHEN sort_column = 'created_at' AND sort_direction = 'DESC' THEN p.created_at END DESC,
-      WHEN sort_column = 'created_at' AND sort_direction = 'ASC' THEN p.created_at END ASC,
-      WHEN sort_column = 'name' AND sort_direction = 'DESC' THEN p.name END DESC,
-      WHEN sort_column = 'name' AND sort_direction = 'ASC' THEN p.name END ASC,
-      WHEN sort_column = 'purchase_count' AND sort_direction = 'DESC' THEN p.purchase_count END DESC,
-      WHEN sort_column = 'purchase_count' AND sort_direction = 'ASC' THEN p.purchase_count END ASC
-  ;
-END;
-$$ LANGUAGE plpgsql;
+-- First, create the function that will be called by the trigger.
+create or replace function public.handle_order_cancellation()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  -- Check if the status was changed to 'cancelled'
+  if new.status = 'cancelled' and old.status != 'cancelled' then
+    -- Asynchronously invoke the Edge Function
+    perform net.http_post(
+      url:='https://<YOUR-PROJECT-REF>.supabase.co/functions/v1/order-cancellation-notifier',
+      headers:='{"Content-Type": "application/json", "Authorization": "Bearer <YOUR-SUPABASE-ANON-KEY>"}'::jsonb,
+      body:=jsonb_build_object('record', new)
+    );
+  end if;
+  return new;
+end;
+$$;
+
+-- Then, create the trigger on the 'orders' table.
+create trigger on_order_cancelled
+  after update on public.orders
+  for each row
+  execute function public.handle_order_cancellation();

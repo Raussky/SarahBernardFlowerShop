@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
+import MaskInput from 'react-native-mask-input';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
@@ -21,7 +22,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   
@@ -29,7 +30,7 @@ const LoginScreen = ({ navigation }) => {
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [firstNameError, setFirstNameError] = useState('');
-  const [lastNameError, setLastNameError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   const { showToast } = useToast();
 
@@ -55,6 +56,12 @@ const LoginScreen = ({ navigation }) => {
   const validatePassword = (password) => {
     if (!password) return 'Пароль не может быть пустым.';
     if (password.length < 6) return 'Пароль должен быть не менее 6 символов.';
+    return '';
+  };
+
+  const validatePhone = (phone) => {
+    if (!phone) return 'Телефон не может быть пустым.';
+    if (phone.replace(/\D/g, '').length < 10) return 'Введите корректный номер телефона.';
     return '';
   };
 
@@ -94,7 +101,7 @@ const LoginScreen = ({ navigation }) => {
     setPasswordError('');
     setConfirmPasswordError('');
     setFirstNameError('');
-    setLastNameError('');
+    setPhoneError('');
 
     let hasError = false;
 
@@ -102,8 +109,9 @@ const LoginScreen = ({ navigation }) => {
       setFirstNameError('Имя не может быть пустым.');
       hasError = true;
     }
-    if (!lastName) {
-      setLastNameError('Фамилия не может быть пустой.');
+    const phoneValidation = validatePhone(phone);
+    if (phoneValidation) {
+      setPhoneError(phoneValidation);
       hasError = true;
     }
  
@@ -133,7 +141,7 @@ const LoginScreen = ({ navigation }) => {
       options: {
         data: {
           first_name: firstName,
-          last_name: lastName,
+          phone: phone,
         },
       },
     });
@@ -229,12 +237,23 @@ const LoginScreen = ({ navigation }) => {
                   </View>
                   {!!firstNameError && <Text style={styles.errorText}>{firstNameError}</Text>}
                 </View>
-                <View style={[styles.inputWrapper, lastNameError ? styles.inputWrapperError : {}]}>
+                <View style={[styles.inputWrapper, phoneError ? styles.inputWrapperError : {}]}>
                   <View style={styles.inputContainer}>
-                    <Ionicons name="person-outline" size={20} color="#999" style={styles.inputIcon} />
-                    <TextInput style={styles.input} placeholder="Фамилия" value={lastName} onChangeText={(text) => { setLastName(text); setLastNameError(''); }} autoCapitalize="words" placeholderTextColor="#999" />
+                    <Ionicons name="call-outline" size={20} color="#999" style={styles.inputIcon} />
+                    <MaskInput
+                      style={styles.input}
+                      value={phone}
+                      onChangeText={(masked, unmasked) => {
+                        setPhone(masked); // or unmasked
+                        setPhoneError('');
+                      }}
+                      mask={['+', '7', ' ', '(', /\d/, /\d/, /\d/, ')', ' ', /\d/, /\d/, /\d/, '-', /\d/, /\d/, '-', /\d/, /\d/]}
+                      placeholder="+7 (___) ___-__-__"
+                      keyboardType="phone-pad"
+                      placeholderTextColor="#999"
+                    />
                   </View>
-                  {!!lastNameError && <Text style={styles.errorText}>{lastNameError}</Text>}
+                  {!!phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
                 </View>
               </>
             )}
