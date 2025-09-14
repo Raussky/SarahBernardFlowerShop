@@ -86,7 +86,7 @@ const AllCategoriesScreen = ({ navigation }) => {
           )}
           keyExtractor={(_, index) => index.toString()}
           numColumns={2}
-          // columnWrapperStyle={styles.categoryRow} // Removed
+          columnWrapperStyle={styles.categoryRow} // Removed
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
@@ -141,22 +141,18 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  listContent: {
-    paddingHorizontal: 15,
+  listContent: { 
     paddingVertical: 15,
-    marginLeft: 25,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: '20'
+    paddingHorizontal: 50, // Use padding for spacing
+    paddingTop: 15,
   },
   categoryRow: {
-    marginLeft: 25,
+    justifyContent: 'space-around', // Distribute items evenly in the row
   },
   categoryItem: {
-    width: '180',
-    height: '180',
-     // Fixed width for each item
+    width: '70%', // Use percentage for responsive width
+    aspectRatio: 1, // Maintain a square shape
+    marginHorizontal: -10,
     marginBottom: 25, // Space between rows
     backgroundColor: '#f9f9f9',
     borderRadius: 15,
