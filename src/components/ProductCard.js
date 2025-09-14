@@ -1,5 +1,6 @@
 import React, { useContext, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../context/CartContext';
 import { useToast } from './ToastProvider';
@@ -81,7 +82,7 @@ const ProductCard = ({ product, navigation }) => {
           activeOpacity={0.9}
           disabled={isOutOfStock}
         >
-            <Image ref={imageRef} source={{ uri: product.image }} style={styles.productImage} />
+            <Image ref={imageRef} source={{ uri: product.image }} style={styles.productImage} transition={300} />
           {isOutOfStock && (
             <View style={styles.outOfStockOverlay}>
               <Text style={styles.outOfStockText}>Нет в наличии</Text>

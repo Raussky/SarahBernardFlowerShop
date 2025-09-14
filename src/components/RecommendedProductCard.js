@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 const RecommendedProductCard = ({ item, onAddToCart }) => {
@@ -9,7 +10,7 @@ const RecommendedProductCard = ({ item, onAddToCart }) => {
 
   return (
     <View style={styles.card}>
-      <Image source={{ uri: item.image }} style={styles.image} />
+      <Image source={{ uri: item.image }} style={styles.image} transition={300} />
       <Text style={styles.name} numberOfLines={1}>{item.name || item.name_ru}</Text>
       <View style={styles.bottomRow}>
         <Text style={styles.price}>₸{displayPrice.toLocaleString()}</Text>

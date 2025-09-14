@@ -199,11 +199,26 @@ const LoginScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.formTitle}>
-              {authMode === 'login' && 'Вход в систему'}
-              {authMode === 'signup' && 'Регистрация'}
-              {authMode === 'magiclink' && 'Вход по ссылке'}
-            </Text>
+            <View style={styles.authToggle}>
+              <TouchableOpacity
+                style={[styles.toggleButton, authMode === 'login' && styles.toggleButtonActive]}
+                onPress={() => setAuthMode('login')}
+              >
+                <Text style={[styles.toggleButtonText, authMode === 'login' && styles.toggleButtonTextActive]}>Вход</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleButton, authMode === 'signup' && styles.toggleButtonActive]}
+                onPress={() => setAuthMode('signup')}
+              >
+                <Text style={[styles.toggleButtonText, authMode === 'signup' && styles.toggleButtonTextActive]}>Регистрация</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.toggleButton, authMode === 'magiclink' && styles.toggleButtonActive]}
+                onPress={() => setAuthMode('magiclink')}
+              >
+                <Text style={[styles.toggleButtonText, authMode === 'magiclink' && styles.toggleButtonTextActive]}>По ссылке</Text>
+              </TouchableOpacity>
+            </View>
 
             {authMode === 'signup' && (
               <>
@@ -232,18 +247,18 @@ const LoginScreen = ({ navigation }) => {
               {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
 
-           {authMode !== 'magiclink' && (
-             <View style={[styles.inputWrapper, passwordError ? styles.inputWrapperError : {}]}>
-               <View style={styles.inputContainer}>
-                 <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
-                 <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={(text) => { setPassword(text); setPasswordError(''); }} secureTextEntry={!showPassword} placeholderTextColor="#999" />
-                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                   <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#999" />
-                 </TouchableOpacity>
-               </View>
-               {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
-             </View>
-           )}
+            {authMode !== 'magiclink' && (
+              <View style={[styles.inputWrapper, passwordError ? styles.inputWrapperError : {}]}>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
+                  <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={(text) => { setPassword(text); setPasswordError(''); }} secureTextEntry={!showPassword} placeholderTextColor="#999" />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                    <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#999" />
+                  </TouchableOpacity>
+                </View>
+                {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+              </View>
+            )}
 
             {authMode === 'signup' && (
               <View style={[styles.inputWrapper, confirmPasswordError ? styles.inputWrapperError : {}]}>
@@ -266,24 +281,6 @@ const LoginScreen = ({ navigation }) => {
                 </Text>
               )}
             </TouchableOpacity>
-
-           {authMode === 'login' && (
-             <View style={styles.footerContainer}>
-               <TouchableOpacity onPress={() => setAuthMode('magiclink')}>
-                 <Text style={styles.footerLink}>Войти по ссылке</Text>
-               </TouchableOpacity>
-               <View style={styles.footerSeparator} />
-               <TouchableOpacity onPress={() => setAuthMode('signup')}>
-                 <Text style={styles.footerLink}>Регистрация</Text>
-               </TouchableOpacity>
-             </View>
-           )}
-
-           {authMode !== 'login' && (
-             <TouchableOpacity onPress={() => setAuthMode('login')}>
-               <Text style={styles.footerLink}>Назад ко входу</Text>
-             </TouchableOpacity>
-           )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -302,7 +299,30 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 5 },
   subtitle: { fontSize: 16, color: '#666' },
   form: { flex: 1 },
-  formTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },
+  authToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 25,
+    marginBottom: 25,
+    padding: 5,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 20,
+    alignItems: 'center',
+  },
+  toggleButtonActive: {
+    backgroundColor: '#FF69B4',
+  },
+  toggleButtonText: {
+    color: '#666',
+    fontWeight: '600',
+  },
+  toggleButtonTextActive: {
+    color: '#fff',
+  },
   inputWrapper: { marginBottom: 15 },
   inputWrapperError: { marginBottom: 5 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f5f5', borderRadius: 12, paddingHorizontal: 15, height: 55, borderWidth: 1, borderColor: '#f5f5f5' },
@@ -311,11 +331,8 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 16, color: '#333' },
   errorText: { color: '#FF0000', fontSize: 12, marginTop: 5, marginLeft: 15 },
   submitButton: { backgroundColor: '#FF69B4', borderRadius: 25, paddingVertical: 15, alignItems: 'center', marginBottom: 20, marginTop: 10 },
-  submitButtonDisabled: { backgroundColor: '#FF69B4', opacity: 0.6 }, // Добавлен стиль для заблокированной кнопки
+  submitButtonDisabled: { backgroundColor: '#FF69B4', opacity: 0.6 },
   submitButtonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  footerContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 20, marginBottom: 30 },
-  footerLink: { color: '#666', fontWeight: '600', fontSize: 14 },
-  footerSeparator: { height: 15, width: 1, backgroundColor: '#ccc', marginHorizontal: 15 },
 });
 
 export default LoginScreen;

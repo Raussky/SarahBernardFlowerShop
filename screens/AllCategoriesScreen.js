@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
@@ -51,7 +52,9 @@ const AllCategoriesScreen = ({ navigation }) => {
             {item.image_url ? (
               <Image
                 source={{ uri: item.image_url }}
+                placeholder={{ uri: 'https://via.placeholder.com/120' }}
                 style={styles.categoryImage}
+                transition={300}
               />
             ) : (
               <Text style={styles.categoryEmoji}>{item.icon || '💐'}</Text>
@@ -70,20 +73,20 @@ const AllCategoriesScreen = ({ navigation }) => {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-          <SkeletonLoader width={150} height={20} borderRadius={4} />
+          <SkeletonLoader width={70} height={70} borderRadius={35} style={{ marginBottom: 8 }} />
           <View style={{ width: 24 }} />
         </View>
         <FlatList
           data={[...Array(8)]} // Placeholder for skeleton
-          renderItem={() => (
+          renderItem={({ item, index }) => (
             <View style={styles.categoryItemSkeleton}>
               <SkeletonLoader width={70} height={70} borderRadius={35} style={{ marginBottom: 8 }} />
               <SkeletonLoader width={80} height={12} borderRadius={4} />
             </View>
           )}
           keyExtractor={(_, index) => index.toString()}
-          numColumns={3}
-          columnWrapperStyle={styles.categoryRow}
+          numColumns={2}
+          // columnWrapperStyle={styles.categoryRow} // Removed
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
@@ -105,8 +108,8 @@ const AllCategoriesScreen = ({ navigation }) => {
         data={categories}
         renderItem={renderCategoryItem}
         keyExtractor={item => item.id.toString()}
-        numColumns={3}
-        columnWrapperStyle={styles.categoryRow}
+        numColumns={2} // Keep numColumns for FlatList internal logic, but rely on flexWrap for visual layout
+        // columnWrapperStyle={styles.categoryRow} // Removed
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
@@ -139,45 +142,69 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     paddingVertical: 15,
+    marginLeft: 25,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: '20'
   },
   categoryRow: {
-    justifyContent: 'space-around',
-    marginBottom: 15,
+    marginLeft: 25,
   },
   categoryItem: {
+    width: '180',
+    height: '180',
+     // Fixed width for each item
+    marginBottom: 25, // Space between rows
+    backgroundColor: '#f9f9f9',
+    borderRadius: 15,
     alignItems: 'center',
-    width: '30%', // Adjust for 3 columns with spacing
-    marginHorizontal: 5,
+    paddingVertical: 20,
+    paddingHorizontal: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 3,
   },
   categoryIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginBottom: 8,
-    overflow: 'hidden',
-    backgroundColor: '#FFE4E1',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    overflow: 'hidden',
   },
   categoryImage: {
-    width: '100%',
-    height: '100%',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   categoryEmoji: {
-    fontSize: 30,
+    fontSize: 35,
   },
   categoryName: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
     textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: '100%',
   },
   categoryItemSkeleton: {
+    width: '45%',
     alignItems: 'center',
-    width: '30%',
-    marginHorizontal: 5,
-    marginBottom: 15,
+    paddingVertical: 15,
+    minHeight: 125,
   },
   emptyContainer: {
     flex: 1,

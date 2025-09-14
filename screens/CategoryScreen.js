@@ -15,13 +15,16 @@ import { supabase } from '../src/integrations/supabase/client';
 import ProductCard from '../src/components/ProductCard';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 import { FONTS } from '../src/config/theme';
+import FilterModal from '../src/components/FilterModal';
 
 const CategoryScreen = ({ navigation, route }) => {
   const { category } = route.params;
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortOption, setSortOption] = useState({ column: 'created_at', ascending: false, label: 'По новизне' });
+  const [filterOptions, setFilterOptions] = useState({ minPrice: '', maxPrice: '' });
 
   const sortOptions = [
     { column: 'created_at', ascending: false, label: 'По новизне' },
@@ -35,22 +38,33 @@ const CategoryScreen = ({ navigation, route }) => {
   const fetchProducts = useCallback(async () => {
     if (!category?.id) return;
 
-    // To sort by a value in a related table (price in product_variants),
-    // we need to use a Postgres function (RPC).
-    // This function will fetch products and sort them correctly in the database.
-    const rpcFn = 'get_products_by_category_sorted';
-    
     try {
-      const { data, error } = await supabase.rpc(rpcFn, {
-        p_category_id: category.id,
-        sort_column: sortOption.column,
-        sort_direction: sortOption.ascending ? 'ASC' : 'DESC'
-      });
+      setLoading(true);
+      let query = supabase
+        .from('products')
+        .select('*, categories(name, name_en), product_variants(*)')
+        .eq('category_id', category.id);
+
+      if (filterOptions.minPrice) {
+        query = query.gte('product_variants.price', parseFloat(filterOptions.minPrice));
+      }
+      if (filterOptions.maxPrice) {
+        query = query.lte('product_variants.price', parseFloat(filterOptions.maxPrice));
+      }
+
+      // Handle sorting
+      if (sortOption.column === 'product_variants.price') {
+        // For sorting by price, we need to join and order by the variant's price
+        // This is a simplified approach and might need more complex handling for multiple variants per product
+        query = query.order('product_variants.price', { ascending: sortOption.ascending });
+      } else {
+        query = query.order(sortOption.column, { ascending: sortOption.ascending });
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
-      // The RPC function is expected to return data in the same shape as the previous query.
-      // Supabase automatically nests the related records.
       setProducts(data);
 
     } catch (error) {
@@ -58,7 +72,7 @@ const CategoryScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  }, [category, sortOption]);
+  }, [category, sortOption, filterOptions]);
 
  useFocusEffect(
    useCallback(() => {
@@ -82,6 +96,10 @@ const CategoryScreen = ({ navigation, route }) => {
   const handleSortSelect = (option) => {
     setSortOption(option);
     setSortModalVisible(false);
+  };
+
+  const handleApplyFilter = (filters) => {
+    setFilterOptions(filters);
   };
 
   if (loading) {
@@ -134,7 +152,7 @@ const CategoryScreen = ({ navigation, route }) => {
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{category.name || category.name_en}</Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => setFilterModalVisible(true)}>
           <Ionicons name="filter-outline" size={24} color="#333" />
         </TouchableOpacity>
       </View>
@@ -204,6 +222,11 @@ const CategoryScreen = ({ navigation, route }) => {
           </View>
         </TouchableOpacity>
       </Modal>
+      <FilterModal
+        visible={filterModalVisible}
+        onClose={() => setFilterModalVisible(false)}
+        onApply={handleApplyFilter}
+      />
     </SafeAreaView>
   );
 };

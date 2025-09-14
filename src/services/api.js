@@ -221,23 +221,21 @@ export const updateCategoryPositions = async (positions) => {
  * @param {string} searchTerm - The term to search for.
  */
 export const searchProducts = async (searchTerm) => {
-    const { data, error } = await supabase.rpc('search_products', { search_term: searchTerm });
-    if (error) {
-        console.error("Error searching products:", error);
-    }
-    // The RPC function returns full product objects, but we might need to fetch relations separately
-    // For now, let's assume the RPC is extended to return variants and categories, or we do it here.
-    // A simple solution is to re-fetch full data for the found IDs.
-    if (data && data.length > 0) {
-        const productIds = data.map(p => p.id);
-        const { data: fullData, error: fetchError } = await supabase
+    try {
+        const { data, error } = await supabase
             .from('products')
             .select('*, categories(name, name_en), product_variants(*)')
-            .in('id', productIds);
-        if (fetchError) return { data: null, error: fetchError };
-        return { data: fullData, error: null };
+            .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`); // Search in name and description
+
+        if (error) {
+            console.error("Error searching products:", error);
+            return { data: null, error };
+        }
+        return { data, error: null };
+    } catch (error) {
+        console.error("Unexpected error during product search:", error);
+        return { data: null, error };
     }
-    return { data, error };
 };
 
 /**
