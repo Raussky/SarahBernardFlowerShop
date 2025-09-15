@@ -7,16 +7,23 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "imageWidth": 200
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Разрешить $(PRODUCT_NAME) доступ к вашей фотогалерее для выбора изображений товаров.",
-        "NSCameraUsageDescription": "Разрешить $(PRODUCT_NAME) доступ к вашей камере для съемки фотографий товаров."
+        "NSCameraUsageDescription": "Разрешить $(PRODUCT_NAME) доступ к вашей камере для съемки фотографий товаров.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.anonymous.SarahBernardFlowerShop"
     },
@@ -34,6 +41,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "616c0d80-60c4-46c3-953a-af8c71ab01cc"
+      }
     }
   }
 }
