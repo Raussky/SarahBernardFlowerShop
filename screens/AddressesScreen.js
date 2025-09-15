@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator }
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { setDefaultAddress } from '../src/services/api';
+import { setDefaultAddress } from '../src/services/addressService';
 import { supabase } from '../src/integrations/supabase/client';
 import { useAuth } from '../src/context/AuthContext';
 import { useToast } from '../src/components/ToastProvider';

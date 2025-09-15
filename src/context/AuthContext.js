@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../integrations/supabase/client';
+import { useToast } from '../components/ToastProvider';
 
 export const AuthContext = createContext();
 
@@ -7,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { showToast } = useToast();
 
   useEffect(() => {
     const fetchSessionAndProfile = async () => {
@@ -92,6 +94,9 @@ export const AuthProvider = ({ children }) => {
       return { error: null };
     },
     refreshProfile,
+    showAuthError: (message) => {
+      showToast(message || 'Для этого действия требуется авторизация.', 'error');
+    },
   };
 
   return (

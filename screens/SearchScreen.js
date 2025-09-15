@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { searchProducts } from '../src/services/api';
+import { searchProducts } from '../src/services/productService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProductCard from '../src/components/ProductCard';
 import { Ionicons } from '@expo/vector-icons';

@@ -151,10 +151,10 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <CartProvider>
-          <AnimationProvider>
-            <ToastProvider>
+      <ToastProvider>
+        <AuthProvider>
+          <CartProvider>
+            <AnimationProvider>
               <NavigationContainer>
                 <Stack.Navigator screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="Main" component={MainTabs} />
@@ -178,10 +178,10 @@ export default function App() {
                   <Stack.Screen name="FilterResults" component={FilterResultsScreen} />
                 </Stack.Navigator>
               </NavigationContainer>
-            </ToastProvider>
-          </AnimationProvider>
-        </CartProvider>
-      </AuthProvider>
+            </AnimationProvider>
+          </CartProvider>
+        </AuthProvider>
+      </ToastProvider>
     </GestureHandlerRootView>
   );
 }

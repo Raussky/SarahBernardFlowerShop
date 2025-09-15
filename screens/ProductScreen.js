@@ -16,7 +16,7 @@ import { CartContext } from '../src/context/CartContext';
 import { useToast } from '../src/components/ToastProvider';
 import { LinearGradient } from 'expo-linear-gradient';
 import { supabase } from '../src/integrations/supabase/client';
-import { getProductDetails, getRecommendedProducts } from '../src/services/api';
+import { getProductDetails, getRecommendedProducts } from '../src/services/productService';
 import RecommendedProductCard from '../src/components/RecommendedProductCard';
 import { FONTS } from '../src/config/theme';
 

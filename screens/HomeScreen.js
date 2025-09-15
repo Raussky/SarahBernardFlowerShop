@@ -14,13 +14,15 @@ import {
   Animated,
   Modal,
   TouchableWithoutFeedback,
+  RefreshControl,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../src/integrations/supabase/client';
-import { getHomeScreenInitialData, getHomeScreenSecondaryData, filterProducts } from '../src/services/api';
+import { getHomeScreenData } from '../src/services/homeService';
+import { filterProducts } from '../src/services/productService';
 import ProductSection from '../src/components/ProductSection';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 import MainBanner from '../src/components/MainBanner';
@@ -29,14 +31,16 @@ import { FONTS } from '../src/config/theme';
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
-  // State for initial data
-  const [categories, setCategories] = useState([]);
-  const [banners, setBanners] = useState([]);
-  const [initialLoading, setInitialLoading] = useState(true);
-
-  // State for secondary (lazy-loaded) data
-  const [secondaryData, setSecondaryData] = useState(null);
-  const [secondaryLoading, setSecondaryLoading] = useState(true);
+  const [homeData, setHomeData] = useState({
+    categories: [],
+    banners: [],
+    bestSellers: [],
+    readyShowcase: [],
+    combos: [],
+    weeklyPicks: [],
+    premiumBouquets: [],
+  });
+  const [loading, setLoading] = useState(true);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [priceRange, setPriceRange] = useState([0, 50000]);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -45,6 +49,7 @@ const HomeScreen = ({ navigation }) => {
   const scrollX = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef(null);
   const showcaseLayoutY = useRef(0);
+
   const handleFilterApply = async (filters) => {
     setFilterModalVisible(false);
     setLoading(true);
@@ -53,55 +58,33 @@ const HomeScreen = ({ navigation }) => {
     if (!error) {
       navigation.navigate('FilterResults', { filteredProducts: data });
     }
-   };
+  };
 
-  const fetchInitialData = useCallback(async () => {
-    setInitialLoading(true);
-    const initialData = await getHomeScreenInitialData();
-    if (initialData) {
-      setCategories(initialData.categories);
-      setBanners(initialData.banners);
-    }
-    setInitialLoading(false);
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    const data = await getHomeScreenData();
+    if (data) setHomeData(data);
+    setLoading(false);
   }, []);
-
-  // This effect fetches secondary data only once after the initial data is loaded
-  useEffect(() => {
-    if (!initialLoading) {
-      const fetchSecondaryData = async () => {
-        setSecondaryLoading(true);
-        const data = await getHomeScreenSecondaryData();
-        if (data) {
-          setSecondaryData(data);
-        }
-        setSecondaryLoading(false);
-      };
-      fetchSecondaryData();
-    }
-  }, [initialLoading]);
 
   useFocusEffect(
     useCallback(() => {
-      // Reset and fetch initial data when screen comes into focus
-      setSecondaryData(null); // Clear old data
-      fetchInitialData();
-    }, [fetchInitialData])
+      loadData();
+    }, [loadData])
   );
 
-  // Realtime updates can be simplified or made more granular if needed
   useEffect(() => {
     const channel = supabase
       .channel('public:home_screen_data')
       .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-        // On any change, refetch everything for simplicity for now
-        fetchInitialData();
+        loadData();
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchInitialData]);
+  }, [loadData]);
 
   const handleShopNowPress = () => {
     if (scrollViewRef.current && showcaseLayoutY.current) {
@@ -144,7 +127,7 @@ const HomeScreen = ({ navigation }) => {
     { useNativeDriver: false }
   );
 
-  if (initialLoading) {
+  if (loading) {
     return (
       <View style={styles.container}>
         <StatusBar style="light" />
@@ -200,12 +183,17 @@ const HomeScreen = ({ navigation }) => {
        </View>
       </SafeAreaView>
 
-      <ScrollView ref={scrollViewRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadData} colors={["#FF69B4"]} />}
+      >
        <MainBanner onShopNowPress={handleShopNowPress} />
  
        <Text style={styles.sectionTitle}>Категории</Text>
        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
-         {categories.filter(c => ['Готовые букеты', 'игрушки', 'торты', 'сладости'].includes(c.name)).map(category => (
+         {homeData.categories.filter(c => ['Готовые букеты', 'игрушки', 'торты', 'сладости'].includes(c.name)).map(category => (
            <TouchableOpacity key={category.id} style={styles.categoryItem} onPress={() => navigation.navigate('Category', { category })}>
              <View style={styles.categoryIcon}>
                {category.image_url ? <Image source={{ uri: category.image_url }} style={styles.categoryImage} /> : <Text style={styles.categoryEmoji}>{category.icon || '💐'}</Text>}
@@ -219,64 +207,52 @@ const HomeScreen = ({ navigation }) => {
          </TouchableOpacity>
        </ScrollView>
 
-      {secondaryLoading ? (
-        <View style={{ paddingHorizontal: 20, marginTop: 25 }}>
-          <SkeletonLoader width={200} height={20} borderRadius={4} style={{ marginBottom: 15 }} />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <SkeletonLoader width={(width - 50) / 2} height={250} borderRadius={15} />
-            <SkeletonLoader width={(width - 50) / 2} height={250} borderRadius={15} />
-          </View>
-        </View>
-      ) : (
-        <>
-          <ProductSection
-            title="Бест Селлеры"
-            products={secondaryData?.bestSellers}
-            navigation={navigation}
-            onSeeAllPress={() => navigation.navigate('FilterResults', {
-              specialFilter: 'bestsellers',
-              title: 'Бест Селлеры'
-            })}
-          />
-          <ProductSection
-            title="Готовая ветрина"
-            products={secondaryData?.readyShowcase}
-            navigation={navigation}
-            layout="carousel"
-            onSeeAllPress={() => {
-              const category = categories.find(c => c.name === 'Готовая ветрина');
-              if (category) navigation.navigate('Category', { category });
-            }}
-          />
-          <ProductSection
-            title="Выгодные комбо"
-            products={secondaryData?.combos}
-            navigation={navigation}
-            layout="carousel"
-            type="combo"
-            onSeeAllPress={() => navigation.navigate('AllCombos')}
-          />
-          <ProductSection
-            title="Недельная подборка"
-            products={secondaryData?.weeklyPicks}
-            navigation={navigation}
-            layout="carousel"
-            onSeeAllPress={() => {
-              const category = categories.find(c => c.name === 'Недельная подборка');
-              if (category) navigation.navigate('Category', { category });
-            }}
-          />
-          <ProductSection
-            title="Премиум букеты"
-            products={secondaryData?.premiumBouquets}
-            navigation={navigation}
-            onSeeAllPress={() => {
-              const category = categories.find(c => c.name === 'Премиум букеты');
-              if (category) navigation.navigate('Category', { category });
-            }}
-          />
-        </>
-      )}
+        <ProductSection
+          title="Бест Селлеры"
+          products={homeData.bestSellers}
+          navigation={navigation}
+          onSeeAllPress={() => navigation.navigate('FilterResults', {
+            specialFilter: 'bestsellers',
+            title: 'Бест Селлеры'
+          })}
+        />
+        <ProductSection
+          title="Готовая ветрина"
+          products={homeData.readyShowcase}
+          navigation={navigation}
+          layout="carousel"
+          onSeeAllPress={() => {
+            const category = homeData.categories.find(c => c.name === 'Готовая ветрина');
+            if (category) navigation.navigate('Category', { category });
+          }}
+        />
+        <ProductSection
+          title="Выгодные комбо"
+          products={homeData.combos}
+          navigation={navigation}
+          layout="carousel"
+          type="combo"
+          onSeeAllPress={() => navigation.navigate('AllCombos')}
+        />
+        <ProductSection
+          title="Недельная подборка"
+          products={homeData.weeklyPicks}
+          navigation={navigation}
+          layout="carousel"
+          onSeeAllPress={() => {
+            const category = homeData.categories.find(c => c.name === 'Недельная подборка');
+            if (category) navigation.navigate('Category', { category });
+          }}
+        />
+        <ProductSection
+          title="Премиум букеты"
+          products={homeData.premiumBouquets}
+          navigation={navigation}
+          onSeeAllPress={() => {
+            const category = homeData.categories.find(c => c.name === 'Премиум букеты');
+            if (category) navigation.navigate('Category', { category });
+          }}
+        />
      </ScrollView>
      <Modal
        animationType="slide"
@@ -297,7 +273,7 @@ const HomeScreen = ({ navigation }) => {
                  </View>
                  <Text style={styles.filterLabel}>Категории</Text>
                  <View style={styles.categoriesContainerModal}>
-                   {categories.map((category) => (
+                   {homeData.categories.map((category) => (
                      <TouchableOpacity
                        key={category.id}
                        style={[
