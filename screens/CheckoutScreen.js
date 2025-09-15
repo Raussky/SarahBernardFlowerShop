@@ -99,7 +99,16 @@ const CheckoutScreen = ({ navigation }) => {
     return isValid;
   };
 
-  const getSubtotal = () => cart.reduce((total, item) => total + item.price * item.quantity, 0);
+  const getSubtotal = () => {
+    return cart.reduce((total, item) => {
+      // This safely handles all three cases:
+      // 1. Guest cart item (product): item.product_variants.price
+      // 2. Guest cart item (combo): item.combos.price
+      // 3. Logged-in user cart item: item.product_variants?.price or item.combos?.price
+      const price = item.product_variants?.price || item.combos?.price || 0;
+      return total + price * item.quantity;
+    }, 0);
+  };
   const getTotalPrice = () => getSubtotal() + (deliveryMethod === 'delivery' ? DELIVERY_COST : 0);
  
   const finalizeOrder = (orderId) => {
@@ -150,22 +159,41 @@ const CheckoutScreen = ({ navigation }) => {
       const { error: orderError } = await supabase.from('orders').insert(orderData);
       if (orderError) throw orderError;
 
-      const orderItems = cart.map(item => ({
-        order_id: newOrderId,
-        combo_id: item.type === 'combo' ? item.id : null,
-        product_id: item.type === 'product' ? item.id : null,
-        product_variant_id: item.type === 'product' ? item.variantId : null,
-        product_name: item.name || item.nameRu,
-        product_image: item.image,
-        variant_size: item.type === 'product' ? item.size : null,
-        quantity: item.quantity,
-        price_at_purchase: item.price,
-      }));
+      const orderItems = cart.map(item => {
+        const isCombo = !!item.combo_id;
+        const price = item.product_variants?.price || item.combos?.price || 0;
+
+        // Unified logic for all cart item types
+        const comboId = item.combo_id || item.combos?.id || null;
+        
+        // For guest cart items, the variant's product_id is nested differently
+        const productId = isCombo
+          ? item.combo_id || item.combos?.id
+          : item.product_variants?.product_id || item.product_variants?.id;
+        
+        // For guest cart items, the variantId is on the item directly
+        const productVariantId = isCombo
+          ? null
+          : item.product_variant_id || item.product_variants?.variantId || item.product_variants?.id;
+
+        return {
+          order_id: newOrderId,
+          combo_id: comboId,
+          product_id: productId,
+          product_variant_id: productVariantId,
+          product_name: item.combos?.name || item.product_variants?.products?.name || item.product_variants?.name || 'Unknown Product',
+          product_image: item.combos?.image || item.product_variants?.products?.image || item.product_variants?.image,
+          variant_size: !isCombo ? item.product_variants?.size : null,
+          quantity: item.quantity,
+          price_at_purchase: price,
+        };
+      });
       const { error: orderItemsError } = await supabase.from('order_items').insert(orderItems);
       if (orderItemsError) throw orderItemsError;
 
       // Update stock and purchase counts
-      const productsToUpdate = cart.filter(item => item.type === 'product').map(item => ({ variant_id: item.variantId, quantity: item.quantity }));
+      // Update stock and purchase counts
+      const productsToUpdate = cart.filter(item => !!item.product_variant_id).map(item => ({ variant_id: item.product_variant_id, quantity: item.quantity }));
       if (productsToUpdate.length > 0) {
         const { error: decrementError } = await supabase.rpc('decrement_stock', { items_to_decrement: productsToUpdate });
         if (decrementError) console.error("Stock decrement error:", decrementError);
@@ -173,17 +201,21 @@ const CheckoutScreen = ({ navigation }) => {
         if (incrementError) console.error("Purchase count increment error:", incrementError);
       }
 
-      const combosToUpdate = cart.filter(item => item.type === 'combo');
+      const combosToUpdate = cart.filter(item => !!item.combo_id);
       for (const combo of combosToUpdate) {
-        const { error: comboDecrementError } = await supabase.rpc('decrement_stock_from_combo', { p_combo_id: combo.id, p_quantity: combo.quantity });
+        const { error: comboDecrementError } = await supabase.rpc('decrement_stock_from_combo', { p_combo_id: (combo.combos?.id || combo.combo_id), p_quantity: combo.quantity });
         if (comboDecrementError) console.error("Combo stock decrement error:", comboDecrementError);
       }
 
-      const orderDetails = cart.map(item =>
-        item.type === 'combo'
-          ? `- ${item.name} (Комбо, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
-          : `- ${item.name || item.nameRu} (Размер: ${item.size}, ${item.quantity} шт.) - ${(item.price * item.quantity).toLocaleString()} ₸`
-      ).join('\n');
+      const orderDetails = cart.map(item => {
+        const isCombo = !!item.combo_id;
+        const price = item.product_variants?.price || item.combos?.price || 0;
+        const name = item.combos?.name || item.product_variants?.products?.name || 'Unknown';
+        const size = item.product_variants?.size;
+        return isCombo
+          ? `- ${name} (Комбо, ${item.quantity} шт.) - ${(price * item.quantity).toLocaleString()} ₸`
+          : `- ${name} (Размер: ${size}, ${item.quantity} шт.) - ${(price * item.quantity).toLocaleString()} ₸`;
+      }).join('\n');
       
       const message = `*Новый заказ #${newOrderId.substring(0, 8)}*\n\n` +
                       `*Имя:* ${customerName}\n` +

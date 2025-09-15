@@ -13,22 +13,23 @@ export const CartProvider = ({ children }) => {
   // Load data from DB when user changes
   useEffect(() => {
     const handleUserChange = async () => {
+      // If there's a user, merge any existing local (guest) cart/saved items
       if (user) {
-        // If a user logs in, merge local data with their DB data
         if (cart.length > 0) await mergeLocalCartWithDB();
         if (saved.length > 0) await mergeLocalSavedWithDB();
       }
-      
-      // Always clear local state before loading from DB
+
+      // Clear local state to ensure no data leakage between users
       setCart([]);
       setSaved([]);
-      
+
+      // If there's a new user, load their data from the DB
       if (user) {
         await loadCartFromDB();
         await loadSavedFromDB();
       }
     };
-  
+
     handleUserChange();
   }, [user]);
 
@@ -207,18 +208,59 @@ export const CartProvider = ({ children }) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || cart.length === 0) return;
 
-    const itemsToInsert = cart.map(item => ({
-      user_id: user.id,
-      product_variant_id: item.product_variant_id,
-      combo_id: item.combo_id,
-      quantity: item.quantity,
-    }));
+    // 1. Fetch user's existing cart from DB
+    const { data: dbCart, error: fetchError } = await supabase
+      .from('cart_items')
+      .select('*')
+      .eq('user_id', user.id);
 
-    const { error } = await supabase.from('cart_items').insert(itemsToInsert);
-    if (error) {
-      console.error('Error merging cart with DB:', error);
+    if (fetchError) {
+      console.error('Error fetching DB cart for merge:', fetchError);
+      return;
     }
-    // Clear the local cart after attempting to merge
+
+    const itemsToInsert = [];
+    const itemsToUpdate = [];
+
+    // 2. Compare local cart with DB cart
+    for (const localItem of cart) {
+      const existingItem = dbCart.find(dbItem =>
+        (dbItem.product_variant_id && dbItem.product_variant_id === localItem.product_variant_id) ||
+        (dbItem.combo_id && dbItem.combo_id === localItem.combo_id)
+      );
+
+      if (existingItem) {
+        // Item exists, prepare for quantity update
+        itemsToUpdate.push({
+          id: existingItem.id,
+          quantity: existingItem.quantity + localItem.quantity,
+        });
+      } else {
+        // Item is new, prepare for insert
+        itemsToInsert.push({
+          user_id: user.id,
+          product_variant_id: localItem.product_variant_id,
+          combo_id: localItem.combo_id,
+          quantity: localItem.quantity,
+        });
+      }
+    }
+
+    // 3. Perform DB operations
+    if (itemsToUpdate.length > 0) {
+      for (const item of itemsToUpdate) {
+        await supabase.from('cart_items').update({ quantity: item.quantity }).eq('id', item.id);
+      }
+    }
+
+    if (itemsToInsert.length > 0) {
+      const { error: insertError } = await supabase.from('cart_items').insert(itemsToInsert);
+      if (insertError) {
+        console.error('Error inserting new items during merge:', insertError);
+      }
+    }
+
+    // 4. Clear the local cart after attempting to merge
     setCart([]);
   };
 

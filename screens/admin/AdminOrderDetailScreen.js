@@ -5,14 +5,7 @@ import { supabase } from '../../src/integrations/supabase/client';
 import { useToast } from '../../src/components/ToastProvider';
 import { Ionicons } from '@expo/vector-icons';
 import AdminHeader from '../../src/components/AdminHeader';
-
-const ORDER_STATUSES = {
-  pending: 'Новый',
-  processing: 'В работе',
-  shipping: 'Доставляется',
-  completed: 'Выполнен',
-  cancelled: 'Отменен',
-};
+import { ORDER_STATUSES, getStatusColor } from '../../src/config/orderConstants';
 
 const AdminOrderDetailScreen = ({ route, navigation }) => {
   const { orderId } = route.params;
@@ -82,6 +75,29 @@ const AdminOrderDetailScreen = ({ route, navigation }) => {
     );
   }
 
+  const getNextActions = () => {
+    const statusActions = {};
+    switch (order.status) {
+      case 'pending':
+        statusActions.processing = 'Принять в работу';
+        statusActions.cancelled = 'Отменить';
+        break;
+      case 'processing':
+        statusActions.out_for_delivery = 'Передать в доставку';
+        statusActions.cancelled = 'Отменить';
+        break;
+      case 'out_for_delivery':
+        statusActions.delivered = 'Заказ выполнен';
+        break;
+      default:
+        // No actions for 'delivered' or 'cancelled'
+        break;
+    }
+    return statusActions;
+  };
+
+  const nextActions = getNextActions();
+
   return (
     <SafeAreaView style={styles.container}>
       <AdminHeader title={`Заказ #${order.id.substring(0, 8)}`} />
@@ -136,37 +152,27 @@ const AdminOrderDetailScreen = ({ route, navigation }) => {
           ))}
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Смена статуса</Text>
-          <View style={styles.statusActions}>
-            {Object.keys(ORDER_STATUSES).map((status) => (
-              <TouchableOpacity
-                key={status}
-                style={[styles.statusButton, { backgroundColor: getStatusColor(status) }]}
-                onPress={() => handleStatusUpdate(status)}
-                disabled={order.status === status}
-              >
-                <Text style={styles.statusButtonText}>{ORDER_STATUSES[status]}</Text>
-              </TouchableOpacity>
-            ))}
+        {Object.keys(nextActions).length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Следующее действие</Text>
+            <View style={styles.statusActions}>
+              {Object.entries(nextActions).map(([status, label]) => (
+                <TouchableOpacity
+                  key={status}
+                  style={[styles.statusButton, { backgroundColor: getStatusColor(status) }]}
+                  onPress={() => handleStatusUpdate(status)}
+                >
+                  <Text style={styles.statusButtonText}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 };
 
-const getStatusColor = (status) => {
-  switch (status) {
-    case 'completed': return '#4CAF50';
-    case 'shipping': return '#2196F3';
-    case 'processing': return '#FFC107';
-    case 'cancelled': return '#F44336';
-    case 'pending':
-    default:
-      return '#9E9E9E';
-  }
-};
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },

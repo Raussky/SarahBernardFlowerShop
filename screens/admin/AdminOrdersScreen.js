@@ -6,15 +6,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import EmptyState from '../../src/components/EmptyState';
 import AdminHeader from '../../src/components/AdminHeader';
-
-const ORDER_STATUSES = {
-  all: 'Все',
-  pending: 'Новые',
-  processing: 'В работе',
-  shipping: 'Доставляются',
-  completed: 'Выполненные',
-  cancelled: 'Отмененные',
-};
+import { ORDER_STATUSES, getStatusColor } from '../../src/config/orderConstants';
 
 const PAGE_SIZE = 15;
 
@@ -100,6 +92,22 @@ const AdminOrdersScreen = ({ navigation }) => {
     }
   }, [isFocused, filter, searchQuery, sort]);
 
+  // Add a real-time subscription for orders
+  useEffect(() => {
+    const channel = supabase
+      .channel('public:orders')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        // A simple and effective way to handle this is to just refetch the orders.
+        // This ensures the list is always perfectly in sync with the DB.
+        fetchOrders(0, true);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchOrders]);
+
   const handleLoadMore = () => {
     if (hasMore && !loadingMore) {
       fetchOrders(page + 1);
@@ -132,17 +140,6 @@ const AdminOrdersScreen = ({ navigation }) => {
     </TouchableOpacity>
   );
 
- const getStatusColor = (status) => {
-   switch (status) {
-     case 'completed': return '#4CAF50';
-     case 'shipping': return '#2196F3';
-     case 'processing': return '#FFC107';
-     case 'cancelled': return '#F44336';
-     case 'pending':
-     default:
-       return '#9E9E9E';
-   }
- };
 
   return (
     <SafeAreaView style={styles.container}>

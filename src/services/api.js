@@ -277,14 +277,6 @@ export const setDefaultAddress = async (addressId, userId) => {
  * @param {string} orderId - The ID of the order to cancel.
  * @param {string} userId - The ID of the user.
  */
-export const cancelOrder = async (orderId, userId) => {
-    const { data, error } = await supabase.rpc('cancel_order', {
-        p_order_id: orderId,
-        p_user_id: userId,
-    });
-    if (error) console.error("Error cancelling order:", error);
-    return { data, error };
-};
 
 /**
  * Fetches all items for a given order.

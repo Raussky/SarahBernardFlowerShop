@@ -1,269 +1,337 @@
-import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Animated, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import { useToast } from '../src/components/ToastProvider';
-import { useAuth } from '../src/context/AuthContext';
-import { CartContext } from '../src/context/CartContext';
-import { cancelOrder, getOrderItems, getProductDetails } from '../src/services/api';
+import { Ionicons } from '@expo/vector-icons';
+import AdminHeader from '../src/components/AdminHeader'; // Re-using for consistent header style
+import { FONTS } from '../src/config/theme';
+import { AuthContext } from '../src/context/AuthContext';
 
-const ORDER_STATUSES = {
-  pending: 'Новый',
-  processing: 'В работе',
-  shipping: 'Доставляется',
-  completed: 'Выполнен',
-  cancelled: 'Отменен',
-};
+const STATUS_MAP = [
+  { key: 'pending', title: 'Заказ принят', icon: 'receipt-outline' },
+  { key: 'processing', title: 'Собирается', icon: 'cube-outline' },
+  { key: 'out_for_delivery', title: 'В пути', icon: 'car-outline' },
+  { key: 'delivered', title: 'Доставлен', icon: 'checkmark-circle-outline' },
+];
 
 const UserOrderDetailScreen = ({ route, navigation }) => {
   const { orderId } = route.params;
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
-  const { user } = useAuth();
-  const { addToCart } = useContext(CartContext);
+  const { user } = useContext(AuthContext);
+  const scaleAnim = useState(new Animated.Value(1))[0];
 
-  const fetchOrderDetails = async () => {
-    if (!user) {
-      showToast('Вы не авторизованы.', 'error');
-      navigation.goBack();
-      return;
-    }
+  const fetchOrderDetails = useCallback(async () => {
     try {
-      setLoading(true);
+      // No need to set loading true here as it's handled in the initial load
       const { data, error } = await supabase
         .from('orders')
-        .select('*, order_items(*)')
+        .select('*, order_items(*, products(*), combos(*))')
         .eq('id', orderId)
-        .eq('user_id', user.id) // Ensure user can only see their own orders
-        .maybeSingle();
+        .single();
       if (error) throw error;
       setOrder(data);
     } catch (error) {
-      console.error("Error fetching order details:", error);
-      showToast('Ошибка загрузки заказа или у вас нет доступа.', 'error');
-      navigation.goBack(); // Go back if order not found or not user's
+      showToast(error.message, 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, [orderId, showToast]);
 
   useEffect(() => {
     fetchOrderDetails();
-  }, [orderId, user]);
 
-  const handleCancelOrder = () => {
-    Alert.alert('Отменить заказ?', 'Вы уверены? Это действие нельзя будет отменить.', [
-      { text: 'Назад' },
-      { text: 'Отменить', style: 'destructive', onPress: async () => {
-          const { data, error } = await cancelOrder(orderId, user.id);
-          if (error) {
-            showToast('Ошибка отмены заказа', 'error');
-          } else if (data.includes('not found')) {
-            showToast('Заказ не найден', 'error');
-          } else if (data.includes('no longer be cancelled')) {
-            showToast('Этот заказ уже нельзя отменить', 'warning');
-          } else {
-            showToast('Заказ успешно отменен', 'success');
-            fetchOrderDetails(); // Refresh details
-          }
-        }}
-    ]);
+    const channel = supabase
+      .channel(`public:orders:id=eq.${orderId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `id=eq.${orderId}` }, (payload) => {
+        setOrder(prevOrder => ({ ...prevOrder, ...payload.new }));
+        showToast('Статус вашего заказа обновлен!', 'info');
+        // Trigger animation
+        Animated.sequence([
+          Animated.timing(scaleAnim, { toValue: 1.2, duration: 300, useNativeDriver: true }),
+          Animated.timing(scaleAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
+        ]).start();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orderId, fetchOrderDetails]);
+
+  const renderStatusTracker = () => {
+    if (!order) return null;
+
+    const currentStatusIndex = STATUS_MAP.findIndex(s => s.key === order.status);
+
+    if (order.status === 'cancelled') {
+      return (
+        <View style={styles.cancelledContainer}>
+          <Ionicons name="close-circle-outline" size={24} color="#F44336" />
+          <Text style={styles.cancelledText}>Заказ был отменен</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.trackerContainer}>
+        {STATUS_MAP.map((status, index) => {
+          const isActive = index <= currentStatusIndex;
+          const isCurrent = index === currentStatusIndex;
+          const animatedStyle = isCurrent ? { transform: [{ scale: scaleAnim }] } : {};
+
+          return (
+            <React.Fragment key={status.key}>
+              <View style={styles.statusPoint}>
+                <Animated.View style={[styles.statusIconContainer, isActive && styles.activeStatus, animatedStyle]}>
+                  <Ionicons name={status.icon} size={24} color={isActive ? '#fff' : '#999'} />
+                </Animated.View>
+                <Text style={[styles.statusLabel, isActive && styles.activeLabel]}>{status.title}</Text>
+              </View>
+              {index < STATUS_MAP.length - 1 && <View style={[styles.connector, isActive && styles.activeConnector]} />}
+            </React.Fragment>
+          );
+        })}
+      </View>
+    );
   };
 
-  const handleRepeatOrder = async () => {
-    showToast('Добавляем товары в корзину...', 'info');
-    const { data: items, error } = await getOrderItems(orderId);
-    if (error) {
-      showToast('Не удалось получить состав заказа', 'error');
-      return;
-    }
+  const handleCancelOrder = async () => {
+    Alert.alert(
+      "Подтвердите отмену",
+      "Вы уверены, что хотите отменить этот заказ?",
+      [
+        { text: "Нет", style: "cancel" },
+        {
+          text: "Да, отменить",
+          style: "destructive",
+          onPress: async () => {
+            const { error } = await supabase
+              .from('orders')
+              .update({ status: 'cancelled' })
+              .match({ id: orderId, user_id: user.id, status: 'pending' });
 
-    for (const item of items) {
-      if (item.product_variant_id) {
-        // This is a regular product
-        const cartItem = {
-          id: item.product_id,
-          name: item.product_name,
-          image: item.product_image,
-          size: item.variant_size,
-          price: item.price_at_purchase,
-          variantId: item.product_variant_id,
-        };
-        addToCart(cartItem);
-      } else if (item.combo_id) {
-        // This is a combo
-        const cartItem = {
-          id: item.combo_id,
-          name: item.product_name,
-          image: item.product_image,
-          price: item.price_at_purchase,
-        };
-        addToCart(cartItem, 'combo');
-      }
-    }
-    showToast('Все товары из заказа добавлены в корзину!', 'success');
-    navigation.navigate('Basket');
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return '#4CAF50';
-      case 'shipping': return '#2196F3';
-      case 'processing': return '#FFC107';
-      case 'cancelled': return '#F44336';
-      case 'pending':
-      default:
-        return '#9E9E9E';
-    }
+            if (error) {
+              showToast(error.message, 'error');
+            } else {
+              showToast('Заказ успешно отменен!', 'success');
+              setOrder(currentOrder => ({ ...currentOrder, status: 'cancelled' }));
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (loading) {
-    return (
-      <SafeAreaView style={styles.centered}>
-        <ActivityIndicator size="large" color="#FF69B4" />
-      </SafeAreaView>
-    );
+    return <ActivityIndicator style={styles.centered} size="large" color="#FF69B4" />;
   }
 
   if (!order) {
     return (
-      <SafeAreaView style={styles.centered}>
-        <Text>Заказ не найден или у вас нет доступа.</Text>
-        <TouchableOpacity style={styles.shopButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.shopButtonText}>Вернуться назад</Text>
-        </TouchableOpacity>
+      <SafeAreaView style={styles.container}>
+        <AdminHeader title="Заказ не найден" back />
+        <View style={styles.centered}>
+          <Text>Не удалось загрузить детали заказа.</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Заказ #{order.id.substring(0, 8)}</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <AdminHeader title={`Заказ #${order.id.substring(0, 8)}`} back />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Информация о заказе</Text>
-          <Text style={styles.infoText}><Text style={styles.infoLabel}>Дата:</Text> {new Date(order.created_at).toLocaleString('ru-RU')}</Text>
-          {order.delivery_time && <Text style={styles.infoText}><Text style={styles.infoLabel}>Время доставки:</Text> {order.delivery_time}</Text>}
-          <Text style={styles.infoText}><Text style={styles.infoLabel}>Способ получения:</Text> {order.delivery_method === 'delivery' ? 'Доставка' : 'Самовывоз'}</Text>
-          {order.customer_address && <Text style={styles.infoText}><Text style={styles.infoLabel}>Адрес доставки:</Text> {order.customer_address}</Text>}
-          <Text style={styles.infoText}><Text style={styles.infoLabel}>Способ оплаты:</Text> {order.payment_method === 'kaspi' ? 'Kaspi Перевод' : 'Наличными'}</Text>
-          {order.order_comment && <Text style={styles.infoText}><Text style={styles.infoLabel}>Комментарий:</Text> {order.order_comment}</Text>}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Статус заказа</Text>
+          {renderStatusTracker()}
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Состав заказа</Text>
-          {order.order_items.map(item => (
-            <View key={item.id} style={styles.orderItem}>
-              <Text style={styles.itemName}>{item.quantity}x {item.product_name} ({item.variant_size})</Text>
-              <Text style={styles.itemPrice}>₸{(item.price_at_purchase * item.quantity).toLocaleString()}</Text>
-            </View>
-          ))}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Детали доставки</Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Имя</Text>
+            <Text style={styles.detailValue}>{order.customer_name}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Телефон</Text>
+            <Text style={styles.detailValue}>{order.customer_phone}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Адрес</Text>
+            <Text style={styles.detailValue}>{order.customer_address}</Text>
+          </View>
+           <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Время доставки</Text>
+            <Text style={styles.detailValue}>{order.delivery_time || 'Не указано'}</Text>
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Состав заказа</Text>
+          {order.order_items.map((item) => {
+            const productDetails = item.products || item.combos;
+            return (
+              <View key={item.id} style={styles.itemRow}>
+                <Text style={styles.itemName}>{productDetails?.name || 'Название не найдено'}</Text>
+                <Text style={styles.itemDetails}>
+                  {item.quantity} x ₸{item.price ? item.price.toLocaleString() : 0}
+                </Text>
+              </View>
+            );
+          })}
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Итого:</Text>
+            <Text style={styles.totalLabel}>Итого</Text>
             <Text style={styles.totalPrice}>₸{order.total_price.toLocaleString()}</Text>
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Статус заказа</Text>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(order.status) }]}>
-            <Text style={styles.statusText}>{ORDER_STATUSES[order.status] || order.status}</Text>
-          </View>
-        </View>
-
-       <View style={styles.actionsSection}>
-         <TouchableOpacity style={styles.repeatButton} onPress={handleRepeatOrder}>
-           <Ionicons name="repeat-outline" size={20} color="#fff" />
-           <Text style={styles.buttonText}>Повторить заказ</Text>
-         </TouchableOpacity>
-         {order.status === 'pending' && (
-           <TouchableOpacity style={styles.cancelButton} onPress={handleCancelOrder}>
-             <Ionicons name="close-circle-outline" size={20} color="#D32F2F" />
-             <Text style={styles.cancelButtonText}>Отменить заказ</Text>
-           </TouchableOpacity>
-         )}
-       </View>
-     </ScrollView>
-   </SafeAreaView>
- );
+        {order.status === 'pending' && (
+          <TouchableOpacity style={styles.cancelButton} onPress={handleCancelOrder}>
+            <Ionicons name="close-circle-outline" size={22} color="#fff" />
+            <Text style={styles.cancelButtonText}>Отменить заказ</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#f5f5f5' },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold' },
   content: { padding: 20 },
-  section: { backgroundColor: '#f9f9f9', padding: 15, borderRadius: 10, marginBottom: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
-  infoText: { fontSize: 16, color: '#333', marginBottom: 5 },
-  infoLabel: { fontWeight: '600' },
-  orderItem: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#eee' },
-  itemName: { flex: 1, fontSize: 14 },
-  itemPrice: { fontSize: 14, fontWeight: '500' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 10, marginTop: 5 },
-  totalLabel: { fontSize: 16, fontWeight: 'bold' },
-  totalPrice: { fontSize: 16, fontWeight: 'bold', color: '#FF69B4' },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  card: {
+    backgroundColor: '#fff',
     borderRadius: 15,
-    alignSelf: 'flex-start',
+    padding: 20,
+    marginBottom: 20,
   },
-  statusText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  shopButton: {
-    backgroundColor: '#FF69B4',
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 25,
-    marginTop: 20,
+  cardTitle: {
+    fontSize: 18,
+    fontFamily: FONTS.bold,
+    marginBottom: 20,
   },
-  shopButtonText: {
-    color: '#fff',
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: FONTS.regular,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontFamily: FONTS.semiBold,
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 10,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  itemName: {
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+  },
+  itemDetails: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: FONTS.medium,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingTop: 15,
+    marginTop: 5,
+  },
+  totalLabel: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: FONTS.bold,
   },
- actionsSection: {
-   marginTop: 10,
-   paddingHorizontal: 10,
- },
- repeatButton: {
-   flexDirection: 'row',
-   alignItems: 'center',
-   justifyContent: 'center',
-   backgroundColor: '#FF69B4',
-   paddingVertical: 15,
-   borderRadius: 10,
-   gap: 10,
-   marginBottom: 10,
- },
- buttonText: {
-   color: '#fff',
-   fontSize: 16,
-   fontWeight: 'bold',
- },
- cancelButton: {
-   flexDirection: 'row',
-   alignItems: 'center',
-   justifyContent: 'center',
-   backgroundColor: '#FFE4E1',
-   paddingVertical: 15,
-   borderRadius: 10,
-   gap: 10,
- },
- cancelButtonText: {
-   color: '#D32F2F',
-   fontSize: 16,
-   fontWeight: '600',
- },
+  totalPrice: {
+    fontSize: 18,
+    fontFamily: FONTS.bold,
+    color: '#FF69B4',
+  },
+  trackerContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  statusPoint: {
+    alignItems: 'center',
+    width: 80,
+  },
+  statusIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activeStatus: {
+    backgroundColor: '#FF69B4',
+  },
+  statusLabel: {
+    marginTop: 8,
+    fontSize: 12,
+    textAlign: 'center',
+    color: '#999',
+    fontFamily: FONTS.regular,
+  },
+  activeLabel: {
+    color: '#333',
+    fontFamily: FONTS.semiBold,
+  },
+  connector: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    marginTop: 23, // Align with center of icons
+  },
+  activeConnector: {
+    backgroundColor: '#FF69B4',
+  },
+  cancelledContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#FFF0F0',
+    borderRadius: 10,
+  },
+  cancelledText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontFamily: FONTS.semiBold,
+    color: '#F44336',
+  },
+  cancelButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F44336',
+    paddingVertical: 15,
+    borderRadius: 30,
+    marginTop: 10,
+    marginHorizontal: 20,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontFamily: FONTS.bold,
+    marginLeft: 10,
+  },
 });
 
 export default UserOrderDetailScreen;

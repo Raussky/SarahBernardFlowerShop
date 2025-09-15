@@ -7,14 +7,7 @@ import { useAuth } from '../src/context/AuthContext';
 import { useToast } from '../src/components/ToastProvider';
 import { useFocusEffect } from '@react-navigation/native';
 import EmptyState from '../src/components/EmptyState';
-
-const ORDER_STATUSES = {
-  pending: 'Новый',
-  processing: 'В работе',
-  shipping: 'Доставляется',
-  completed: 'Выполнен',
-  cancelled: 'Отменен',
-};
+import { ORDER_STATUSES, getStatusColor } from '../src/config/orderConstants';
 
 const OrderHistoryScreen = ({ navigation }) => {
   const [orders, setOrders] = useState([]);
@@ -51,17 +44,6 @@ const OrderHistoryScreen = ({ navigation }) => {
     }, [fetchOrders])
   );
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed': return '#4CAF50';
-      case 'shipping': return '#2196F3';
-      case 'processing': return '#FFC107';
-      case 'cancelled': return '#F44336';
-      case 'pending':
-      default:
-        return '#9E9E9E';
-    }
-  };
 
   const renderOrderItem = ({ item }) => (
     <TouchableOpacity 

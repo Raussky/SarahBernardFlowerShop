@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { AuthContext } from '../src/context/AuthContext';
 
 const OrderConfirmationScreen = ({ navigation, route }) => {
   const { orderId } = route.params;
+  const { user } = useContext(AuthContext);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -19,14 +21,16 @@ const OrderConfirmationScreen = ({ navigation, route }) => {
           style={styles.button}
           onPress={() => navigation.navigate('Main', { screen: 'Home' })}
         >
-          <Text style={styles.buttonText}>Вернуться на главную</Text>
+          <Text style={styles.buttonText}>Вернуться в каталог</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.buttonSecondary}
-          onPress={() => navigation.navigate('OrderHistory')}
-        >
-          <Text style={styles.buttonSecondaryText}>Посмотреть мои заказы</Text>
-        </TouchableOpacity>
+        {user && (
+          <TouchableOpacity
+            style={styles.buttonSecondary}
+            onPress={() => navigation.navigate('OrderHistory')}
+          >
+            <Text style={styles.buttonSecondaryText}>Посмотреть мои заказы</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
