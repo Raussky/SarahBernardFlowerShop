@@ -30,9 +30,6 @@ jest.mock('./src/integrations/supabase/client', () => ({
   },
 }));
 
-// Silence the warning: Animated: `useNativeDriver` is not supported
-jest.mock('react-native/Libraries/Animated/NativeAnimatedHelper');
-
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -40,10 +37,3 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 
 // Global test timeout
 jest.setTimeout(10000);
-
-// Suppress console errors and warnings in tests
-global.console = {
-  ...console,
-  error: jest.fn(),
-  warn: jest.fn(),
-};

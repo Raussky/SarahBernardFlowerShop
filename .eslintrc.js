@@ -5,8 +5,8 @@ module.exports = {
     browser: true,
     es2021: true,
     node: true,
-    'react-native/react-native': true,
   },
+  ignorePatterns: ['supabase/functions/**'],
   parserOptions: {
     ecmaFeatures: {
       jsx: true,
@@ -21,10 +21,21 @@ module.exports = {
     'react-hooks/exhaustive-deps': 'warn',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+    'import/no-unresolved': ['error', { ignore: ['^@env$'] }],
+    'import/namespace': 'off',
+    'import/first': 'off',
   },
   settings: {
     react: {
       version: 'detect',
     },
   },
+  overrides: [
+    {
+      files: ['**/__tests__/**', '**/*.test.js', '**/*.spec.js', 'jest.setup.js'],
+      env: {
+        jest: true,
+      },
+    },
+  ],
 };
