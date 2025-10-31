@@ -26,7 +26,7 @@
     "submit:android": "eas submit --platform android",
     "update": "eas update --auto",
     "prebuild": "expo prebuild --clean",
-    "postinstall": "sed -i '' 's/RCTCornerRadii/YGCornerRadii/g' ./node_modules/react-native/React/Views/RCTBorderDrawing.m"
+    "postinstall": "node -e \"try { require('fs').writeFileSync('./node_modules/react-native/React/Views/RCTBorderDrawing.m', require('fs').readFileSync('./node_modules/react-native/React/Views/RCTBorderDrawing.m', 'utf8').replace(/RCTCornerRadii/g, 'YGCornerRadii')) } catch (e) { console.log('Skipping postinstall patch') }\""
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -88,8 +88,8 @@
     "typescript": "~5.9.2"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "node": ">=20.19.4",
+    "npm": ">=10.0.0"
   },
   "repository": {
     "type": "git",
