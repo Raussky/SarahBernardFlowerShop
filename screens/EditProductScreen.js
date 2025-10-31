@@ -22,6 +22,9 @@ import * as FileSystem from 'expo-file-system';
 import { decode } from 'base64-arraybuffer'; // ИСПРАВЛЕНО: импортируем decode
 import 'react-native-url-polyfill/auto';
 import { useAuth } from '../src/context/AuthContext';
+import { logger } from '../src/utils/logger';
+import { validateProductData, sanitizeString } from '../src/utils/validation';
+import { ERROR_MESSAGES } from '../src/config/constants';
 
 const EditProductScreen = ({ navigation, route }) => {
   const { productId } = route.params;
@@ -139,13 +142,14 @@ const EditProductScreen = ({ navigation, route }) => {
       if (!result.canceled) {
         if (result.assets && result.assets.length > 0) {
           setImages([...images, { uri: result.assets[0].uri, base64: result.assets[0].base64 }]);
+          logger.info('Image selected successfully', { context: 'EditProductScreen', imageCount: images.length + 1 });
         } else {
-          console.log('ImagePicker result.assets is empty or undefined:', result);
+          logger.warn('ImagePicker result.assets is empty or undefined', { context: 'EditProductScreen', result });
           showToast('Не удалось выбрать изображение. Пожалуйста, попробуйте еще раз.', 'error');
         }
       }
     } catch (error) {
-      console.error("ImagePicker Error:", error);
+      logger.error('ImagePicker error', error, { context: 'EditProductScreen' });
       showToast(`Ошибка при выборе изображения: ${error.message}`, 'error');
     }
   };
@@ -156,9 +160,7 @@ const EditProductScreen = ({ navigation, route }) => {
  
   const uploadImage = async (uri, base64Data) => { // ДОБАВЛЕНО: base64Data как аргумент
     try {
-      console.log('Uploading image from URI:', uri);
-      // const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 }); // УДАЛЕНО: Больше не читаем из FileSystem
-      console.log('Base64 string length:', base64Data ? base64Data.length : 'null'); // Логирование длины base64
+      logger.info('Uploading image', { context: 'EditProductScreen', uri, base64Length: base64Data?.length });
       const fileExt = uri.split('.').pop()?.toLowerCase();
       if (!fileExt || !['jpg', 'jpeg', 'png', 'webp'].includes(fileExt)) {
         throw new Error('Неподдерживаемый формат изображения');
@@ -167,49 +169,83 @@ const EditProductScreen = ({ navigation, route }) => {
       const filePath = `${fileName}`;
       const contentType = `image/${fileExt}`;
       const byteArray = decode(base64Data); // ИСПРАВЛЕНО: используем decode из base64-arraybuffer
- 
+
       const { error } = await supabase.storage
         .from('product-images')
         .upload(filePath, byteArray, {
           contentType,
           upsert: false
         });
- 
+
       if (error) {
-        console.error("Storage upload error:", error);
+        logger.error('Storage upload error', error, { context: 'EditProductScreen', filePath });
         throw new Error(`Ошибка загрузки: ${error.message}`);
       }
- 
+
       const { data: publicUrlData } = supabase.storage
         .from('product-images')
         .getPublicUrl(filePath);
-      
+
+      logger.info('Image uploaded successfully', { context: 'EditProductScreen', publicUrl: publicUrlData.publicUrl });
       return publicUrlData.publicUrl;
     } catch (error) {
-      console.error("Upload error:", error);
+      logger.error('Upload error', error, { context: 'EditProductScreen', uri });
       throw error;
     }
   };
 
   const handleSave = async () => {
-    if (!name || !categoryId || variants.some(v => !v.price || !v.size || !v.stock_quantity)) {
-      showToast('Пожалуйста, заполните все обязательные поля.', 'error');
+    // Validate product data
+    const productData = {
+      name,
+      name_ru: nameRu,
+      description,
+      composition,
+      size_info: sizeInfo,
+      care_instructions: careInstructions,
+      category_id: categoryId,
+      variants: variants.map(v => ({
+        size: v.size,
+        price: parseFloat(v.price) || 0,
+        stock_quantity: parseInt(v.stock_quantity, 10) || 0,
+      })),
+    };
+
+    const { isValid, errors, sanitized } = validateProductData(productData);
+
+    if (!isValid) {
+      const firstError = Object.values(errors)[0];
+      showToast(firstError, 'error');
+      logger.warn('Product validation failed', { context: 'EditProductScreen', errors });
       return;
     }
-    
+
+    if (!categoryId) {
+      showToast('Пожалуйста, выберите категорию.', 'error');
+      return;
+    }
+
     setSaving(true);
     try {
+      logger.info('Saving product', {
+        context: 'EditProductScreen',
+        productId,
+        isNewProduct,
+        variantCount: variants.length,
+        imageCount: images.length
+      });
+
       if (images.some(img => typeof img === 'object' && img.uri && img.uri.startsWith('file://'))) {
         showToast('Загружаем изображения...', 'info');
       }
-      
+
       const uploadPromises = images.map(async (imageItem) => {
         // Check if it's a new image object (has a base64 property, indicating it's a local file to be uploaded)
         if (typeof imageItem === 'object' && imageItem.uri && imageItem.base64) {
           try {
             return await uploadImage(imageItem.uri, imageItem.base64);
           } catch (error) {
-            console.error('Failed to upload new image:', imageItem.uri, error);
+            logger.error('Failed to upload new image', error, { context: 'EditProductScreen', uri: imageItem.uri });
             throw error;
           }
         }
@@ -218,17 +254,19 @@ const EditProductScreen = ({ navigation, route }) => {
         // and we just need its URI.
         return typeof imageItem === 'string' ? imageItem : imageItem.uri;
       });
-      
+
       const finalImageUrls = await Promise.all(uploadPromises);
-      
+
       const mainImage = finalImageUrls.length > 0 ? finalImageUrls[0] : null;
+
+      // Use sanitized data from validation
       const productPayload = {
-        name,
-        name_ru: nameRu,
-        description,
-        composition,
-        size_info: sizeInfo,
-        care_instructions: careInstructions,
+        name: sanitized.name,
+        name_ru: sanitized.name_ru || null,
+        description: sanitized.description || null,
+        composition: sanitized.composition || null,
+        size_info: sanitized.size_info || null,
+        care_instructions: sanitized.care_instructions || null,
         category_id: categoryId,
         image: mainImage,
       };
@@ -302,11 +340,20 @@ const EditProductScreen = ({ navigation, route }) => {
         }
       }
 
+      logger.info('Product saved successfully', {
+        context: 'EditProductScreen',
+        productId: savedProductId,
+        isNewProduct
+      });
       showToast(`Товар успешно ${isNewProduct ? 'создан' : 'обновлен'}!`, 'success');
       navigation.goBack();
-      
+
     } catch (error) {
-      console.error("Save error:", error);
+      logger.error('Save error', error, {
+        context: 'EditProductScreen',
+        productId,
+        isNewProduct
+      });
       showToast(`Ошибка сохранения: ${error.message}`, 'error');
     } finally {
       setSaving(false);
@@ -342,7 +389,7 @@ const EditProductScreen = ({ navigation, route }) => {
                 </TouchableOpacity>
               </View>
             ))}
-            <TouchableOpacity style={styles.imagePicker} onPress={() => { console.log('Image picker button pressed'); pickImage(); }}>
+            <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
               <Ionicons name="camera-outline" size={40} color="#999" />
               <Text style={styles.imagePickerText}>Добавить</Text>
             </TouchableOpacity>

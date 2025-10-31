@@ -18,6 +18,7 @@ import { supabase } from '../../src/integrations/supabase/client';
 import * as ImagePicker from 'expo-image-picker';
 import { decode } from 'base64-arraybuffer';
 import 'react-native-url-polyfill/auto';
+import { logger } from '../../src/utils/logger';
 
 const EditComboScreen = ({ navigation, route }) => {
   const { comboId } = route.params || {};
@@ -121,7 +122,7 @@ const EditComboScreen = ({ navigation, route }) => {
       
       return publicUrlData.publicUrl;
     } catch (error) {
-      console.error("Upload error:", error);
+      logger.error('Upload error', error, { context: 'EditComboScreen', uri });
       throw error;
     }
   };

@@ -7,6 +7,7 @@ import FilterModal from '../src/components/FilterModal'; // Import FilterModal
 import { FONTS } from '../src/config/theme';
 import { supabase } from '../src/integrations/supabase/client';
 import EmptyState from '../src/components/EmptyState';
+import { logger } from '../src/utils/logger';
 
 const FilterResultsScreen = ({ route, navigation }) => {
   const { filteredProducts: initialProducts, title = 'Результаты фильтра', specialFilter } = route.params;
@@ -17,7 +18,7 @@ const FilterResultsScreen = ({ route, navigation }) => {
   const [maxPrice, setMaxPrice] = useState('');
 
   const fetchFilteredProducts = useCallback(async () => {
-    console.log("Fetching filtered products with:", { specialFilter, minPrice, maxPrice });
+    logger.info('Fetching filtered products', { context: 'FilterResultsScreen', specialFilter, minPrice, maxPrice });
     setLoading(true);
     let query = supabase.from('products').select('*, categories(name, name_en), product_variants(*)'); // Fetch relations
 
@@ -35,7 +36,7 @@ const FilterResultsScreen = ({ route, navigation }) => {
     const { data, error } = await query;
 
     if (error) {
-      console.error("Error fetching filtered products:", error);
+      logger.error('Error fetching filtered products', error, { context: 'FilterResultsScreen', specialFilter, minPrice, maxPrice });
       setProducts([]);
     } else {
       setProducts(data);
@@ -48,7 +49,7 @@ const FilterResultsScreen = ({ route, navigation }) => {
   }, [fetchFilteredProducts]);
 
   const handleApplyFilters = ({ minPrice: newMinPrice, maxPrice: newMaxPrice }) => {
-    console.log("Applying filters:", { newMinPrice, newMaxPrice });
+    logger.info('Applying filters', { context: 'FilterResultsScreen', newMinPrice, newMaxPrice });
     setMinPrice(newMinPrice);
     setMaxPrice(newMaxPrice);
   };

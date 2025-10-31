@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { logger } from '../utils/logger';
 
 /**
  * Sets a specific address as the default for a user.
@@ -17,7 +18,7 @@ export const setDefaultAddress = async (addressId, userId) => {
         .eq('is_default', true);
 
     if (unsetError) {
-        console.error("Error unsetting old default address:", unsetError);
+        logger.error('Error unsetting old default address', unsetError, { context: 'addressService', userId, addressId });
         return { error: unsetError };
     }
 
@@ -28,7 +29,7 @@ export const setDefaultAddress = async (addressId, userId) => {
         .eq('id', addressId);
 
     if (setError) {
-        console.error("Error setting new default address:", setError);
+        logger.error('Error setting new default address', setError, { context: 'addressService', userId, addressId });
     }
 
     return { error: setError };

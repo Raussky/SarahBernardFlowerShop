@@ -1,22 +1,31 @@
 import { supabase } from '../integrations/supabase/client';
+import { logger } from '../utils/logger';
+import { retry, RETRY_PRESETS } from '../utils/retry';
 
 /**
  * Fetches a single product with its variants and images.
  * @param {string} productId - The ID of the product to fetch.
  */
 export const getProductDetails = async (productId) => {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*, product_variants(id, product_id, size, price, stock_quantity), product_images(*)')
-    .eq('id', productId)
-    .maybeSingle();
+  try {
+    return await retry(async () => {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*, product_variants(id, product_id, size, price, stock_quantity), product_images(*)')
+        .eq('id', productId)
+        .maybeSingle();
 
-  if (error && error.code !== 'PGRST116') {
-    console.error("Error fetching product details:", error);
+      if (error && error.code !== 'PGRST116') {
+        logger.error('Error fetching product details', error, { context: 'productService', productId });
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    }, RETRY_PRESETS.quick);
+  } catch (error) {
+    logger.error('Failed to fetch product details after retries', error, { context: 'productService', productId });
     return { data: null, error };
   }
-  
-  return { data, error: null };
 };
 
 /**
@@ -24,18 +33,25 @@ export const getProductDetails = async (productId) => {
  * @param {string} currentProductId - The ID of the product to exclude.
  */
 export const getRecommendedProducts = async (currentProductId) => {
-    const { data, error } = await supabase
-        .from('products')
-        .select('*, product_variants(id, product_id, size, price, stock_quantity)')
-        .neq('id', currentProductId)
-        .order('purchase_count', { ascending: false })
-        .limit(5);
+    try {
+      return await retry(async () => {
+        const { data, error } = await supabase
+            .from('products')
+            .select('*, product_variants(id, product_id, size, price, stock_quantity)')
+            .neq('id', currentProductId)
+            .order('purchase_count', { ascending: false })
+            .limit(5);
 
-    if (error) {
-        console.error("Error fetching recommended products:", error);
+        if (error) {
+            logger.error('Error fetching recommended products', error, { context: 'productService', currentProductId });
+        }
+
+        return { data, error };
+      }, RETRY_PRESETS.quick);
+    } catch (error) {
+      logger.error('Failed to fetch recommended products after retries', error, { context: 'productService', currentProductId });
+      return { data: null, error };
     }
-    
-    return { data, error };
 };
 
 /**
@@ -49,7 +65,7 @@ export const deleteProduct = async (productId) => {
     });
 
     if (error) {
-        console.error("Error deleting product:", error);
+        logger.error('Error deleting product', error, { context: 'productService', productId });
         return { data: null, error };
     }
 
@@ -69,7 +85,7 @@ export const bulkArchiveProducts = async (productIds, archiveStatus) => {
     });
 
     if (error) {
-        console.error("Error in bulk archive:", error);
+        logger.error('Error in bulk archive', error, { context: 'productService', productCount: productIds?.length, archiveStatus });
     }
 
     return { error };
@@ -81,18 +97,20 @@ export const bulkArchiveProducts = async (productIds, archiveStatus) => {
  */
 export const searchProducts = async (searchTerm) => {
     try {
-        const { data, error } = await supabase
-            .from('products')
-            .select('*, categories(name, name_en), product_variants(*)')
-            .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`); // Search in name and description
+        return await retry(async () => {
+          const { data, error } = await supabase
+              .from('products')
+              .select('*, categories(name, name_en), product_variants(*)')
+              .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`); // Search in name and description
 
-        if (error) {
-            console.error("Error searching products:", error);
-            return { data: null, error };
-        }
-        return { data, error: null };
+          if (error) {
+              logger.error('Error searching products', error, { context: 'productService', searchTerm });
+              return { data: null, error };
+          }
+          return { data, error: null };
+        }, RETRY_PRESETS.quick);
     } catch (error) {
-        console.error("Unexpected error during product search:", error);
+        logger.error('Failed to search products after retries', error, { context: 'productService', searchTerm });
         return { data: null, error };
     }
 };
@@ -115,7 +133,7 @@ export const filterProducts = async (filters) => {
     });
 
     if (error) {
-        console.error("Error filtering products:", error);
+        logger.error('Error filtering products', error, { context: 'productService', filters });
     }
 
     return { data, error };

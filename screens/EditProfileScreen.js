@@ -21,6 +21,9 @@ import { readAsStringAsync } from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import 'react-native-url-polyfill/auto'; // Required for Supabase Storage
 import MaskInput from 'react-native-mask-input'; // Import MaskInput
+import { logger } from '../src/utils/logger';
+import { validateName, validatePhoneNumber, sanitizeString } from '../src/utils/validation';
+import { ERROR_MESSAGES } from '../src/config/constants';
 
 const EditProfileScreen = ({ navigation }) => {
   const { user, profile, refreshProfile } = useAuth();
@@ -72,9 +75,10 @@ const EditProfileScreen = ({ navigation }) => {
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      logger.info('Avatar uploaded successfully', { context: 'EditProfileScreen', userId: user.id });
       return data.publicUrl;
     } catch (e) {
-      console.error("Avatar upload error:", e);
+      logger.error('Avatar upload error', e, { context: 'EditProfileScreen', userId: user?.id });
       throw e;
     }
   };
@@ -85,20 +89,51 @@ const EditProfileScreen = ({ navigation }) => {
       return;
     }
 
+    // Validate first name
+    const firstNameValidation = validateName(firstName, 'Имя');
+    if (!firstNameValidation.isValid) {
+      showToast(firstNameValidation.error, 'error');
+      logger.warn('First name validation failed', { context: 'EditProfileScreen', error: firstNameValidation.error });
+      return;
+    }
+
+    // Validate last name (optional, but if provided should be valid)
+    if (lastName && lastName.trim()) {
+      const lastNameValidation = validateName(lastName, 'Фамилия');
+      if (!lastNameValidation.isValid) {
+        showToast(lastNameValidation.error, 'error');
+        logger.warn('Last name validation failed', { context: 'EditProfileScreen', error: lastNameValidation.error });
+        return;
+      }
+    }
+
+    // Validate phone number (optional, but if provided should be valid)
+    if (phoneNumber && phoneNumber.trim()) {
+      const phoneValidation = validatePhoneNumber(phoneNumber);
+      if (!phoneValidation.isValid) {
+        showToast(phoneValidation.error, 'error');
+        logger.warn('Phone number validation failed', { context: 'EditProfileScreen', error: phoneValidation.error });
+        return;
+      }
+    }
+
     setLoading(true);
     try {
+      logger.info('Saving profile', { context: 'EditProfileScreen', userId: user.id });
+
       let newAvatarUrl = profile?.avatar_url; // Start with the current URL
       if (avatarUrl && avatarUrl.startsWith('file://')) {
        showToast('Загружаем фото...', 'info');
         newAvatarUrl = await uploadImage(avatarUrl);
       }
 
+      // Sanitize inputs before saving
       const { error } = await supabase
         .from('profiles')
         .update({
-          first_name: firstName,
-          last_name: lastName,
-          phone_number: phoneNumber, // Save phone number
+          first_name: sanitizeString(firstName),
+          last_name: lastName ? sanitizeString(lastName) : null,
+          phone_number: phoneNumber ? sanitizeString(phoneNumber) : null, // Save phone number
           avatar_url: newAvatarUrl,
           updated_at: new Date().toISOString(),
         })
@@ -106,11 +141,12 @@ const EditProfileScreen = ({ navigation }) => {
 
       if (error) throw error;
 
+      logger.info('Profile saved successfully', { context: 'EditProfileScreen', userId: user.id });
       showToast('Профиль успешно обновлен!', 'success');
       await refreshProfile();
       navigation.goBack();
     } catch (error) {
-      console.error("Error saving profile:", error);
+      logger.error('Error saving profile', error, { context: 'EditProfileScreen', userId: user?.id });
       showToast(error.message, 'error');
     } finally {
       setLoading(false);

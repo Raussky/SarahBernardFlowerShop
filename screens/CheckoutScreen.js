@@ -6,13 +6,15 @@ import { CartContext } from '../src/context/CartContext';
 import { AuthContext } from '../src/context/AuthContext';
 import * as Linking from 'expo-linking';
 import { useToast } from '../src/components/ToastProvider';
-import { DELIVERY_COST, WHATSAPP_PHONE } from '../src/config/constants';
+import { DELIVERY_COST, WHATSAPP_PHONE, ERROR_MESSAGES, DELIVERY_METHODS } from '../src/config/constants';
 import { supabase } from '../src/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import MaskInput from 'react-native-mask-input';
 import PrimaryButton from '../src/components/PrimaryButton';
 import TimePickerModal from '../src/components/TimePickerModal';
 import WhatsappInfoModal from '../src/components/WhatsappInfoModal';
+import { validateName, validatePhoneNumber, validateAddress, sanitizeString } from '../src/utils/validation';
+import { logger } from '../src/utils/logger';
 
 const CheckoutScreen = ({ navigation }) => {
   const { cart, clearCart } = useContext(CartContext);
@@ -68,33 +70,42 @@ const CheckoutScreen = ({ navigation }) => {
     setPhoneError('');
     setAddressError('');
     setDeliveryTimeError('');
- 
-    if (!customerName.trim()) {
-      setNameError('Имя обязательно');
-      isValid = false;
-    }
-    
-    const unmaskedPhone = customerPhone.replace(/\D/g, '');
-    if (!unmaskedPhone) {
-      setPhoneError('Телефон обязателен');
-      isValid = false;
-    } else if (unmaskedPhone.length < 11) {
-      setPhoneError('Введите корректный номер телефона');
-      isValid = false;
-    }
- 
-    if (deliveryMethod === 'delivery' && !customerAddress.trim()) {
-      setAddressError('Адрес обязателен для доставки');
+
+    // Validate name using utility
+    const nameValidation = validateName(customerName);
+    if (!nameValidation.isValid) {
+      setNameError(nameValidation.error);
       isValid = false;
     }
 
-    if (deliveryMethod === 'delivery' && !deliveryTime.trim()) {
-      setDeliveryTimeError('Выберите время доставки');
+    // Validate phone using utility
+    const phoneValidation = validatePhoneNumber(customerPhone);
+    if (!phoneValidation.isValid) {
+      setPhoneError(phoneValidation.error);
       isValid = false;
     }
- 
+
+    // Validate address for delivery
+    if (deliveryMethod === DELIVERY_METHODS.DELIVERY) {
+      const addressValidation = validateAddress(customerAddress);
+      if (!addressValidation.isValid) {
+        setAddressError(addressValidation.error);
+        isValid = false;
+      }
+
+      if (!deliveryTime.trim()) {
+        setDeliveryTimeError('Выберите время доставки');
+        isValid = false;
+      }
+    }
+
     if (!isValid) {
       showToast('Пожалуйста, заполните все обязательные поля корректно.', 'error');
+      logger.warn('Checkout form validation failed', {
+        nameValid: nameValidation.isValid,
+        phoneValid: phoneValidation.isValid,
+        context: 'CheckoutScreen'
+      });
     }
     return isValid;
   };
@@ -118,17 +129,23 @@ const CheckoutScreen = ({ navigation }) => {
   };
 
   const getErrorMessage = (error) => {
-    console.error('Ошибка при оформлении заказа:', error);
+    logger.error('Error during checkout', error, {
+      context: 'CheckoutScreen',
+      deliveryMethod,
+      paymentMethod,
+      cartItemsCount: cart.length
+    });
+
     if (error.message.includes('Network request failed')) {
-      return 'Проблема с подключением к интернету. Пожалуйста, проверьте ваше соединение.';
+      return ERROR_MESSAGES.NETWORK_ERROR;
     }
     if (error.message.includes('duplicate key value violates unique constraint')) {
       return 'Ошибка базы данных: Пожалуйста, попробуйте еще раз.';
     }
     if (error.message.includes('decrement_stock') || error.message.includes('decrement_stock_from_combo')) {
-      return 'Ошибка при обновлении запасов товаров. Пожалуйста, попробуйте еще раз.';
+      return ERROR_MESSAGES.INSUFFICIENT_STOCK;
     }
-    return 'Произошла ошибка при оформлении заказа.';
+    return ERROR_MESSAGES.ORDER_FAILED;
   };
 
   const handlePlaceOrder = async () => {
@@ -143,19 +160,29 @@ const CheckoutScreen = ({ navigation }) => {
     const newOrderId = uuidv4();
 
     try {
+      // Sanitize all user inputs before sending to database
       const orderData = {
         id: newOrderId,
         user_id: user?.id || null,
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_address: deliveryMethod === 'delivery' ? customerAddress : null,
+        customer_name: sanitizeString(customerName),
+        customer_phone: sanitizeString(customerPhone),
+        customer_address: deliveryMethod === 'delivery' ? sanitizeString(customerAddress) : null,
         delivery_method: deliveryMethod,
         payment_method: paymentMethod,
-        order_comment: orderComment,
+        order_comment: sanitizeString(orderComment),
         delivery_time: deliveryMethod === 'delivery' ? deliveryTime : null,
         total_price: total,
         status: 'pending',
       };
+
+      logger.info('Creating order', {
+        orderId: newOrderId,
+        deliveryMethod,
+        paymentMethod,
+        itemCount: cart.length,
+        total,
+        context: 'CheckoutScreen'
+      });
       const { error: orderError } = await supabase.from('orders').insert(orderData);
       if (orderError) throw orderError;
 
@@ -196,15 +223,15 @@ const CheckoutScreen = ({ navigation }) => {
       const productsToUpdate = cart.filter(item => !!item.product_variant_id).map(item => ({ variant_id: item.product_variant_id, quantity: item.quantity }));
       if (productsToUpdate.length > 0) {
         const { error: decrementError } = await supabase.rpc('decrement_stock', { items_to_decrement: productsToUpdate });
-        if (decrementError) console.error("Stock decrement error:", decrementError);
+        if (decrementError) logger.error('Stock decrement error', decrementError, { context: 'CheckoutScreen', orderId: newOrderId });
         const { error: incrementError } = await supabase.rpc('increment_purchase_counts', { items: productsToUpdate });
-        if (incrementError) console.error("Purchase count increment error:", incrementError);
+        if (incrementError) logger.error('Purchase count increment error', incrementError, { context: 'CheckoutScreen', orderId: newOrderId });
       }
 
       const combosToUpdate = cart.filter(item => !!item.combo_id);
       for (const combo of combosToUpdate) {
         const { error: comboDecrementError } = await supabase.rpc('decrement_stock_from_combo', { p_combo_id: (combo.combos?.id || combo.combo_id), p_quantity: combo.quantity });
-        if (comboDecrementError) console.error("Combo stock decrement error:", comboDecrementError);
+        if (comboDecrementError) logger.error('Combo stock decrement error', comboDecrementError, { context: 'CheckoutScreen', orderId: newOrderId, comboId: combo.combo_id });
       }
 
       const orderDetails = cart.map(item => {

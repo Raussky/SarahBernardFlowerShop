@@ -16,6 +16,7 @@ import ProductCard from '../src/components/ProductCard';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 import { FONTS } from '../src/config/theme';
 import FilterModal from '../src/components/FilterModal';
+import { logger } from '../src/utils/logger';
 
 const CategoryScreen = ({ navigation, route }) => {
   const { category } = route.params;
@@ -68,7 +69,7 @@ const CategoryScreen = ({ navigation, route }) => {
       setProducts(data);
 
     } catch (error) {
-      console.error("Error fetching products for category:", error);
+      logger.error('Error fetching products for category', error, { context: 'CategoryScreen', categoryId: category?.id });
     } finally {
       setLoading(false);
     }

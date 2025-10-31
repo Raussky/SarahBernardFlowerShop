@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,11 +15,17 @@ const BasketScreen = ({ navigation }) => {
   const { showToast } = useToast();
   const [isNavigating, setIsNavigating] = useState(false);
 
-  const getSubtotal = () => cart.reduce((total, item) => {
-    const price = item.product_variants?.price || item.combos?.price || 0;
-    return total + price * item.quantity;
-  }, 0);
-  const getTotalPrice = () => getSubtotal() + DELIVERY_COST;
+  // Memoize expensive calculations
+  const subtotal = useMemo(() => {
+    return cart.reduce((total, item) => {
+      const price = item.product_variants?.price || item.combos?.price || 0;
+      return total + price * item.quantity;
+    }, 0);
+  }, [cart]);
+
+  const totalPrice = useMemo(() => {
+    return subtotal + DELIVERY_COST;
+  }, [subtotal]);
 
   const handleClearCart = () => {
     Alert.alert(
@@ -117,7 +123,7 @@ const BasketScreen = ({ navigation }) => {
             <View style={styles.summaryContainer}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Подытог</Text>
-                <Text style={styles.summaryValue}>₸{getSubtotal().toLocaleString()}</Text>
+                <Text style={styles.summaryValue}>₸{subtotal.toLocaleString()}</Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Доставка (примерно)</Text>
@@ -125,7 +131,7 @@ const BasketScreen = ({ navigation }) => {
               </View>
               <View style={[styles.summaryRow, styles.totalRow]}>
                 <Text style={styles.totalLabel}>Итого</Text>
-                <Text style={styles.totalPrice}>₸{getTotalPrice().toLocaleString()}</Text>
+                <Text style={styles.totalPrice}>₸{totalPrice.toLocaleString()}</Text>
               </View>
             </View>
             <PrimaryButton

@@ -8,6 +8,7 @@ import { useIsFocused } from '@react-navigation/native';
 import { useToast } from '../../src/components/ToastProvider';
 import EmptyState from '../../src/components/EmptyState';
 import AdminHeader from '../../src/components/AdminHeader';
+import { logger } from '../../src/utils/logger';
 
 const AdminProductsScreen = ({ navigation }) => {
   const [products, setProducts] = useState([]);
@@ -78,7 +79,7 @@ const AdminProductsScreen = ({ navigation }) => {
       setPage(currentPage);
 
     } catch (error) {
-      console.error("Error fetching products:", error);
+      logger.error('Error fetching products', error, { context: 'AdminProductsScreen', page, categoryFilter, searchQuery });
     } finally {
       setLoading(false);
       setLoadingMore(false);

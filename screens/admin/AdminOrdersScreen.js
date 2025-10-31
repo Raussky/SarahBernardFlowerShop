@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import EmptyState from '../../src/components/EmptyState';
 import AdminHeader from '../../src/components/AdminHeader';
 import { ORDER_STATUSES, getStatusColor } from '../../src/config/orderConstants';
+import { logger } from '../../src/utils/logger';
 
 const PAGE_SIZE = 15;
 
@@ -76,7 +77,7 @@ const AdminOrdersScreen = ({ navigation }) => {
       setPage(currentPage);
 
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      logger.error('Error fetching orders', error, { context: 'AdminOrdersScreen', page, statusFilter, searchQuery });
     } finally {
       setLoading(false);
       setLoadingMore(false);

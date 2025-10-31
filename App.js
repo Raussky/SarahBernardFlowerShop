@@ -9,6 +9,15 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createSharedElementStackNavigator } from 'react-navigation-shared-element';
 import { Ionicons } from '@expo/vector-icons';
 
+// Import utilities
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { logger } from './src/utils/logger';
+import { initSentry } from './src/utils/sentry';
+import { TAB_BAR_HEIGHT, TAB_BAR_BORDER_RADIUS } from './src/config/constants';
+
+// Initialize Sentry for error tracking
+initSentry();
+
 // Import screens
 import HomeScreen from './screens/HomeScreen';
 import SavedScreen from './screens/SavedScreen';
@@ -40,6 +49,26 @@ import { ToastProvider } from './src/components/ToastProvider';
 import { CartContext, CartProvider } from './src/context/CartContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { AnimationProvider } from './src/context/AnimationContext';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://575c605e7e544440d892f8c0a14ec67e@o4510284357042176.ingest.de.sentry.io/4510284358287440',
+
+  // Adds more context data to events (IP address, cookies, user, etc.)
+  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
+  sendDefaultPii: true,
+
+  // Enable Logs
+  enableLogs: true,
+
+  // Configure Session Replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1,
+  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+
+  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
+  // spotlight: __DEV__,
+});
 
 const Tab = createBottomTabNavigator();
 const Stack = createSharedElementStackNavigator();
@@ -70,8 +99,8 @@ function MainTabs() {
           left: 5,
           right: 5,
           backgroundColor: '#fff',
-          borderRadius: 35,
-          height:80,
+          borderRadius: TAB_BAR_BORDER_RADIUS,
+          height: TAB_BAR_HEIGHT,
           shadowColor: '#000',
           shadowOffset: {
             width: 0,
@@ -131,7 +160,7 @@ function MainTabs() {
 
 SplashScreen.preventAutoHideAsync();
 
-export default function App() {
+export default Sentry.wrap(function App() {
   const [fontsLoaded] = useFonts({
     'PlusJakartaSans-Regular': require('./assets/fonts/PlusJakartaSans-Regular.ttf'),
     'PlusJakartaSans-Bold': require('./assets/fonts/PlusJakartaSans-Bold.ttf'),
@@ -150,41 +179,52 @@ export default function App() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ToastProvider>
-        <AuthProvider>
-          <CartProvider>
-            <AnimationProvider>
-              <NavigationContainer>
-                <Stack.Navigator screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="Main" component={MainTabs} />
-                  <Stack.Screen name="Product" component={ProductScreen} />
-                  <Stack.Screen name="Login" component={LoginScreen} />
-                  <Stack.Screen name="Admin" component={AdminNavigator} />
-                  <Stack.Screen name="Category" component={CategoryScreen} />
-                  <Stack.Screen name="EditProduct" component={EditProductScreen} />
-                  <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
-                  <Stack.Screen name="UserOrderDetail" component={UserOrderDetailScreen} />
-                  <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
-                  <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-                  <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
-                  <Stack.Screen name="AllCombos" component={AllCombosScreen} />
-                  <Stack.Screen name="Combo" component={ComboScreen} />
-                  <Stack.Screen name="Checkout" component={CheckoutScreen} />
-                  <Stack.Screen name="Addresses" component={AddressesScreen} />
-                  <Stack.Screen name="EditAddress" component={EditAddressScreen} />
-                  <Stack.Screen name="NotificationsSettings" component={NotificationsSettingsScreen} />
-                  <Stack.Screen name="Search" component={SearchScreen} />
-                  <Stack.Screen name="FilterResults" component={FilterResultsScreen} />
-                </Stack.Navigator>
-              </NavigationContainer>
-            </AnimationProvider>
-          </CartProvider>
-        </AuthProvider>
-      </ToastProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ToastProvider>
+          <AuthProvider>
+            <CartProvider>
+              <AnimationProvider>
+                <NavigationContainer
+                  onReady={() => logger.info('Navigation ready')}
+                  onStateChange={(state) => {
+                    // Track screen views
+                    const currentRoute = state?.routes[state.index];
+                    if (currentRoute) {
+                      logger.trackScreen(currentRoute.name);
+                    }
+                  }}
+                >
+                  <Stack.Navigator screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="Main" component={MainTabs} />
+                    <Stack.Screen name="Product" component={ProductScreen} />
+                    <Stack.Screen name="Login" component={LoginScreen} />
+                    <Stack.Screen name="Admin" component={AdminNavigator} />
+                    <Stack.Screen name="Category" component={CategoryScreen} />
+                    <Stack.Screen name="EditProduct" component={EditProductScreen} />
+                    <Stack.Screen name="OrderHistory" component={OrderHistoryScreen} />
+                    <Stack.Screen name="UserOrderDetail" component={UserOrderDetailScreen} />
+                    <Stack.Screen name="OrderConfirmation" component={OrderConfirmationScreen} />
+                    <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                    <Stack.Screen name="AllCategories" component={AllCategoriesScreen} />
+                    <Stack.Screen name="AllCombos" component={AllCombosScreen} />
+                    <Stack.Screen name="Combo" component={ComboScreen} />
+                    <Stack.Screen name="Checkout" component={CheckoutScreen} />
+                    <Stack.Screen name="Addresses" component={AddressesScreen} />
+                    <Stack.Screen name="EditAddress" component={EditAddressScreen} />
+                    <Stack.Screen name="NotificationsSettings" component={NotificationsSettingsScreen} />
+                    <Stack.Screen name="Search" component={SearchScreen} />
+                    <Stack.Screen name="FilterResults" component={FilterResultsScreen} />
+                  </Stack.Navigator>
+                </NavigationContainer>
+              </AnimationProvider>
+            </CartProvider>
+          </AuthProvider>
+        </ToastProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
-}
+});
 
 const styles = StyleSheet.create({
   badgeContainer: {

@@ -14,6 +14,7 @@ import { CartContext } from '../src/context/CartContext';
 import ProductCard from '../src/components/ProductCard';
 import { supabase } from '../src/integrations/supabase/client';
 import EmptyState from '../src/components/EmptyState';
+import { logger } from '../src/utils/logger';
 
 const SavedScreen = ({ navigation }) => {
   const { saved } = useContext(CartContext);
@@ -28,7 +29,7 @@ const SavedScreen = ({ navigation }) => {
       if (error) throw error;
       setCategories([{ id: 'all', name: 'Все' }, ...data]);
     } catch (error) {
-      console.error("Error fetching categories for SavedScreen:", error);
+      logger.error('Error fetching categories for SavedScreen', error, { context: 'SavedScreen' });
     } finally {
       setLoadingCategories(false);
     }

@@ -16,6 +16,14 @@
           "resizeMode": "contain",
           "imageWidth": 200
         }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "react-native",
+          "organization": "rauans-company"
+        }
       ]
     ],
     "ios": {
@@ -25,7 +33,7 @@
         "NSCameraUsageDescription": "Разрешить $(PRODUCT_NAME) доступ к вашей камере для съемки фотографий товаров.",
         "ITSAppUsesNonExemptEncryption": false
       },
-      "bundleIdentifier": "com.anonymous.SarahBernardFlowerShop"
+      "bundleIdentifier": "com.sarahbernard.flowershop"
     },
     "android": {
       "adaptiveIcon": {
@@ -36,7 +44,7 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.CAMERA"
       ],
-      "package": "com.anonymous.SarahBernardFlowerShop",
+      "package": "com.sarahbernard.flowershop",
       "edgeToEdgeEnabled": true
     },
     "web": {

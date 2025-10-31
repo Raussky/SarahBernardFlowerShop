@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useToast } from '../components/ToastProvider';
+import { logger } from '../utils/logger';
 
 export const AuthContext = createContext();
 
@@ -23,7 +24,7 @@ export const AuthProvider = ({ children }) => {
           .maybeSingle(); // Changed to maybeSingle()
         
         if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows found", which maybeSingle handles by returning null data
-          console.error("Error fetching profile:", error);
+          logger.error('Error fetching profile', error, { context: 'AuthContext', userId: session.user.id });
           setProfile(null);
         } else {
           setProfile(profileData); // profileData will be null if no profile found
@@ -44,7 +45,7 @@ export const AuthProvider = ({ children }) => {
           .maybeSingle(); // Changed to maybeSingle()
         
         if (error && error.code !== 'PGRST116') {
-          console.error("Error fetching profile on auth change:", error);
+          logger.error('Error fetching profile on auth change', error, { context: 'AuthContext', userId: session.user.id });
           setProfile(null);
         } else {
           setProfile(profileData);
@@ -66,7 +67,7 @@ export const AuthProvider = ({ children }) => {
         .maybeSingle();
       
       if (error && error.code !== 'PGRST116') {
-        console.error("Error refreshing profile:", error);
+        logger.error('Error refreshing profile', error, { context: 'AuthContext', userId: session.user.id });
         setProfile(null);
       } else {
         setProfile(profileData);
@@ -83,7 +84,7 @@ export const AuthProvider = ({ children }) => {
 
       // We only care about errors that are NOT AuthSessionMissingError
       if (error && error.name !== 'AuthSessionMissingError') {
-        console.error("Error signing out:", error);
+        logger.error('Error signing out', error, { context: 'AuthContext', userId: session?.user?.id });
         return { error };
       }
       

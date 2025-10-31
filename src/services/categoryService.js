@@ -1,11 +1,12 @@
 import { supabase } from '../integrations/supabase/client';
+import { logger } from '../utils/logger';
 
 /**
  * Fetches all categories.
  */
 export const getCategories = async () => {
     const { data, error } = await supabase.from('categories').select('*').order('created_at');
-    if (error) console.error("Error fetching categories:", error);
+    if (error) logger.error('Error fetching categories', error, { context: 'categoryService' });
     return { data, error };
 };
 
@@ -15,7 +16,7 @@ export const getCategories = async () => {
  */
 export const getCategoryById = async (categoryId) => {
     const { data, error } = await supabase.from('categories').select('*').eq('id', categoryId).single();
-    if (error) console.error("Error fetching category:", error);
+    if (error) logger.error('Error fetching category', error, { context: 'categoryService', categoryId });
     return { data, error };
 };
 
@@ -25,7 +26,7 @@ export const getCategoryById = async (categoryId) => {
  */
 export const upsertCategory = async (categoryData) => {
     const { error } = await supabase.from('categories').upsert(categoryData);
-    if (error) console.error("Error upserting category:", error);
+    if (error) logger.error('Error upserting category', error, { context: 'categoryService', categoryData });
     return { error };
 };
 
@@ -36,7 +37,7 @@ export const upsertCategory = async (categoryData) => {
 export const deleteCategory = async (categoryId) => {
     // Note: You might want to add a check here to see if any products use this category first.
     const { error } = await supabase.from('categories').delete().eq('id', categoryId);
-    if (error) console.error("Error deleting category:", error);
+    if (error) logger.error('Error deleting category', error, { context: 'categoryService', categoryId });
     return { error };
 };
 
@@ -46,6 +47,6 @@ export const deleteCategory = async (categoryId) => {
  */
 export const updateCategoryPositions = async (positions) => {
     const { error } = await supabase.rpc('update_category_positions', { positions });
-    if (error) console.error("Error updating category positions:", error);
+    if (error) logger.error('Error updating category positions', error, { context: 'categoryService', positionCount: positions?.length });
     return { error };
 };

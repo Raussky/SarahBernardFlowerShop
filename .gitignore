@@ -86,3 +86,8 @@ yarn-error.*
 
 # Environment variables
 .env
+.env.local
+
+# Sentry
+ios/sentry.properties
+android/sentry.properties

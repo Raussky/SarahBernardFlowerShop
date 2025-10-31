@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../src/integrations/supabase/client';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 import AnimatedListItem from '../src/components/AnimatedListItem';
+import { logger } from '../src/utils/logger';
 
 const AllCategoriesScreen = ({ navigation }) => {
   const [categories, setCategories] = useState([]);
@@ -22,7 +23,7 @@ const AllCategoriesScreen = ({ navigation }) => {
       if (error) throw error;
       setCategories(data);
     } catch (error) {
-      console.error("Error fetching all categories:", error);
+      logger.error('Error fetching all categories', error, { context: 'AllCategoriesScreen' });
     } finally {
       setLoading(false);
     }

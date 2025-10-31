@@ -27,6 +27,7 @@ import ProductSection from '../src/components/ProductSection';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 import MainBanner from '../src/components/MainBanner';
 import { FONTS } from '../src/config/theme';
+import { logger } from '../src/utils/logger';
 
 const { width } = Dimensions.get('window');
 
@@ -96,13 +97,13 @@ const HomeScreen = ({ navigation }) => {
     if (banner.target_type === 'product' && banner.target_id) {
       supabase.from('products').select('*, product_variants(*)').eq('id', banner.target_id).single()
         .then(({ data, error }) => {
-          if (error) console.error("Error fetching product for banner:", error);
+          if (error) logger.error('Error fetching product for banner', error, { context: 'HomeScreen', bannerId: banner.id });
           if (data) navigation.navigate('Product', { product: data });
         });
     } else if (banner.target_type === 'category' && banner.target_id) {
       supabase.from('categories').select('*').eq('id', banner.target_id).single()
         .then(({ data, error }) => {
-          if (error) console.error("Error fetching category for banner:", error);
+          if (error) logger.error('Error fetching category for banner', error, { context: 'HomeScreen', bannerId: banner.id });
           if (data) navigation.navigate('Category', { category: data });
         });
     }

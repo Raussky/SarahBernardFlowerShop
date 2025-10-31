@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { logger } from '../utils/logger';
 
 /**
  * Fetches all items for a given order.
@@ -9,6 +10,6 @@ export const getOrderItems = async (orderId) => {
         .from('order_items')
         .select('*')
         .eq('order_id', orderId);
-    if (error) console.error("Error fetching order items:", error);
+    if (error) logger.error('Error fetching order items', error, { context: 'orderService', orderId });
     return { data, error };
 };

@@ -1,4 +1,5 @@
 import { supabase } from '../integrations/supabase/client';
+import { logger } from '../utils/logger';
 
 /**
  * Fetches all combos for the admin screen.
@@ -10,9 +11,9 @@ export const getCombos = async () => {
         .order('created_at', { ascending: false });
 
     if (error) {
-        console.error("Error fetching combos:", error);
+        logger.error('Error fetching combos', error, { context: 'comboService' });
     }
-    
+
     return { data, error };
 };
 
@@ -28,7 +29,7 @@ export const deleteCombo = async (comboId) => {
         .eq('combo_id', comboId);
 
     if (itemsError) {
-        console.error("Error deleting combo items:", itemsError);
+        logger.error('Error deleting combo items', itemsError, { context: 'comboService', comboId });
         return { error: itemsError };
     }
 
@@ -37,9 +38,9 @@ export const deleteCombo = async (comboId) => {
         .from('combos')
         .delete()
         .eq('id', comboId);
-    
+
     if (comboError) {
-        console.error("Error deleting combo:", comboError);
+        logger.error('Error deleting combo', comboError, { context: 'comboService', comboId });
     }
 
     return { error: comboError };

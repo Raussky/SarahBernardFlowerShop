@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import { useAuth } from './AuthContext';
+import { logger } from '../utils/logger';
 
 export const CartContext = createContext();
 
@@ -45,7 +46,7 @@ export const CartProvider = ({ children }) => {
       if (error) throw error;
       setCart(data);
     } catch (error) {
-      console.error('Error loading cart from DB:', error);
+      logger.error('Error loading cart from DB', error, { context: 'CartContext', userId: user.id });
     }
   };
 
@@ -62,7 +63,7 @@ export const CartProvider = ({ children }) => {
       const savedItems = data.map(item => item.products);
       setSaved(savedItems);
     } catch (error) {
-      console.error('Error loading saved items from DB:', error);
+      logger.error('Error loading saved items from DB', error, { context: 'CartContext', userId: user.id });
     }
   };
 
@@ -110,7 +111,7 @@ export const CartProvider = ({ children }) => {
           quantity: newItem.quantity,
         });
         if (error) {
-          console.error("Error adding to cart:", error);
+          logger.error('Error adding to cart', error, { context: 'CartContext', userId: user.id, itemType: type });
         } else {
           await loadCartFromDB(); // Refresh cart from DB
         }
@@ -127,7 +128,7 @@ export const CartProvider = ({ children }) => {
     if (user) {
       const { error } = await supabase.from('cart_items').delete().eq('id', cartItemId).eq('user_id', user.id);
       if (error) {
-        console.error("Error removing from cart:", error);
+        logger.error('Error removing from cart', error, { context: 'CartContext', userId: user.id, cartItemId });
       } else {
         setCart(prevCart => prevCart.filter(item => item.id !== cartItemId));
       }
@@ -146,7 +147,7 @@ export const CartProvider = ({ children }) => {
     if (user) {
       const { error } = await supabase.from('cart_items').update({ quantity }).eq('id', cartItemId).eq('user_id', user.id);
       if (error) {
-        console.error("Error updating quantity:", error);
+        logger.error('Error updating quantity', error, { context: 'CartContext', userId: user.id, cartItemId, quantity });
       } else {
         setCart(prevCart => prevCart.map(item => item.id === cartItemId ? { ...item, quantity } : item));
       }
@@ -162,7 +163,7 @@ export const CartProvider = ({ children }) => {
     if (user) {
       const { error } = await supabase.from('cart_items').delete().eq('user_id', user.id);
       if (error) {
-        console.error("Error clearing cart:", error);
+        logger.error('Error clearing cart', error, { context: 'CartContext', userId: user.id });
       } else {
         setCart([]);
       }
@@ -183,7 +184,7 @@ export const CartProvider = ({ children }) => {
           .from('saved_products')
           .delete()
           .match({ user_id: user.id, product_id: item.id });
-        if (error) console.error("Error removing from saved:", error);
+        if (error) logger.error('Error removing from saved', error, { context: 'CartContext', userId: user.id, productId: item.id });
         else setSaved(prevSaved => prevSaved.filter(i => i.id !== item.id));
       } else {
         // Guest: remove from local state
@@ -194,7 +195,7 @@ export const CartProvider = ({ children }) => {
         const { error } = await supabase
           .from('saved_products')
           .insert({ user_id: user.id, product_id: item.id });
-        if (error) console.error("Error adding to saved:", error);
+        if (error) logger.error('Error adding to saved', error, { context: 'CartContext', userId: user.id, productId: item.id });
         else setSaved(prevSaved => [...prevSaved, item]);
       } else {
         // Guest: add to local state
@@ -215,7 +216,7 @@ export const CartProvider = ({ children }) => {
       .eq('user_id', user.id);
 
     if (fetchError) {
-      console.error('Error fetching DB cart for merge:', fetchError);
+      logger.error('Error fetching DB cart for merge', fetchError, { context: 'CartContext', userId: user.id });
       return;
     }
 
@@ -256,7 +257,7 @@ export const CartProvider = ({ children }) => {
     if (itemsToInsert.length > 0) {
       const { error: insertError } = await supabase.from('cart_items').insert(itemsToInsert);
       if (insertError) {
-        console.error('Error inserting new items during merge:', insertError);
+        logger.error('Error inserting new items during merge', insertError, { context: 'CartContext', userId: user.id, itemCount: itemsToInsert.length });
       }
     }
 
@@ -281,7 +282,7 @@ export const CartProvider = ({ children }) => {
     });
 
     if (error) {
-      console.error('Error merging saved items with DB:', error);
+      logger.error('Error merging saved items with DB', error, { context: 'CartContext', userId: user.id, itemCount: saved.length });
     }
     // Clear local saved items after attempting to merge
     setSaved([]);
