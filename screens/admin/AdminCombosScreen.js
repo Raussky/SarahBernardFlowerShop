@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { getCombos, deleteCombo } from '../../src/services/api';
+import { getCombos, deleteCombo } from '../../src/services/comboService';
 import { useToast } from '../../src/components/ToastProvider';
 import EmptyState from '../../src/components/EmptyState';
 import AdminHeader from '../../src/components/AdminHeader';

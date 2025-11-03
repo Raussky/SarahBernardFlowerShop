@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 import { useToast } from '../../src/components/ToastProvider';
 import AdminHeader from '../../src/components/AdminHeader';
-import { getCategories, deleteCategory, updateCategoryPositions } from '../../src/services/api';
+import { getCategories, deleteCategory, updateCategoryPositions } from '../../src/services/categoryService';
 import DraggableFlatList from 'react-native-draggable-flatlist';
 
 const AdminCategoriesScreen = ({ navigation }) => {

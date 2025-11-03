@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/integrations/supabase/client'; // Keep for now for categories fetch
-import { deleteProduct, bulkArchiveProducts } from '../../src/services/api';
+import { deleteProduct, bulkArchiveProducts } from '../../src/services/productService';
 import { useIsFocused } from '@react-navigation/native';
 import { useToast } from '../../src/components/ToastProvider';
 import EmptyState from '../../src/components/EmptyState';

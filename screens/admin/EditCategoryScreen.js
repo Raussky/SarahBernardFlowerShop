@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../../src/components/ToastProvider';
-import { getCategoryById, upsertCategory } from '../../src/services/api';
+import { getCategoryById, upsertCategory } from '../../src/services/categoryService';
 import { supabase } from '../../src/integrations/supabase/client'; // Keep for storage ops for now
 import { decode } from 'base64-arraybuffer';
 
