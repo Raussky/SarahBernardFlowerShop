@@ -5,6 +5,7 @@
  */
 
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@env';
+import { logger } from '../utils/logger';
 
 /**
  * Environment type
@@ -48,7 +49,7 @@ export function validateEnv() {
 
   if (missing.length > 0) {
     const error = `Missing required environment variables: ${missing.join(', ')}`;
-    console.error(error);
+    logger.error(error, null, { context: 'Environment Validation' });
 
     if (isProduction) {
       throw new Error(error);

@@ -17,7 +17,7 @@ import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
 
 const LoginScreen = ({ navigation }) => {
-  const [authMode, setAuthMode] = useState('login'); // 'login', 'signup', 'magiclink'
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -220,12 +220,6 @@ const LoginScreen = ({ navigation }) => {
               >
                 <Text style={[styles.toggleButtonText, authMode === 'signup' && styles.toggleButtonTextActive]}>Регистрация</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleButton, authMode === 'magiclink' && styles.toggleButtonActive]}
-                onPress={() => setAuthMode('magiclink')}
-              >
-                <Text style={[styles.toggleButtonText, authMode === 'magiclink' && styles.toggleButtonTextActive]}>По ссылке</Text>
-              </TouchableOpacity>
             </View>
 
             {authMode === 'signup' && (
@@ -266,18 +260,16 @@ const LoginScreen = ({ navigation }) => {
               {!!emailError && <Text style={styles.errorText}>{emailError}</Text>}
             </View>
 
-            {authMode !== 'magiclink' && (
-              <View style={[styles.inputWrapper, passwordError ? styles.inputWrapperError : {}]}>
-                <View style={styles.inputContainer}>
-                  <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
-                  <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={(text) => { setPassword(text); setPasswordError(''); }} secureTextEntry={!showPassword} placeholderTextColor="#999" />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#999" />
-                  </TouchableOpacity>
-                </View>
-                {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+            <View style={[styles.inputWrapper, passwordError ? styles.inputWrapperError : {}]}>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#999" style={styles.inputIcon} />
+                <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={(text) => { setPassword(text); setPasswordError(''); }} secureTextEntry={!showPassword} placeholderTextColor="#999" />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#999" />
+                </TouchableOpacity>
               </View>
-            )}
+              {!!passwordError && <Text style={styles.errorText}>{passwordError}</Text>}
+            </View>
 
             {authMode === 'signup' && (
               <View style={[styles.inputWrapper, confirmPasswordError ? styles.inputWrapperError : {}]}>
@@ -289,14 +281,13 @@ const LoginScreen = ({ navigation }) => {
               </View>
             )}
 
-            <TouchableOpacity style={styles.submitButton} onPress={authMode === 'login' ? handleLogin : authMode === 'signup' ? handleSignUp : handleMagicLink} disabled={loading}>
+            <TouchableOpacity style={styles.submitButton} onPress={authMode === 'login' ? handleLogin : handleSignUp} disabled={loading}>
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.submitButtonText}>
                   {authMode === 'login' && 'Войти'}
                   {authMode === 'signup' && 'Зарегистрироваться'}
-                  {authMode === 'magiclink' && 'Получить ссылку'}
                 </Text>
               )}
             </TouchableOpacity>
