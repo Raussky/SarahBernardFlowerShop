@@ -32,7 +32,13 @@ class Logger {
     const log = this._formatLog('INFO', message, meta);
 
     if (this.isDevelopment) {
-      console.log(`[INFO] ${message}`, meta);
+      // Use try/catch to prevent console conflicts with Sentry
+      try {
+        console.log(`[INFO] ${message}`, meta);
+      } catch (e) {
+        // Fallback to other logging if console.log fails
+        console.log(`[INFO] ${message} (meta: ${JSON.stringify(meta)})`);
+      }
     }
 
     // TODO: Send to analytics service
@@ -54,7 +60,12 @@ class Logger {
   warn(message, meta = {}) {
     const log = this._formatLog('WARN', message, meta);
 
-    console.warn(`[WARN] ${message}`, meta);
+    try {
+      console.warn(`[WARN] ${message}`, meta);
+    } catch (e) {
+      // Fallback to other logging if console.warn fails
+      console.log(`[WARN] ${message} (meta: ${JSON.stringify(meta)})`);
+    }
 
     // TODO: Send to Sentry as breadcrumb
     // Sentry.addBreadcrumb({
@@ -79,7 +90,12 @@ class Logger {
       } : null,
     });
 
-    console.error(`[ERROR] ${message}`, error, meta);
+    try {
+      console.error(`[ERROR] ${message}`, error, meta);
+    } catch (e) {
+      // Fallback to other logging if console.error fails
+      console.log(`[ERROR] ${message} (error: ${error?.message || 'null'}, meta: ${JSON.stringify(meta)})`);
+    }
 
     // TODO: Send to Sentry
     // if (error instanceof Error) {
@@ -106,7 +122,12 @@ class Logger {
     if (!this.isDevelopment) return;
 
     const log = this._formatLog('DEBUG', message, meta);
-    console.log(`[DEBUG] ${message}`, meta);
+    try {
+      console.log(`[DEBUG] ${message}`, meta);
+    } catch (e) {
+      // Fallback to other logging if console.log fails
+      console.log(`[DEBUG] ${message} (meta: ${JSON.stringify(meta)})`);
+    }
 
     return log;
   }
@@ -118,7 +139,12 @@ class Logger {
     const log = this._formatLog('EVENT', eventName, properties);
 
     if (this.isDevelopment) {
-      console.log(`[EVENT] ${eventName}`, properties);
+      try {
+        console.log(`[EVENT] ${eventName}`, properties);
+      } catch (e) {
+        // Fallback to other logging if console.log fails
+        console.log(`[EVENT] ${eventName} (properties: ${JSON.stringify(properties)})`);
+      }
     }
 
     // TODO: Send to analytics
@@ -134,7 +160,12 @@ class Logger {
     const log = this._formatLog('SCREEN', screenName, properties);
 
     if (this.isDevelopment) {
-      console.log(`[SCREEN] ${screenName}`, properties);
+      try {
+        console.log(`[SCREEN] ${screenName}`, properties);
+      } catch (e) {
+        // Fallback to other logging if console.log fails
+        console.log(`[SCREEN] ${screenName} (properties: ${JSON.stringify(properties)})`);
+      }
     }
 
     // TODO: Send to analytics
@@ -156,7 +187,12 @@ class Logger {
     });
 
     if (this.isDevelopment) {
-      console.log(`[API] ${method} ${endpoint} - ${statusCode} (${duration}ms)`, error);
+      try {
+        console.log(`[API] ${method} ${endpoint} - ${statusCode} (${duration}ms)`, error);
+      } catch (e) {
+        // Fallback to other logging if console.log fails
+        console.log(`[API] ${method} ${endpoint} - ${statusCode} (${duration}ms) (error: ${error?.message || 'null'})`);
+      }
     }
 
     // TODO: Send to monitoring service

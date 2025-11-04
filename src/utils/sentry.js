@@ -25,6 +25,15 @@ export const initSentry = () => {
     environment: __DEV__ ? 'development' : 'production',
     // Attach stack trace to all messages
     attachStacktrace: true,
+    // Disable auto-instrumentation of console methods to prevent conflicts
+    integrations: [
+      // Only use essential integrations
+      Sentry.ReactNativeTracing(),
+      Sentry.mobileReplayIntegration({
+        networkDetailAllowUrls: [/.*/],
+        networkCapture: true,
+      }),
+    ],
     // Before send callback to filter/modify events
     beforeSend(event, hint) {
       // Don't send events in development if you prefer
@@ -35,6 +44,11 @@ export const initSentry = () => {
         const error = hint.originalException;
         // Example: Don't send network timeout errors
         if (error?.message?.includes('Network request failed')) {
+          return null;
+        }
+        
+        // Filter out the specific read-only property error
+        if (error?.message?.includes("Cannot assign to read-only property")) {
           return null;
         }
       }

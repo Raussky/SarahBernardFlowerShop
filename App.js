@@ -65,10 +65,26 @@ Sentry.init({
   // Configure Session Replay
   replaysSessionSampleRate: 0.1,
   replaysOnErrorSampleRate: 1,
-  integrations: [Sentry.mobileReplayIntegration(), Sentry.feedbackIntegration()],
+  integrations: [
+    Sentry.mobileReplayIntegration({
+      networkDetailAllowUrls: [/.*/],
+      networkCapture: true,
+    }),
+    Sentry.feedbackIntegration({
+      autoInject: false, // Disable auto-inject to prevent console conflicts
+    }),
+  ],
 
   // uncomment the line below to enable Spotlight (https://spotlightjs.com)
   // spotlight: __DEV__,
+  
+  // Disable problematic auto-instrumentation that may cause read-only property errors
+  autoInstrument: {
+    enableUserInteraction: false,
+    enableConsole: false, // Disable console instrumentation
+    enableNetworkBreadcrumbs: false,
+    enableNetworkTracing: false,
+  },
 });
 
 const Tab = createBottomTabNavigator();
