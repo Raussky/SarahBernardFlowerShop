@@ -20,8 +20,9 @@ export const MAX_ADDRESS_LENGTH = 200;
 export const MAX_PRODUCT_QUANTITY = 999;
 
 // UI Constants
-export const TAB_BAR_HEIGHT = 80;
-export const TAB_BAR_BORDER_RADIUS = 35;
+// These are now adaptive - see device.js for dynamic values
+// export const TAB_BAR_HEIGHT = 80;  // Removed - use adaptive value
+// export const TAB_BAR_BORDER_RADIUS = 35;  // Removed - use adaptive value
 export const PRODUCT_CARD_ANIMATION_DURATION = 700;
 export const TOAST_DURATION = 3000;
 export const SPLASH_SCREEN_MIN_DURATION = 1000;

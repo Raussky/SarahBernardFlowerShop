@@ -12,7 +12,7 @@ import { logger } from '../src/utils/logger';
 const FilterResultsScreen = ({ route, navigation }) => {
   const { filteredProducts: initialProducts, title = 'Результаты фильтра', specialFilter } = route.params;
   const [products, setProducts] = useState(initialProducts || []);
-  const [loading, setLoading] = useState(true); // Set loading to true initially
+  const [loading, setLoading] = useState(initialProducts ? false : true); // Only load if no initial products provided
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -20,31 +20,60 @@ const FilterResultsScreen = ({ route, navigation }) => {
   const fetchFilteredProducts = useCallback(async () => {
     logger.info('Fetching filtered products', { context: 'FilterResultsScreen', specialFilter, minPrice, maxPrice });
     setLoading(true);
-    let query = supabase.from('products').select('*, categories(name, name_en), product_variants(*)'); // Fetch relations
+    
+    try {
+      let allProducts = [];
+      
+      if (specialFilter === 'bestsellers') {
+        // For bestsellers, use the RPC function
+        const { data, error } = await supabase.rpc('get_best_sellers', { limit_count: 100 });
+        
+        if (error) throw error;
+        allProducts = data || [];
+      } else if (initialProducts && initialProducts.length > 0) {
+        // Use initial products if passed and specialFilter is not bestsellers
+        allProducts = initialProducts;
+      } else {
+        // Fetch all products with their variants
+        const { data, error } = await supabase
+          .from('products')
+          .select('*, categories(name, name_en), product_variants(*)')
+          .eq('is_archived', false); // Only show non-archived products
 
-    if (specialFilter === 'bestsellers') {
-      query = supabase.rpc('get_best_sellers', { limit_count: 100 });
-    }
+        if (error) throw error;
+        allProducts = data || [];
+      }
 
-    if (minPrice) {
-      query = query.gte('price', parseFloat(minPrice));
-    }
-    if (maxPrice) {
-      query = query.lte('price', parseFloat(maxPrice));
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
+      // Filter by price range in JavaScript
+      let filteredData = allProducts;
+      if (minPrice) {
+        filteredData = filteredData.filter(product => {
+          if (Array.isArray(product.product_variants)) {
+            return product.product_variants.some(variant => variant.price >= parseFloat(minPrice));
+          }
+          return false;
+        });
+      }
+      if (maxPrice) {
+        filteredData = filteredData.filter(product => {
+          if (Array.isArray(product.product_variants)) {
+            return product.product_variants.some(variant => variant.price <= parseFloat(maxPrice));
+          }
+          return false;
+        });
+      }
+      
+      setProducts(filteredData);
+    } catch (error) {
       logger.error('Error fetching filtered products', error, { context: 'FilterResultsScreen', specialFilter, minPrice, maxPrice });
       setProducts([]);
-    } else {
-      setProducts(data);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [specialFilter, minPrice, maxPrice]);
+  }, [specialFilter, minPrice, maxPrice, initialProducts]);
 
   useEffect(() => {
+    // Always run fetchFilteredProducts to handle price filtering properly
     fetchFilteredProducts();
   }, [fetchFilteredProducts]);
 

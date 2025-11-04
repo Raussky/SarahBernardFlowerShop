@@ -1,6 +1,6 @@
 import 'react-native-get-random-values'; // Must be at the top
 import React, { useContext, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { logger } from './src/utils/logger';
 import { initSentry } from './src/utils/sentry';
-import { TAB_BAR_HEIGHT, TAB_BAR_BORDER_RADIUS } from './src/config/constants';
+import { TAB_BAR_HEIGHT, TAB_BAR_BORDER_RADIUS, TAB_BAR_BOTTOM_OFFSET } from './src/config/device';
 
 // Initialize Sentry for error tracking
 initSentry();
@@ -73,13 +73,13 @@ Sentry.init({
 const Tab = createBottomTabNavigator();
 const Stack = createSharedElementStackNavigator();
 
-const CartIconWithBadge = ({ color }) => {
+const CartIconWithBadge = ({ color, focused }) => {
   const { cart } = useContext(CartContext);
   const itemCount = cart.length;
 
   return (
     <View>
-      <Ionicons name="cart-outline" size={24} color={color} />
+      <Ionicons name={focused ? "cart" : "cart-outline"} size={24} color={color} />
       {itemCount > 0 && (
         <View style={styles.badgeContainer}>
           <Text style={styles.badgeText}>{itemCount}</Text>
@@ -95,9 +95,9 @@ function MainTabs() {
       screenOptions={{
         tabBarStyle: {
           position: 'absolute',
-          bottom: 0,
-          left: 5,
-          right: 5,
+          bottom: TAB_BAR_BOTTOM_OFFSET, // Use adaptive bottom offset
+          left: 10, // Slightly larger margin for better edge spacing
+          right: 10, // Slightly larger margin for better edge spacing
           backgroundColor: '#fff',
           borderRadius: TAB_BAR_BORDER_RADIUS,
           height: TAB_BAR_HEIGHT,
@@ -110,10 +110,31 @@ function MainTabs() {
           shadowRadius: 4,
           elevation: 5,
           borderTopWidth: 0,
+          // Additional Android-specific styling for better Samsung compatibility
+          paddingBottom: 0,
+          paddingTop: 5,
+          ...Platform.select({
+            android: {
+              // Android specific adjustments
+              height: TAB_BAR_HEIGHT + 10, // Slightly taller for Android
+              paddingBottom: 5,
+            },
+            ios: {
+              height: TAB_BAR_HEIGHT,
+            }
+          })
         },
         tabBarActiveTintColor: '#FF69B4',
         tabBarInactiveTintColor: '#999',
         headerShown: false,
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '500',
+        },
+        // Ensure tab bar items are properly centered
+        tabBarIconStyle: {
+          marginTop: 5,
+        }
       }}
     >
       <Tab.Screen 
@@ -121,8 +142,12 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           tabBarLabel: 'Главная',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="home-outline" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "home" : "home-outline"} 
+              size={24} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -131,8 +156,12 @@ function MainTabs() {
         component={SavedScreen}
         options={{
           tabBarLabel: 'Избранное',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="heart" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "heart" : "heart-outline"} 
+              size={24} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -141,7 +170,7 @@ function MainTabs() {
         component={BasketScreen}
         options={{
           tabBarLabel: 'Корзина',
-          tabBarIcon: ({ color }) => <CartIconWithBadge color={color} />,
+          tabBarIcon: ({ color, focused }) => <CartIconWithBadge color={color} focused={focused} />,
         }}
       />
       <Tab.Screen
@@ -149,8 +178,12 @@ function MainTabs() {
         component={ProfileScreen}
         options={{
           tabBarLabel: 'Профиль',
-          tabBarIcon: ({ color }) => (
-            <Ionicons name="person-outline" size={24} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? "person" : "person-outline"} 
+              size={24} 
+              color={color} 
+            />
           ),
         }}
       />
@@ -229,20 +262,22 @@ export default Sentry.wrap(function App() {
 const styles = StyleSheet.create({
   badgeContainer: {
     position: 'absolute',
-    right: -10,
-    top: -5,
+    right: -8,
+    top: -3,
     backgroundColor: '#FF69B4',
     borderRadius: 10,
-    width: 20,
-    height: 20,
+    minWidth: 18,
+    height: 18,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#fff',
+    paddingHorizontal: 3,
   },
   badgeText: {
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
