@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import 'react-native-get-random-values'; // Must be at the top
 import React, { useContext, useEffect } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Platform } from 'react-native';
