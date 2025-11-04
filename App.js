@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createSharedElementStackNavigator } from 'react-navigation-shared-element';
+import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 
 // Import utilities
@@ -71,7 +71,7 @@ Sentry.init({
 });
 
 const Tab = createBottomTabNavigator();
-const Stack = createSharedElementStackNavigator();
+const Stack = createStackNavigator();
 
 const CartIconWithBadge = ({ color, focused }) => {
   const { cart } = useContext(CartContext);
