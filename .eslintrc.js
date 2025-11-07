@@ -1,6 +1,6 @@
 module.exports = {
   extends: ['expo', 'plugin:react/recommended', 'plugin:react-hooks/recommended'],
-  plugins: ['react', 'react-hooks'],
+  plugins: ['react', 'react-hooks', 'expo'],
   env: {
     browser: true,
     es2021: true,

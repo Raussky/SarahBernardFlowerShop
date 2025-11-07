@@ -4,11 +4,16 @@ import PrimaryButton from './PrimaryButton';
 import { FONTS } from '../config/theme';
 
 const VariantSelectorModal = ({ isVisible, onClose, product, onAddToCart }) => {
+  const [selectedVariant, setSelectedVariant] = useState(() => {
+    if (product && product.product_variants && product.product_variants.length > 0) {
+      return product.product_variants[0];
+    }
+    return null;
+  });
+
   if (!product || !product.product_variants) {
     return null;
   }
-
-  const [selectedVariant, setSelectedVariant] = useState(product.product_variants[0]);
 
   const handleAddToCart = () => {
     if (selectedVariant) {

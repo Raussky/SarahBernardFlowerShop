@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import ProductCard from '../src/components/ProductCard';
 import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../src/utils/logger';
+import { supabase } from '../src/integrations/supabase/client';
 
 const SearchScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -74,7 +75,7 @@ const SearchScreen = ({ navigation }) => {
     try {
       await AsyncStorage.setItem('search_history', JSON.stringify(newHistory));
     } catch (e) {
-      logger.error('Failed to save search history', e, { context: 'SearchScreen', query: term });
+      logger.error('Failed to save search history', e, { context: 'SearchScreen', query: query });
     }
 
     const { data, error } = await searchProducts(query);

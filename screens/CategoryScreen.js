@@ -19,7 +19,18 @@ import FilterModal from '../src/components/FilterModal';
 import { logger } from '../src/utils/logger';
 
 const CategoryScreen = ({ navigation, route }) => {
-  const { category } = route.params;
+  const { category: rawCategory } = route.params;
+  
+  // Ensure proper type conversion for Android compatibility
+  const categoryId = String(rawCategory?.id || '');
+  const categoryName = rawCategory?.name || rawCategory?.name_en || '';
+  const category = {
+    id: categoryId,
+    name: categoryName,
+    name_en: rawCategory?.name_en || rawCategory?.name || '',
+    icon: rawCategory?.icon || '',
+    image_url: rawCategory?.image_url || null,
+  };
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sortModalVisible, setSortModalVisible] = useState(false);
@@ -41,10 +52,11 @@ const CategoryScreen = ({ navigation, route }) => {
 
     try {
       setLoading(true);
+      const categoryId = String(category.id);
       let query = supabase
         .from('products')
         .select('*, categories(name, name_en), product_variants(*)')
-        .eq('category_id', category.id);
+        .eq('category_id', categoryId);
 
       if (filterOptions.minPrice) {
         query = query.gte('product_variants.price', parseFloat(filterOptions.minPrice));
@@ -73,7 +85,7 @@ const CategoryScreen = ({ navigation, route }) => {
     } finally {
       setLoading(false);
     }
-  }, [category, sortOption, filterOptions]);
+  }, [category?.id, sortOption, filterOptions]);
 
  useFocusEffect(
    useCallback(() => {
@@ -83,9 +95,10 @@ const CategoryScreen = ({ navigation, route }) => {
  );
 
   useEffect(() => {
+    const categoryId = String(category.id);
     const channel = supabase
-      .channel(`public:products:category_id=eq.${category.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `category_id=eq.${category.id}` }, fetchProducts)
+      .channel(`public:products:category_id=eq.${categoryId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products', filter: `category_id=eq.${categoryId}` }, fetchProducts)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'product_variants' }, fetchProducts)
       .subscribe();
 
@@ -179,7 +192,7 @@ const CategoryScreen = ({ navigation, route }) => {
         <FlatList
           data={products}
           renderItem={({ item }) => <ProductCard product={item} navigation={navigation} />}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={item => String(item.id)}
           numColumns={2}
           columnWrapperStyle={styles.productRow}
           contentContainerStyle={styles.listContent}

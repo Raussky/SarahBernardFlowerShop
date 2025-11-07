@@ -98,6 +98,8 @@ const ToastNotification = forwardRef(({}, ref) => {
   );
 });
 
+ToastNotification.displayName = 'ToastNotification';
+
 const styles = StyleSheet.create({
   toastContainer: {
     position: 'absolute',

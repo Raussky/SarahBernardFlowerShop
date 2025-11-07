@@ -77,7 +77,7 @@ const AdminOrdersScreen = ({ navigation }) => {
       setPage(currentPage);
 
     } catch (error) {
-      logger.error('Error fetching orders', error, { context: 'AdminOrdersScreen', page, statusFilter, searchQuery });
+      logger.error('Error fetching orders', error, { context: 'AdminOrdersScreen', page, filter, searchQuery });
     } finally {
       setLoading(false);
       setLoadingMore(false);

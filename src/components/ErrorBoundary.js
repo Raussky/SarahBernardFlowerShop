@@ -25,6 +25,9 @@ class ErrorBoundary extends React.Component {
         componentStack: errorInfo?.componentStack,
         component: 'ErrorBoundary',
       });
+    }).catch(err => {
+      console.error('Logger import failed:', err);
+      console.error('Original error:', error, errorInfo);
     });
 
     this.setState({
@@ -41,13 +44,13 @@ class ErrorBoundary extends React.Component {
     // });
   }
 
-  handleReset = () => {
+  handleReset() {
     this.setState({
       hasError: false,
       error: null,
       errorInfo: null,
     });
-  };
+  }
 
   render() {
     if (this.state.hasError) {

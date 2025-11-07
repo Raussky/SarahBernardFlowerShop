@@ -195,7 +195,18 @@ const HomeScreen = ({ navigation }) => {
        <Text style={styles.sectionTitle}>Категории</Text>
        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
          {homeData.categories.filter(c => ['Готовые букеты', 'игрушки', 'торты', 'сладости'].includes(c.name)).map(category => (
-           <TouchableOpacity key={category.id} style={styles.categoryItem} onPress={() => navigation.navigate('Category', { category })}>
+           <TouchableOpacity key={category.id} style={styles.categoryItem} onPress={() => {
+             // Ensure category data has consistent types for Android compatibility
+             const safeCategory = {
+               ...category,
+               id: String(category.id), // Ensure it's a string
+               name: category.name || category.name_en || '',
+               name_en: category.name_en || category.name || '',
+               icon: category.icon || '',
+               image_url: category.image_url || null,
+             };
+             navigation.navigate('Category', { category: safeCategory });
+           }}>
              <View style={styles.categoryIcon}>
                {category.image_url ? <Image source={{ uri: category.image_url }} style={styles.categoryImage} /> : <Text style={styles.categoryEmoji}>{category.icon || '💐'}</Text>}
              </View>
