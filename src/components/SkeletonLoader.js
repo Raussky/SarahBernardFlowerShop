@@ -3,6 +3,11 @@ import { View, StyleSheet, Animated, Easing } from 'react-native';
 
 const SkeletonLoader = ({ width, height, borderRadius = 8, style }) => {
   const animatedValue = useRef(new Animated.Value(0)).current;
+  const numericWidth = typeof width === 'number'
+    ? width
+    : typeof width === 'string'
+      ? parseFloat(width) || 100
+      : 100;
 
   useEffect(() => {
     const startAnimation = () => {
@@ -22,7 +27,7 @@ const SkeletonLoader = ({ width, height, borderRadius = 8, style }) => {
 
   const translateX = animatedValue.interpolate({
     inputRange: [0, 1],
-    outputRange: [-width, width],
+    outputRange: [-numericWidth, numericWidth],
   });
 
   return (

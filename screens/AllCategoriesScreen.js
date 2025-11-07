@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,8 +9,32 @@ import AnimatedListItem from '../src/components/AnimatedListItem';
 import { logger } from '../src/utils/logger';
 
 const AllCategoriesScreen = ({ navigation }) => {
+  const { width } = useWindowDimensions();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const layoutConfig = useMemo(() => {
+    const isLargePhone = width >= 414;
+    const columns = 2;
+    const gutter = isLargePhone ? 18 : 14;
+    const rowSpacing = isLargePhone ? 4 : 2;
+    const maxCardWidth = isLargePhone ? 180 : 160;
+    const safeWidth = Math.max(width, 320);
+    const maxContentWidth = Math.min(safeWidth - 32, 420);
+    const totalGutter = Math.max(columns - 1, 0) * gutter;
+    const cardWidth = Math.min(maxCardWidth, (maxContentWidth - totalGutter) / columns);
+    const gridWidth = cardWidth * columns + totalGutter;
+    const iconSize = Math.min(90, Math.max(60, cardWidth * 0.5));
+
+    return {
+      columns,
+      gutter,
+      rowSpacing,
+      cardWidth,
+      gridWidth,
+      iconSize,
+    };
+  }, [width]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -33,6 +57,24 @@ const AllCategoriesScreen = ({ navigation }) => {
     fetchCategories();
   }, [fetchCategories]);
 
+  const columnWrapperDynamicStyle = useMemo(
+    () => ({
+      width: layoutConfig.gridWidth,
+      alignSelf: 'center',
+      justifyContent:
+        categories.length >= layoutConfig.columns ? 'space-between' : 'center',
+    }),
+    [layoutConfig, categories.length]
+  );
+
+  const listContentDynamicStyle = useMemo(
+    () => ({
+      alignItems: 'center',
+      paddingVertical: layoutConfig.rowSpacing / 2,
+    }),
+    [layoutConfig]
+  );
+
   const renderCategoryItem = ({ item, index }) => {
     const handlePress = () => {
       // Special navigation for the "Combos" category
@@ -43,18 +85,42 @@ const AllCategoriesScreen = ({ navigation }) => {
       }
     };
 
+    const categoryItemStyle = [
+      styles.categoryItem,
+      {
+        width: layoutConfig.cardWidth,
+        marginBottom: layoutConfig.rowSpacing,
+      },
+    ];
+    const categoryIconStyle = [
+      styles.categoryIcon,
+      {
+        width: layoutConfig.iconSize,
+        height: layoutConfig.iconSize,
+        borderRadius: layoutConfig.iconSize / 2,
+      },
+    ];
+    const categoryImageStyle = [
+      styles.categoryImage,
+      {
+        width: layoutConfig.iconSize,
+        height: layoutConfig.iconSize,
+        borderRadius: layoutConfig.iconSize / 2,
+      },
+    ];
+
     return (
       <AnimatedListItem index={index}>
         <TouchableOpacity
-          style={styles.categoryItem}
+          style={categoryItemStyle}
           onPress={handlePress}
         >
-          <View style={styles.categoryIcon}>
+          <View style={categoryIconStyle}>
             {item.image_url ? (
               <Image
                 source={{ uri: item.image_url }}
                 placeholder={{ uri: 'https://via.placeholder.com/120' }}
-                style={styles.categoryImage}
+                style={categoryImageStyle}
                 transition={300}
               />
             ) : (
@@ -78,17 +144,43 @@ const AllCategoriesScreen = ({ navigation }) => {
           <View style={{ width: 24 }} />
         </View>
         <FlatList
-          data={[...Array(8)]} // Placeholder for skeleton
-          renderItem={({ item, index }) => (
-            <View style={styles.categoryItemSkeleton}>
-              <SkeletonLoader width={70} height={70} borderRadius={35} style={{ marginBottom: 8 }} />
-              <SkeletonLoader width={80} height={12} borderRadius={4} />
+          data={Array.from({ length: layoutConfig.columns * 3 })}
+          renderItem={() => (
+            <View
+              style={[
+                styles.categoryItemSkeleton,
+                {
+                  width: layoutConfig.cardWidth,
+                  marginBottom: layoutConfig.rowSpacing,
+                },
+              ]}
+            >
+              <SkeletonLoader
+                width={layoutConfig.iconSize}
+                height={layoutConfig.iconSize}
+                borderRadius={layoutConfig.iconSize / 2}
+                style={{ marginBottom: 8 }}
+              />
+              <SkeletonLoader width={layoutConfig.cardWidth * 0.6} height={12} borderRadius={4} />
             </View>
           )}
-          keyExtractor={(_, index) => index.toString()}
-          numColumns={2}
-          columnWrapperStyle={styles.categoryRow} // Removed
-          contentContainerStyle={styles.listContent}
+          keyExtractor={(_, index) => `skeleton-${index}`}
+          numColumns={layoutConfig.columns}
+          columnWrapperStyle={[
+            styles.categoryRow,
+            {
+              width: layoutConfig.gridWidth,
+              alignSelf: 'center',
+              justifyContent: 'space-between',
+            },
+          ]}
+          contentContainerStyle={[
+            styles.listContent,
+            {
+              alignItems: 'center',
+              paddingVertical: layoutConfig.rowSpacing / 2,
+            },
+          ]}
           showsVerticalScrollIndicator={false}
         />
       </SafeAreaView>
@@ -109,9 +201,12 @@ const AllCategoriesScreen = ({ navigation }) => {
         data={categories}
         renderItem={renderCategoryItem}
         keyExtractor={item => item.id.toString()}
-        numColumns={2} // Keep numColumns for FlatList internal logic, but rely on flexWrap for visual layout
-        // columnWrapperStyle={styles.categoryRow} // Removed
-        contentContainerStyle={styles.listContent}
+        numColumns={layoutConfig.columns}
+        columnWrapperStyle={[styles.categoryRow, columnWrapperDynamicStyle]}
+        contentContainerStyle={[
+          styles.listContent,
+          listContentDynamicStyle,
+        ]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -143,22 +238,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   listContent: { 
-    paddingVertical: 15,
-    paddingHorizontal: 50, // Use padding for spacing
-    paddingTop: 15,
+    paddingVertical: 10,
   },
   categoryRow: {
-    justifyContent: 'space-around', // Distribute items evenly in the row
+    paddingVertical: 6,
   },
   categoryItem: {
-    width: '70%', // Use percentage for responsive width
-    aspectRatio: 1, // Maintain a square shape
-    marginHorizontal: -10,
-    marginBottom: 25, // Space between rows
     backgroundColor: '#f9f9f9',
     borderRadius: 15,
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 10,
     paddingHorizontal: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -167,9 +256,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   categoryIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
@@ -182,9 +268,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   categoryImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    resizeMode: 'cover',
   },
   categoryEmoji: {
     fontSize: 35,
@@ -198,7 +282,6 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   categoryItemSkeleton: {
-    width: '45%',
     alignItems: 'center',
     paddingVertical: 15,
     minHeight: 125,

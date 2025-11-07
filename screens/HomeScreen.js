@@ -175,7 +175,7 @@ const HomeScreen = ({ navigation }) => {
          <View style={styles.headerBottomRow}>
            <TouchableOpacity style={styles.searchContainer} onPress={() => navigation.navigate('Search')}>
              <Ionicons name="search" size={20} color="#999" />
-             <Text style={styles.searchInputPlaceholder}>Search here...</Text>
+             <Text style={styles.searchInputPlaceholder}>Найтир здесь...</Text>
            </TouchableOpacity>
            <TouchableOpacity style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
              <Ionicons name="options-outline" size={24} color="#333" />
