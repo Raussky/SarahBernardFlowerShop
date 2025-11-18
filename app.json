@@ -3,7 +3,7 @@
     "name": "SarahBernardFlowerShop",
     "slug": "SarahBernardFlowerShop",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -26,10 +26,12 @@
         }
       ],
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "./plugins/withAndroidResizeableActivity.js"
     ],
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": false,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Разрешить $(PRODUCT_NAME) доступ к вашей фотогалерее для выбора изображений товаров.",
         "NSCameraUsageDescription": "Разрешить $(PRODUCT_NAME) доступ к вашей камере для съемки фотографий товаров.",
