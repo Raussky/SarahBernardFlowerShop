@@ -9,6 +9,7 @@ import { useFonts } from 'expo-font';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
+import { SystemBars } from 'react-native-edge-to-edge';
 
 // Import utilities
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -231,6 +232,7 @@ export default Sentry.wrap(function App() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <SystemBars style="auto" />
         <ToastProvider>
           <AuthProvider>
             <CartProvider>
