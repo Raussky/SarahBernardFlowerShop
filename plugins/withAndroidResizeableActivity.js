@@ -15,8 +15,8 @@ const withAndroidResizeableActivity = (config) => {
           // Remove screenOrientation attribute
           delete activity.$['android:screenOrientation'];
 
-          // Add resizeableActivity attribute
-          activity.$['android:resizeableActivity'] = 'true';
+          // Add resizeableActivity attribute (boolean for New Architecture)
+          activity.$['android:resizeableActivity'] = true;
         }
       });
     }

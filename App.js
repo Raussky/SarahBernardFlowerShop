@@ -9,7 +9,7 @@ import { useFonts } from 'expo-font';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { SystemBars } from 'react-native-edge-to-edge';
+import { StatusBar } from 'expo-status-bar';
 
 // Import utilities
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -51,42 +51,30 @@ import { ToastProvider } from './src/components/ToastProvider';
 import { CartContext, CartProvider } from './src/context/CartContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { AnimationProvider } from './src/context/AnimationContext';
-import * as Sentry from '@sentry/react-native';
+// import * as Sentry from '@sentry/react-native';
 
-Sentry.init({
-  dsn: 'https://575c605e7e544440d892f8c0a14ec67e@o4510284357042176.ingest.de.sentry.io/4510284358287440',
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Enable Logs
-  enableLogs: true,
-
-  // Configure Session Replay
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1,
-  integrations: [
-    Sentry.mobileReplayIntegration({
-      networkDetailAllowUrls: [/.*/],
-      networkCapture: true,
-    }),
-    Sentry.feedbackIntegration({
-      autoInject: false, // Disable auto-inject to prevent console conflicts
-    }),
-  ],
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-  
-  // Disable problematic auto-instrumentation that may cause read-only property errors
-  autoInstrument: {
-    enableUserInteraction: false,
-    enableConsole: false, // Disable console instrumentation
-    enableNetworkBreadcrumbs: false,
-    enableNetworkTracing: false,
-  },
-});
+// Sentry.init({
+//   dsn: 'https://575c605e7e544440d892f8c0a14ec67e@o4510284357042176.ingest.de.sentry.io/4510284358287440',
+//   sendDefaultPii: true,
+//   enableLogs: true,
+//   replaysSessionSampleRate: 0.1,
+//   replaysOnErrorSampleRate: 1,
+//   integrations: [
+//     Sentry.mobileReplayIntegration({
+//       networkDetailAllowUrls: [/.*/],
+//       networkCapture: true,
+//     }),
+//     Sentry.feedbackIntegration({
+//       autoInject: false,
+//     }),
+//   ],
+//   autoInstrument: {
+//     enableUserInteraction: false,
+//     enableConsole: false,
+//     enableNetworkBreadcrumbs: false,
+//     enableNetworkTracing: false,
+//   },
+// });
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -211,7 +199,7 @@ function MainTabs() {
 
 SplashScreen.preventAutoHideAsync();
 
-export default Sentry.wrap(function App() {
+function App() {
   const [fontsLoaded] = useFonts({
     'PlusJakartaSans-Regular': require('./assets/fonts/PlusJakartaSans-Regular.ttf'),
     'PlusJakartaSans-Bold': require('./assets/fonts/PlusJakartaSans-Bold.ttf'),
@@ -232,7 +220,7 @@ export default Sentry.wrap(function App() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <SystemBars style="auto" />
+        <StatusBar style="auto" />
         <ToastProvider>
           <AuthProvider>
             <CartProvider>
@@ -276,7 +264,9 @@ export default Sentry.wrap(function App() {
       </GestureHandlerRootView>
     </ErrorBoundary>
   );
-});
+}
+
+export default App; // Sentry.wrap(App);
 
 const styles = StyleSheet.create({
   badgeContainer: {

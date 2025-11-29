@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, ActivityIndicator, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { searchProducts } from '../src/services/productService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,6 +7,8 @@ import ProductCard from '../src/components/ProductCard';
 import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../src/utils/logger';
 import { supabase } from '../src/integrations/supabase/client';
+
+const { height } = Dimensions.get('window');
 
 const SearchScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -194,7 +196,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderColor: '#eee',
-    maxHeight: 200, // Ограничение высоты для предложений
+    maxHeight: Math.min(height * 0.3, 250),
   },
   suggestionItem: {
     flexDirection: 'row',

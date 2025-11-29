@@ -12,6 +12,7 @@ class ErrorBoundary extends React.Component {
       error: null,
       errorInfo: null,
     };
+    this.handleReset = this.handleReset.bind(this);
   }
 
   static getDerivedStateFromError(error) {

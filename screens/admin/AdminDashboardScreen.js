@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../src/integrations/supabase/client';
 import { LineChart } from 'react-native-chart-kit';
@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import AdminHeader from '../../src/components/AdminHeader';
 
 const AdminDashboardScreen = () => {
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
   const [analytics, setAnalytics] = useState(null);
   const [chartData, setChartData] = useState({
     labels: [],
@@ -67,8 +69,11 @@ const AdminDashboardScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom + 100, 100) }]}
+        showsVerticalScrollIndicator={false}
+      >
         <AdminHeader title="Сводка" />
         
         <View style={styles.timeRangeContainer}>
@@ -85,36 +90,48 @@ const AdminDashboardScreen = () => {
         
         <View style={styles.grid}>
           <View style={styles.card}>
-            <Ionicons name="cash-outline" size={24} color="#4CAF50" />
+            <View style={styles.cardIcon}>
+              <Ionicons name="cash-outline" size={28} color="#4CAF50" />
+            </View>
             <Text style={styles.cardValue}>₸{analytics?.total_revenue ? analytics.total_revenue.toLocaleString() : 0}</Text>
             <Text style={styles.cardLabel}>Общая выручка</Text>
           </View>
           <View style={styles.card}>
-            <Ionicons name="receipt-outline" size={24} color="#2196F3" />
+            <View style={styles.cardIcon}>
+              <Ionicons name="receipt-outline" size={28} color="#2196F3" />
+            </View>
             <Text style={styles.cardValue}>{analytics?.total_orders || 0}</Text>
             <Text style={styles.cardLabel}>Всего заказов</Text>
           </View>
           <View style={styles.card}>
-            <Ionicons name="hourglass-outline" size={24} color="#FFC107" />
+            <View style={styles.cardIcon}>
+              <Ionicons name="hourglass-outline" size={28} color="#FFC107" />
+            </View>
             <Text style={styles.cardValue}>{analytics?.pending_orders || 0}</Text>
             <Text style={styles.cardLabel}>Новых заказов</Text>
           </View>
           <View style={styles.card}>
-            <Ionicons name="star-outline" size={24} color="#FF69B4" />
-            <Text style={styles.cardValue} numberOfLines={1}>{analytics?.best_selling_product_name || 'N/A'}</Text>
+            <View style={styles.cardIcon}>
+              <Ionicons name="star-outline" size={28} color="#FF69B4" />
+            </View>
+            <Text style={styles.cardValue} numberOfLines={1} adjustsFontSizeToFit>
+              {analytics?.best_selling_product_name || 'N/A'}
+            </Text>
             <Text style={styles.cardLabel}>Хит продаж</Text>
           </View>
         </View>
 
         <Text style={styles.chartTitle}>Динамика продаж</Text>
-        <LineChart
-          data={chartData}
-          width={Dimensions.get("window").width - 40}
-          height={220}
-          chartConfig={chartConfig}
-          bezier
-          style={styles.chart}
-        />
+        <View style={styles.chartContainer}>
+          <LineChart
+            data={chartData}
+            width={screenWidth - 40}
+            height={220}
+            chartConfig={chartConfig}
+            bezier
+            style={styles.chart}
+          />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -142,6 +159,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 5,
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   timeRangeButton: {
     flex: 1,
@@ -152,6 +174,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '600',
     color: '#999',
+    fontSize: 14,
   },
   activeButton: {
     backgroundColor: '#FF69B4',
@@ -159,12 +182,69 @@ const styles = StyleSheet.create({
   activeText: {
     color: '#fff',
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  card: { width: '48%', backgroundColor: '#fff', borderRadius: 15, padding: 20, marginBottom: 15, alignItems: 'center' },
-  cardValue: { fontSize: 22, fontWeight: 'bold', marginVertical: 8 },
-  cardLabel: { fontSize: 14, color: '#666' },
-  chartTitle: { fontSize: 18, fontWeight: 'bold', marginTop: 20, marginBottom: 10 },
-  chart: { marginVertical: 8, borderRadius: 16 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  card: {
+    width: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 16,
+    marginBottom: 15,
+    alignItems: 'center',
+    minHeight: 140,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f5f5f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  cardValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginVertical: 4,
+    textAlign: 'center',
+  },
+  cardLabel: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+    color: '#333',
+  },
+  chartContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 10,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
 });
 
 export default AdminDashboardScreen;

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useRef } from 'react';
-import { View, Animated, Image, Dimensions } from 'react-native';
+import { Animated, Image, Dimensions } from 'react-native';
 
 const window = Dimensions.get('window');
 
@@ -11,7 +11,7 @@ export const AnimationProvider = ({ children }) => {
   const [image, setImage] = useState(null);
   const animatedValue = useRef(new Animated.Value(0)).current;
   const startPosition = useRef({ x: 0, y: 0 }).current;
-  const endPosition = useRef({ x: window.width / 2, y: window.height - 50 }).current; // Approximate cart position
+  const endPosition = useRef({ x: window.width / 2, y: window.height - 50 }).current;
 
   const startAddToCartAnimation = (startPos, imgUri) => {
     if (!imgUri) return;

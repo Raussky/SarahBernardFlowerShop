@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../../src/components/ToastProvider';
@@ -11,6 +11,7 @@ import { decode } from 'base64-arraybuffer';
 const EditCategoryScreen = ({ navigation, route }) => {
   const { categoryId } = route.params || {};
   const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
   const [isNew, setIsNew] = useState(!categoryId);
   const [loading, setLoading] = useState(!isNew);
   const [saving, setSaving] = useState(false);
@@ -119,7 +120,7 @@ const EditCategoryScreen = ({ navigation, route }) => {
         <Text style={styles.label}>Иконка (эмодзи)</Text>
         <TextInput style={styles.input} value={icon} onChangeText={setIcon} placeholder="Например, '💐'" />
       </ScrollView>
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 20, 20) }]}>
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
         </TouchableOpacity>

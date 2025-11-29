@@ -17,7 +17,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../src/integrations/supabase/client';
@@ -32,6 +32,7 @@ import { logger } from '../src/utils/logger';
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const [homeData, setHomeData] = useState({
     categories: [],
     banners: [],
@@ -175,7 +176,7 @@ const HomeScreen = ({ navigation }) => {
          <View style={styles.headerBottomRow}>
            <TouchableOpacity style={styles.searchContainer} onPress={() => navigation.navigate('Search')}>
              <Ionicons name="search" size={20} color="#999" />
-             <Text style={styles.searchInputPlaceholder}>Найтир здесь...</Text>
+             <Text style={styles.searchInputPlaceholder}>Найти здесь...</Text>
            </TouchableOpacity>
            <TouchableOpacity style={styles.filterButton} onPress={() => setFilterModalVisible(true)}>
              <Ionicons name="options-outline" size={24} color="#333" />
@@ -276,13 +277,17 @@ const HomeScreen = ({ navigation }) => {
          <View style={styles.modalContainer}>
            <TouchableWithoutFeedback>
              <View style={styles.modalContent}>
-               <ScrollView>
-                 <View style={styles.modalHeader}>
-                   <Text style={styles.modalTitle}>Фильтры</Text>
-                   <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                     <Ionicons name="close" size={24} color="#333" />
-                   </TouchableOpacity>
-                 </View>
+               <View style={styles.modalHeader}>
+                 <Text style={styles.modalTitle}>Фильтры</Text>
+                 <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                   <Ionicons name="close" size={24} color="#333" />
+                 </TouchableOpacity>
+               </View>
+               <ScrollView
+                 style={styles.modalScrollView}
+                 contentContainerStyle={styles.modalScrollContent}
+                 showsVerticalScrollIndicator={false}
+               >
                  <Text style={styles.filterLabel}>Категории</Text>
                  <View style={styles.categoriesContainerModal}>
                    {homeData.categories.map((category) => (
@@ -358,6 +363,8 @@ const HomeScreen = ({ navigation }) => {
                      </Text>
                    </TouchableOpacity>
                  </View>
+               </ScrollView>
+               <View style={[styles.modalFooter, { paddingBottom: Math.max(insets.bottom, 15) }]}>
                  <TouchableOpacity
                    style={styles.applyButton}
                    onPress={() =>
@@ -371,7 +378,7 @@ const HomeScreen = ({ navigation }) => {
                  >
                    <Text style={styles.applyButtonText}>Применить</Text>
                  </TouchableOpacity>
-               </ScrollView>
+               </View>
              </View>
            </TouchableWithoutFeedback>
          </View>
@@ -419,9 +426,12 @@ const styles = StyleSheet.create({
   comboPrice: { fontSize: 14, fontWeight: 'bold', color: '#333', paddingHorizontal: 10, paddingBottom: 10, paddingTop: 4 },
   productRow: { justifyContent: 'space-between', paddingHorizontal: 20 },
   modalContainer: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '50%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   modalTitle: { fontSize: 20, fontWeight: 'bold' },
+  modalScrollView: { maxHeight: '100%' },
+  modalScrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
+  modalFooter: { paddingHorizontal: 20, paddingVertical: 15, borderTopWidth: 1, borderTopColor: '#f0f0f0', backgroundColor: '#fff' },
   filterLabel: { fontSize: 16, fontWeight: '600', marginTop: 20, marginBottom: 10 },
   categoriesContainerModal: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
   categoryButton: {

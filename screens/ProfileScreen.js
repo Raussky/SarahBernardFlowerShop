@@ -26,12 +26,16 @@ const ProfileScreen = ({ navigation }) => {
     : user?.email?.charAt(0).toUpperCase() || 'G';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Профиль</Text>
       </View>
-      
-      <ScrollView style={styles.content}>
+
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             {profile?.avatar_url ? (
@@ -48,7 +52,7 @@ const ProfileScreen = ({ navigation }) => {
           <Text style={styles.menuGroupTitle}>Мой аккаунт</Text>
           {user ? (
             <>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => navigation.navigate('EditProfile')}
               >
@@ -57,7 +61,7 @@ const ProfileScreen = ({ navigation }) => {
                 <Ionicons name="chevron-forward" size={20} color="#999" />
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                style={styles.menuItem}
                onPress={() => navigation.navigate('Addresses')}
               >
@@ -86,7 +90,7 @@ const ProfileScreen = ({ navigation }) => {
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.menuItem}
                 onPress={() => navigation.navigate('NotificationsSettings')}
               >
@@ -97,7 +101,7 @@ const ProfileScreen = ({ navigation }) => {
 
             </>
           ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.menuItem}
               onPress={() => navigation.navigate('Login')}
             >
@@ -135,6 +139,9 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  scrollContent: {
+    paddingBottom: 120,
   },
   profileCard: {
     alignItems: 'center',

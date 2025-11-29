@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../src/context/CartContext';
 import { AuthContext } from '../src/context/AuthContext';
@@ -17,6 +17,7 @@ import { validateName, validatePhoneNumber, validateAddress, sanitizeString } fr
 import { logger } from '../src/utils/logger';
 
 const CheckoutScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { cart, clearCart } = useContext(CartContext);
   const { user, profile } = useContext(AuthContext);
   const { showToast } = useToast();
@@ -445,7 +446,7 @@ const CheckoutScreen = ({ navigation }) => {
         </View>
 
         {/* Summary Footer - Fixed at bottom */}
-        <View style={styles.summaryFooter}>
+        <View style={[styles.summaryFooter, { paddingBottom: Math.max(insets.bottom + 20, 20) }]}>
           <View style={styles.summaryContainer}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Подытог</Text>

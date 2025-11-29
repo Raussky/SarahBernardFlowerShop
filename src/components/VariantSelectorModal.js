@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PrimaryButton from './PrimaryButton';
 import { FONTS } from '../config/theme';
 
 const VariantSelectorModal = ({ isVisible, onClose, product, onAddToCart }) => {
+  const insets = useSafeAreaInsets();
   const [selectedVariant, setSelectedVariant] = useState(() => {
     if (product && product.product_variants && product.product_variants.length > 0) {
       return product.product_variants[0];
@@ -41,9 +43,13 @@ const VariantSelectorModal = ({ isVisible, onClose, product, onAddToCart }) => {
     >
       <TouchableOpacity style={styles.modalContainer} activeOpacity={1} onPressOut={onClose}>
         <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Выберите вариант</Text>
-          <Text style={styles.productName}>{product.name || product.name_ru}</Text>
-          
+          <View style={styles.modalHeader}>
+            <View>
+              <Text style={styles.modalTitle}>Выберите вариант</Text>
+              <Text style={styles.productName}>{product.name || product.name_ru}</Text>
+            </View>
+          </View>
+
           <FlatList
             data={product.product_variants}
             renderItem={({ item }) => (
@@ -55,6 +61,7 @@ const VariantSelectorModal = ({ isVisible, onClose, product, onAddToCart }) => {
                 ]}
                 onPress={() => setSelectedVariant(item)}
                 disabled={item.stock_quantity <= 0}
+                activeOpacity={0.7}
               >
                 <Text style={[
                   styles.variantText,
@@ -66,15 +73,18 @@ const VariantSelectorModal = ({ isVisible, onClose, product, onAddToCart }) => {
               </TouchableOpacity>
             )}
             keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={{ marginTop: 15 }}
+            contentContainerStyle={styles.variantListContent}
+            showsVerticalScrollIndicator={false}
+            style={styles.variantList}
           />
 
-          <PrimaryButton
-            title="Добавить в корзину"
-            onPress={handleAddToCart}
-            disabled={!selectedVariant || selectedVariant.stock_quantity <= 0}
-            style={{ marginTop: 20 }}
-          />
+          <View style={[styles.modalFooter, { paddingBottom: Math.max(insets.bottom + 30, 30) }]}>
+            <PrimaryButton
+              title="Добавить в корзину"
+              onPress={handleAddToCart}
+              disabled={!selectedVariant || selectedVariant.stock_quantity <= 0}
+            />
+          </View>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -91,21 +101,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 40,
+    maxHeight: '75%',
+  },
+  modalHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   modalTitle: {
     fontSize: 20,
     fontFamily: FONTS.bold,
-    textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 5,
   },
   productName: {
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: FONTS.regular,
-    textAlign: 'center',
     color: '#666',
-    marginBottom: 20,
+  },
+  variantList: {
+    maxHeight: '100%',
+  },
+  variantListContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  modalFooter: {
+    paddingHorizontal: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#fff',
   },
   variantButton: {
     padding: 15,

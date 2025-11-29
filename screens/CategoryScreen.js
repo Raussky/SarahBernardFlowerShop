@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Modal,
+  ScrollView,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +19,8 @@ import SkeletonLoader from '../src/components/SkeletonLoader';
 import { FONTS } from '../src/config/theme';
 import FilterModal from '../src/components/FilterModal';
 import { logger } from '../src/utils/logger';
+
+const { width, height } = Dimensions.get('window');
 
 const CategoryScreen = ({ navigation, route }) => {
   const { category: rawCategory } = route.params;
@@ -214,25 +218,31 @@ const CategoryScreen = ({ navigation, route }) => {
         visible={sortModalVisible}
         onRequestClose={() => setSortModalVisible(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPressOut={() => setSortModalVisible(false)}
         >
           <View style={styles.sortModalContent}>
             <Text style={styles.modalTitle}>Сортировать по</Text>
-            {sortOptions.map((option) => (
-              <TouchableOpacity
-                key={option.label}
-                style={styles.modalOption}
-                onPress={() => handleSortSelect(option)}
-              >
-                <Text style={[styles.modalOptionText, sortOption.label === option.label && styles.activeModalOptionText]}>
-                  {option.label}
-                </Text>
-                {sortOption.label === option.label && <Ionicons name="checkmark" size={20} color="#FF69B4" />}
-              </TouchableOpacity>
-            ))}
+            <ScrollView
+              style={styles.sortModalScrollView}
+              showsVerticalScrollIndicator={false}
+            >
+              {sortOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.label}
+                  style={styles.modalOption}
+                  onPress={() => handleSortSelect(option)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.modalOptionText, sortOption.label === option.label && styles.activeModalOptionText]}>
+                    {option.label}
+                  </Text>
+                  {sortOption.label === option.label && <Ionicons name="checkmark" size={20} color="#FF69B4" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -373,14 +383,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 15,
     padding: 20,
-    width: '80%',
-    maxHeight: '70%',
+    width: Math.min(width * 0.85, 400),
+    maxHeight: height * 0.6,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
     textAlign: 'center',
+  },
+  sortModalScrollView: {
+    maxHeight: '100%',
   },
   modalOption: {
     flexDirection: 'row',

@@ -1,7 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../config/theme';
+
+const { width } = Dimensions.get('window');
+const BUTTON_MARGIN = 8;
+const CONTAINER_PADDING = 20;
+const NUM_COLUMNS = 3;
+const BUTTON_WIDTH = (width - CONTAINER_PADDING * 2 - BUTTON_MARGIN * (NUM_COLUMNS - 1) * 2) / NUM_COLUMNS;
 
 const generateTimeSlots = (intervalMinutes = 30) => {
   const slots = [];
@@ -16,9 +23,14 @@ const generateTimeSlots = (intervalMinutes = 30) => {
 
 const TimePickerModal = ({ isVisible, onClose, onSelectTime }) => {
   const timeSlots = generateTimeSlots();
+  const insets = useSafeAreaInsets();
 
   const renderTimeSlot = ({ item }) => (
-    <TouchableOpacity style={styles.timeSlotButton} onPress={() => onSelectTime(item)}>
+    <TouchableOpacity
+      style={styles.timeSlotButton}
+      onPress={() => onSelectTime(item)}
+      activeOpacity={0.7}
+    >
       <Text style={styles.timeSlotText}>{item}</Text>
     </TouchableOpacity>
   );
@@ -31,10 +43,10 @@ const TimePickerModal = ({ isVisible, onClose, onSelectTime }) => {
       onRequestClose={onClose}
     >
       <View style={styles.centeredView}>
-        <View style={styles.modalView}>
+        <View style={[styles.modalView, { paddingBottom: Math.max(insets.bottom + 30, 30) }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Выберите время доставки</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -42,8 +54,9 @@ const TimePickerModal = ({ isVisible, onClose, onSelectTime }) => {
             data={timeSlots}
             renderItem={renderTimeSlot}
             keyExtractor={(item) => item}
-            numColumns={3}
+            numColumns={NUM_COLUMNS}
             contentContainerStyle={styles.timeSlotsContainer}
+            showsVerticalScrollIndicator={false}
           />
         </View>
       </View>
@@ -61,7 +74,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
+    paddingTop: 20,
+    paddingHorizontal: CONTAINER_PADDING,
     shadowColor: colors.black,
     shadowOffset: {
       width: 0,
@@ -70,13 +84,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
-    maxHeight: '70%',
+    maxHeight: '75%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   modalTitle: {
     fontSize: 18,
@@ -84,19 +101,22 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   timeSlotsContainer: {
-    justifyContent: 'space-between',
+    paddingBottom: 10,
   },
   timeSlotButton: {
     backgroundColor: colors.lightGray,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    margin: 5,
-    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    margin: BUTTON_MARGIN,
+    width: BUTTON_WIDTH,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
   },
   timeSlotText: {
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: '600',
     color: colors.text,
   },
 });

@@ -1,6 +1,6 @@
 import React, { useContext, useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../src/context/CartContext';
 import { useToast } from '../src/components/ToastProvider';
@@ -14,6 +14,7 @@ const BasketScreen = ({ navigation }) => {
   const { cart, clearCart, updateItemQuantity, removeFromCart } = useContext(CartContext);
   const { showToast } = useToast();
   const [isNavigating, setIsNavigating] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Memoize expensive calculations
   const subtotal = useMemo(() => {
@@ -92,7 +93,7 @@ const BasketScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Корзина</Text>
         {cart.length > 0 && (
@@ -117,9 +118,15 @@ const BasketScreen = ({ navigation }) => {
             data={cart}
             renderItem={renderCartItem}
             keyExtractor={item => item.id.toString()}
-            contentContainerStyle={styles.listContainer}
+            contentContainerStyle={[
+              styles.listContainer,
+              { paddingBottom: 260 + insets.bottom }
+            ]}
           />
-          <View style={styles.fixedFooter}>
+          <View style={[
+            styles.fixedFooter,
+            { bottom: 80 + insets.bottom }
+          ]}>
             <View style={styles.summaryContainer}>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Подытог</Text>
@@ -152,7 +159,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 24, fontFamily: FONTS.bold },
   clearButton: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFE4E1', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   clearButtonText: { color: '#FF69B4', marginLeft: 5, fontFamily: FONTS.semiBold },
-  listContainer: { paddingHorizontal: 20, paddingBottom: 260 },
+  listContainer: { paddingHorizontal: 20 },
   cartItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   itemImage: { width: 60, height: 60, borderRadius: 8, marginRight: 15 },
   itemDetails: { flex: 1 },

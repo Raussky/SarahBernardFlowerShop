@@ -13,7 +13,7 @@ import {
   Platform,
   Switch,
  } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../src/components/ToastProvider';
 import { supabase } from '../src/integrations/supabase/client';
@@ -23,13 +23,20 @@ import { decode } from 'base64-arraybuffer'; // ИСПРАВЛЕНО: импор
 import 'react-native-url-polyfill/auto';
 import { useAuth } from '../src/context/AuthContext';
 import { logger } from '../src/utils/logger';
-import { validateProductData, sanitizeString } from '../src/utils/validation';
+import { sanitizeString } from '../src/utils/validation';
 import { ERROR_MESSAGES } from '../src/config/constants';
+
+const parsePrice = (value) => {
+  if (!value) return 0;
+  const parsed = parseFloat(value.toString());
+  return isNaN(parsed) ? 0 : parsed;
+};
 
 const EditProductScreen = ({ navigation, route }) => {
   const { productId } = route.params;
   const { showToast } = useToast();
   const { profile } = useAuth();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isNewProduct, setIsNewProduct] = useState(!productId);
@@ -112,7 +119,14 @@ const EditProductScreen = ({ navigation, route }) => {
 
   const handleVariantChange = (index, field, value) => {
     const newVariants = [...variants];
-    newVariants[index][field] = value;
+    if (field === 'price') {
+      // Allow only digits and one decimal point
+      if (value === '' || /^\d*\.?\d*$/.test(value)) {
+        newVariants[index][field] = value;
+      }
+    } else {
+      newVariants[index][field] = value;
+    }
     setVariants(newVariants);
   };
 
@@ -195,34 +209,37 @@ const EditProductScreen = ({ navigation, route }) => {
   };
 
   const handleSave = async () => {
-    // Validate product data
-    const productData = {
-      name,
-      name_ru: nameRu,
-      description,
-      composition,
-      size_info: sizeInfo,
-      care_instructions: careInstructions,
-      category_id: categoryId,
-      variants: variants.map(v => ({
-        size: v.size,
-        price: parseFloat(v.price) || 0,
-        stock_quantity: parseInt(v.stock_quantity, 10) || 0,
-      })),
-    };
-
-    const { isValid, errors, sanitized } = validateProductData(productData);
-
-    if (!isValid) {
-      const firstError = Object.values(errors)[0];
-      showToast(firstError, 'error');
-      logger.warn('Product validation failed', { context: 'EditProductScreen', errors });
+    // Validate name
+    if (!name || name.trim().length < 2) {
+      showToast('Название должно быть минимум 2 символа', 'error');
       return;
     }
 
     if (!categoryId) {
       showToast('Пожалуйста, выберите категорию.', 'error');
       return;
+    }
+
+    // Validate variants
+    for (let i = 0; i < variants.length; i++) {
+      const variant = variants[i];
+
+      if (!variant.size || variant.size.trim().length === 0) {
+        showToast(`Вариант ${i + 1}: Укажите размер/вес`, 'error');
+        return;
+      }
+
+      const price = parsePrice(variant.price);
+      if (!price || price <= 0) {
+        showToast(`Вариант ${i + 1}: Укажите корректную цену`, 'error');
+        return;
+      }
+
+      const quantity = parseInt(variant.stock_quantity, 10);
+      if (isNaN(quantity) || quantity < 0 || quantity > 999) {
+        showToast(`Вариант ${i + 1}: Количество должно быть от 0 до 999`, 'error');
+        return;
+      }
     }
 
     setSaving(true);
@@ -259,14 +276,14 @@ const EditProductScreen = ({ navigation, route }) => {
 
       const mainImage = finalImageUrls.length > 0 ? finalImageUrls[0] : null;
 
-      // Use sanitized data from validation
+      // Prepare sanitized data
       const productPayload = {
-        name: sanitized.name,
-        name_ru: sanitized.name_ru || null,
-        description: sanitized.description || null,
-        composition: sanitized.composition || null,
-        size_info: sanitized.size_info || null,
-        care_instructions: sanitized.care_instructions || null,
+        name: sanitizeString(name),
+        name_ru: nameRu ? sanitizeString(nameRu) : null,
+        description: description ? sanitizeString(description) : null,
+        composition: composition ? sanitizeString(composition) : null,
+        size_info: sizeInfo ? sanitizeString(sizeInfo) : null,
+        care_instructions: careInstructions ? sanitizeString(careInstructions) : null,
         category_id: categoryId,
         image: mainImage,
       };
@@ -301,7 +318,7 @@ const EditProductScreen = ({ navigation, route }) => {
         .map(v => ({
           product_id: savedProductId,
           size: v.size,
-          price: parseFloat(v.price) || 0,
+          price: parsePrice(v.price),
           stock_quantity: parseInt(v.stock_quantity, 10) || 0,
         }));
 
@@ -311,7 +328,7 @@ const EditProductScreen = ({ navigation, route }) => {
           id: v.id,
           product_id: savedProductId,
           size: v.size,
-          price: parseFloat(v.price) || 0,
+          price: parsePrice(v.price),
           stock_quantity: parseInt(v.stock_quantity, 10) || 0,
         }));
 
@@ -369,8 +386,13 @@ const EditProductScreen = ({ navigation, route }) => {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()}>
               <Ionicons name="arrow-back" size={24} color="#333" />
@@ -428,13 +450,47 @@ const EditProductScreen = ({ navigation, route }) => {
 
           <Text style={styles.label}>Варианты товара</Text>
           {variants.map((variant, index) => (
-            <View key={index} style={styles.variantRow}>
-              <TextInput style={[styles.variantInput, { flex: 2 }]} value={variant.size} onChangeText={text => handleVariantChange(index, 'size', text)} placeholder="Размер (шт.)" />
-              <TextInput style={[styles.variantInput, { flex: 2 }]} value={variant.price} onChangeText={text => handleVariantChange(index, 'price', text)} placeholder="Цена (₸)" keyboardType="numeric" />
-              <TextInput style={[styles.variantInput, { flex: 1.5 }]} value={variant.stock_quantity} onChangeText={text => handleVariantChange(index, 'stock_quantity', text)} placeholder="Кол-во" keyboardType="numeric" />
-              <TouchableOpacity onPress={() => removeVariant(index)} style={styles.removeButton}>
-                <Ionicons name="trash-outline" size={20} color="#D32F2F" />
-              </TouchableOpacity>
+            <View key={index} style={styles.variantCard}>
+              <View style={styles.variantHeader}>
+                <Text style={styles.variantTitle}>Вариант {index + 1}</Text>
+                <TouchableOpacity onPress={() => removeVariant(index)} style={styles.removeButton}>
+                  <Ionicons name="trash-outline" size={20} color="#D32F2F" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.variantInputGroup}>
+                <Text style={styles.inputLabel}>Размер / Вес</Text>
+                <TextInput
+                  style={styles.variantInput}
+                  value={String(variant.size || '')}
+                  onChangeText={text => handleVariantChange(index, 'size', text)}
+                  placeholder="Например: шт., 50 см, 1 кг"
+                />
+              </View>
+
+              <View style={styles.variantRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Цена (₸)</Text>
+                  <TextInput
+                    style={styles.variantInput}
+                    value={String(variant.price || '')}
+                    onChangeText={text => handleVariantChange(index, 'price', text)}
+                    placeholder="0"
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <View style={{ width: 10 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Количество</Text>
+                  <TextInput
+                    style={styles.variantInput}
+                    value={String(variant.stock_quantity || '')}
+                    onChangeText={text => handleVariantChange(index, 'stock_quantity', text)}
+                    placeholder="0"
+                    keyboardType="numeric"
+                  />
+                </View>
+              </View>
             </View>
           ))}
           <TouchableOpacity style={styles.addButton} onPress={addVariant}>
@@ -442,7 +498,7 @@ const EditProductScreen = ({ navigation, route }) => {
             <Text style={styles.addButtonText}>Добавить вариант</Text>
           </TouchableOpacity>
         </ScrollView>
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 20, 20) }]}>
           <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
           </TouchableOpacity>
@@ -454,7 +510,7 @@ const EditProductScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
-  scrollContent: { padding: 20, paddingBottom: 100 },
+  scrollContent: { padding: 20, paddingBottom: 150 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
   label: { fontSize: 16, fontWeight: '500', color: '#333', marginTop: 20, marginBottom: 8 },
@@ -472,9 +528,13 @@ const styles = StyleSheet.create({
   activeCategoryChip: { backgroundColor: '#FF69B4' },
   categoryText: { color: '#333' },
   activeCategoryText: { color: '#fff', fontWeight: 'bold' },
-  variantRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, backgroundColor: '#fff', paddingHorizontal: 15, paddingVertical: 5, borderRadius: 10 },
-  variantInput: { backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 10, borderRadius: 8, flex: 1 },
+  variantCard: { backgroundColor: '#fff', borderRadius: 12, padding: 15, marginBottom: 15, borderWidth: 1, borderColor: '#eee' },
+  variantHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  variantTitle: { fontSize: 16, fontWeight: '600', color: '#333' },
+  variantInputGroup: { marginBottom: 10 },
+  variantRow: { flexDirection: 'row', alignItems: 'center' },
+  inputLabel: { fontSize: 12, color: '#666', marginBottom: 5, marginLeft: 2 },
+  variantInput: { backgroundColor: '#f9f9f9', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 8, fontSize: 16, borderWidth: 1, borderColor: '#eee' },
   removeButton: { padding: 5 },
   addButton: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 10, padding: 10 },
   addButtonText: { color: '#FF69B4', fontWeight: 'bold' },

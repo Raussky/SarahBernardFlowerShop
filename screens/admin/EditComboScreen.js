@@ -11,7 +11,7 @@ import {
   Modal,
   FlatList,
  } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useToast } from '../../src/components/ToastProvider';
 import { supabase } from '../../src/integrations/supabase/client';
@@ -23,6 +23,7 @@ import { logger } from '../../src/utils/logger';
 const EditComboScreen = ({ navigation, route }) => {
   const { comboId } = route.params || {};
   const { showToast } = useToast();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isNewCombo, setIsNewCombo] = useState(!comboId);
@@ -274,7 +275,7 @@ const handleRemoveItem = (indexToRemove) => {
         <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} multiline placeholder="Краткое описание комбо..." />
         
         <Text style={styles.label}>Цена (₸)</Text>
-        <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Например, 15000" keyboardType="numeric" />
+        <TextInput style={styles.input} value={price} onChangeText={setPrice} placeholder="Например, 15000" keyboardType="decimal-pad" />
 
         <Text style={styles.label}>Изображение комбо</Text>
         <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
@@ -304,7 +305,7 @@ const handleRemoveItem = (indexToRemove) => {
 
       </ScrollView>
       {renderProductSelector()}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom + 20, 20) }]}>
         <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Сохранить</Text>}
         </TouchableOpacity>
