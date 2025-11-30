@@ -6,15 +6,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  ImageBackground,
   Image,
   Dimensions,
-  Animated,
   Modal,
   TouchableWithoutFeedback,
   RefreshControl,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -27,12 +25,22 @@ import ProductSection from '../src/components/ProductSection';
 import SkeletonLoader from '../src/components/SkeletonLoader';
 import MainBanner from '../src/components/MainBanner';
 import { FONTS } from '../src/config/theme';
-import { logger } from '../src/utils/logger';
+import { useToast } from '../src/components/ToastProvider';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+
+// Дефолтные значения фильтров
+const DEFAULT_FILTERS = {
+  priceRange: [0, 50000],
+  selectedCategories: [],
+  sortBy: 'created_at',
+  sortDirection: 'desc',
+};
 
 const HomeScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { showToast } = useToast();
+
   const [homeData, setHomeData] = useState({
     categories: [],
     banners: [],
@@ -44,34 +52,69 @@ const HomeScreen = ({ navigation }) => {
   });
   const [loading, setLoading] = useState(true);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [priceRange, setPriceRange] = useState([0, 50000]);
-  const [selectedCategories, setSelectedCategories] = useState([]);
-  const [sortBy, setSortBy] = useState('created_at');
-  const [sortDirection, setSortDirection] = useState('desc');
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const [filterLoading, setFilterLoading] = useState(false);
+  const [priceRange, setPriceRange] = useState(DEFAULT_FILTERS.priceRange);
+  const [selectedCategories, setSelectedCategories] = useState(DEFAULT_FILTERS.selectedCategories);
+  const [sortBy, setSortBy] = useState(DEFAULT_FILTERS.sortBy);
+  const [sortDirection, setSortDirection] = useState(DEFAULT_FILTERS.sortDirection);
   const scrollViewRef = useRef(null);
   const showcaseLayoutY = useRef(0);
 
   const handleFilterApply = async (filters) => {
-    setFilterModalVisible(false);
-    setLoading(true);
-    const { data, error } = await filterProducts(filters);
-    setLoading(false);
-    if (!error) {
+    try {
+      setFilterLoading(true);
+      const { data, error } = await filterProducts(filters);
+
+      if (error) {
+        showToast('Ошибка при применении фильтров', 'error');
+        console.error('Filter error:', error);
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        showToast('Товары не найдены', 'info');
+      }
+
+      setFilterModalVisible(false);
+      // Сбросить фильтры после применения
+      resetFilters();
       navigation.navigate('FilterResults', { filteredProducts: data });
+    } catch (error) {
+      showToast('Произошла ошибка', 'error');
+      console.error('Filter exception:', error);
+    } finally {
+      setFilterLoading(false);
     }
   };
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const resetFilters = () => {
+    setPriceRange(DEFAULT_FILTERS.priceRange);
+    setSelectedCategories(DEFAULT_FILTERS.selectedCategories);
+    setSortBy(DEFAULT_FILTERS.sortBy);
+    setSortDirection(DEFAULT_FILTERS.sortDirection);
+  };
+
+  const loadData = useCallback(async (forceRefresh = false) => {
+    // Не показывать скелетон если данные уже загружены
+    if (forceRefresh || homeData.categories.length === 0) {
+      setLoading(true);
+    }
     const data = await getHomeScreenData();
     if (data) setHomeData(data);
     setLoading(false);
+  }, [homeData.categories.length]);
+
+  // Загрузка только при первом монтировании
+  useEffect(() => {
+    loadData(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // При возврате на экран - обновляем данные БЕЗ скелетона
   useFocusEffect(
     useCallback(() => {
-      loadData();
+      // Загружаем данные в фоне без скелетона
+      loadData(false);
     }, [loadData])
   );
 
@@ -93,41 +136,6 @@ const HomeScreen = ({ navigation }) => {
       scrollViewRef.current.scrollTo({ y: showcaseLayoutY.current, animated: true });
     }
   };
-
-  const handleBannerPress = (banner) => {
-    if (banner.target_type === 'product' && banner.target_id) {
-      supabase.from('products').select('*, product_variants(*)').eq('id', banner.target_id).single()
-        .then(({ data, error }) => {
-          if (error) logger.error('Error fetching product for banner', error, { context: 'HomeScreen', bannerId: banner.id });
-          if (data) navigation.navigate('Product', { product: data });
-        });
-    } else if (banner.target_type === 'category' && banner.target_id) {
-      supabase.from('categories').select('*').eq('id', banner.target_id).single()
-        .then(({ data, error }) => {
-          if (error) logger.error('Error fetching category for banner', error, { context: 'HomeScreen', bannerId: banner.id });
-          if (data) navigation.navigate('Category', { category: data });
-        });
-    }
-  };
-
-  const renderBannerItem = ({ item }) => (
-    <TouchableOpacity onPress={() => handleBannerPress(item)} activeOpacity={0.8} style={{ width: width - 40, marginRight: 20 }}>
-      <ImageBackground source={{ uri: item.image_url }} style={styles.banner} imageStyle={{ borderRadius: 15 }}>
-        <View style={styles.bannerContent}>
-          {item.title && <Text style={styles.bannerTitle}>{item.title}</Text>}
-          {item.subtitle && <Text style={styles.bannerSubtitle}>{item.subtitle}</Text>}
-          <TouchableOpacity style={styles.shopButton}>
-            <Text style={styles.shopButtonText}>В магазин</Text>
-          </TouchableOpacity>
-        </View>
-      </ImageBackground>
-    </TouchableOpacity>
-  );
-
-  const onScroll = Animated.event(
-    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-    { useNativeDriver: false }
-  );
 
   if (loading) {
     return (
@@ -279,9 +287,14 @@ const HomeScreen = ({ navigation }) => {
              <View style={styles.modalContent}>
                <View style={styles.modalHeader}>
                  <Text style={styles.modalTitle}>Фильтры</Text>
-                 <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                   <Ionicons name="close" size={24} color="#333" />
-                 </TouchableOpacity>
+                 <View style={styles.modalHeaderActions}>
+                   <TouchableOpacity onPress={resetFilters} style={styles.resetButton}>
+                     <Text style={styles.resetButtonText}>Сбросить</Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity onPress={() => setFilterModalVisible(false)} style={styles.closeButton}>
+                     <Ionicons name="close" size={24} color="#333" />
+                   </TouchableOpacity>
+                 </View>
                </View>
                <ScrollView
                  style={styles.modalScrollView}
@@ -315,16 +328,40 @@ const HomeScreen = ({ navigation }) => {
                      </TouchableOpacity>
                    ))}
                  </View>
-                 <Text style={styles.filterLabel}>Цена: ₸{priceRange[0]} - ₸{priceRange[1]}</Text>
+                 <Text style={styles.filterLabel}>Цена: ₸{priceRange[0].toLocaleString()} - ₸{priceRange[1].toLocaleString()}</Text>
+
+                 <Text style={styles.filterSubLabel}>Минимальная цена: ₸{priceRange[0].toLocaleString()}</Text>
                  <Slider
-                   style={{width: '100%', height: 40}}
+                   style={styles.slider}
+                   minimumValue={0}
+                   maximumValue={50000}
+                   step={1000}
+                   value={priceRange[0]}
+                   onValueChange={(value) => {
+                     // Убедиться что MIN не больше MAX
+                     if (value <= priceRange[1]) {
+                       setPriceRange([value, priceRange[1]]);
+                     }
+                   }}
+                   minimumTrackTintColor="#FF69B4"
+                   maximumTrackTintColor="#DDD"
+                 />
+
+                 <Text style={styles.filterSubLabel}>Максимальная цена: ₸{priceRange[1].toLocaleString()}</Text>
+                 <Slider
+                   style={styles.slider}
                    minimumValue={0}
                    maximumValue={50000}
                    step={1000}
                    value={priceRange[1]}
-                   onValueChange={(value) => setPriceRange([priceRange[0], value])}
+                   onValueChange={(value) => {
+                     // Убедиться что MAX не меньше MIN
+                     if (value >= priceRange[0]) {
+                       setPriceRange([priceRange[0], value]);
+                     }
+                   }}
                    minimumTrackTintColor="#FF69B4"
-                   maximumTrackTintColor="#000000"
+                   maximumTrackTintColor="#DDD"
                  />
                  <Text style={styles.filterLabel}>Сортировать по</Text>
                  <View style={styles.sortContainer}>
@@ -366,7 +403,7 @@ const HomeScreen = ({ navigation }) => {
                </ScrollView>
                <View style={[styles.modalFooter, { paddingBottom: Math.max(insets.bottom, 15) }]}>
                  <TouchableOpacity
-                   style={styles.applyButton}
+                   style={[styles.applyButton, filterLoading && styles.applyButtonDisabled]}
                    onPress={() =>
                      handleFilterApply({
                        priceRange: priceRange,
@@ -375,8 +412,14 @@ const HomeScreen = ({ navigation }) => {
                        sortDirection: sortDirection,
                      })
                    }
+                   disabled={filterLoading}
+                   activeOpacity={filterLoading ? 1 : 0.7}
                  >
-                   <Text style={styles.applyButtonText}>Применить</Text>
+                   {filterLoading ? (
+                     <ActivityIndicator color="#fff" size="small" />
+                   ) : (
+                     <Text style={styles.applyButtonText}>Применить</Text>
+                   )}
                  </TouchableOpacity>
                </View>
              </View>
@@ -425,23 +468,111 @@ const styles = StyleSheet.create({
   comboName: { fontSize: 14, fontWeight: '600', paddingHorizontal: 10, paddingTop: 8 },
   comboPrice: { fontSize: 14, fontWeight: 'bold', color: '#333', paddingHorizontal: 10, paddingBottom: 10, paddingTop: 4 },
   productRow: { justifyContent: 'space-between', paddingHorizontal: 20 },
-  modalContainer: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 20, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold' },
-  modalScrollView: { maxHeight: '100%' },
-  modalScrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
-  modalFooter: { paddingHorizontal: 20, paddingVertical: 15, borderTopWidth: 1, borderTopColor: '#f0f0f0', backgroundColor: '#fff' },
-  filterLabel: { fontSize: 16, fontWeight: '600', marginTop: 20, marginBottom: 10 },
-  categoriesContainerModal: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)'
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: Platform.OS === 'ios' ? '85%' : '90%',
+    minHeight: height * 0.5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0'
+  },
+  modalTitle: {
+    fontSize: Platform.OS === 'ios' ? 20 : 19,
+    fontWeight: 'bold',
+    flex: 1,
+  },
+  modalHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  resetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+  },
+  resetButtonText: {
+    color: '#FF69B4',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  modalScrollView: {
+    maxHeight: '100%'
+  },
+  modalScrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20
+  },
+  modalFooter: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    backgroundColor: '#fff',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
+  },
+  filterLabel: {
+    fontSize: Platform.OS === 'ios' ? 16 : 15,
+    fontWeight: '600',
+    marginTop: 20,
+    marginBottom: 10,
+    color: '#333',
+  },
+  filterSubLabel: {
+    fontSize: Platform.OS === 'ios' ? 14 : 13,
+    fontWeight: '500',
+    marginTop: 15,
+    marginBottom: 5,
+    color: '#666',
+  },
+  slider: {
+    width: '100%',
+    height: Platform.OS === 'ios' ? 40 : 50,
+    marginBottom: 10,
+  },
+  categoriesContainerModal: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 10,
+  },
   categoryButton: {
-    paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingHorizontal: Platform.OS === 'ios' ? 15 : 12,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 9,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 20,
     marginRight: 10,
     marginBottom: 10,
+    minWidth: width * 0.25,
+    alignItems: 'center',
   },
   categoryButtonSelected: {
     backgroundColor: '#FF69B4',
@@ -449,6 +580,7 @@ const styles = StyleSheet.create({
   },
   categoryButtonText: {
     color: '#333',
+    fontSize: Platform.OS === 'ios' ? 14 : 13,
   },
   categoryButtonTextSelected: {
     color: '#fff',
@@ -457,13 +589,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     marginBottom: 20,
+    gap: 10,
   },
   sortButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: Platform.OS === 'ios' ? 20 : 16,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 9,
     borderWidth: 1,
     borderColor: '#ddd',
     borderRadius: 20,
+    flex: 1,
+    alignItems: 'center',
+    maxWidth: width * 0.4,
   },
   sortButtonSelected: {
     backgroundColor: '#FF69B4',
@@ -471,20 +607,38 @@ const styles = StyleSheet.create({
   },
   sortButtonText: {
     color: '#333',
+    fontSize: Platform.OS === 'ios' ? 14 : 13,
   },
   sortButtonTextSelected: {
     color: '#fff',
   },
   applyButton: {
     backgroundColor: '#FF69B4',
-    paddingVertical: 15,
+    paddingVertical: Platform.OS === 'ios' ? 15 : 14,
     borderRadius: 25,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 20,
+    minHeight: 50,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#FF69B4',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  applyButtonDisabled: {
+    backgroundColor: '#FFB4D5',
+    opacity: 0.7,
   },
   applyButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: Platform.OS === 'ios' ? 16 : 15,
     fontWeight: 'bold',
   },
 });
