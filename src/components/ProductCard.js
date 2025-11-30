@@ -1,5 +1,5 @@
 import React, { useContext, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Animated, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { CartContext } from '../context/CartContext';
@@ -103,6 +103,7 @@ const ProductCard = ({ product, navigation }) => {
             handleHeartPressIn();
             toggleSaved(product);
           }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Animated.View style={{ transform: [{ scale: heartScale }] }}>
             <Ionicons
@@ -114,15 +115,13 @@ const ProductCard = ({ product, navigation }) => {
         </TouchableOpacity>
 
         <TouchableOpacity
+          style={[styles.addToCartButton, isOutOfStock && styles.addButtonDisabled]}
           onPress={handleAddToCartPress}
-          onPressIn={handleCardPressIn}
-          onPressOut={handleCardPressOut}
           disabled={isOutOfStock}
-          activeOpacity={0.9}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Animated.View style={[styles.addToCartButton, isOutOfStock && styles.addButtonDisabled, { transform: [{ scale: cardScale }] }]}>
-            <Ionicons name="add" size={20} color="#fff" />
-          </Animated.View>
+          <Ionicons name="add" size={22} color="#fff" />
         </TouchableOpacity>
       </Animated.View>
       
@@ -142,11 +141,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 15,
     marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
   productImage: {
     width: '100%',
@@ -177,6 +182,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 20,
     padding: 5,
+    zIndex: 10,
+    elevation: 10,
   },
   productInfo: {
     paddingHorizontal: 12,
@@ -204,19 +211,27 @@ const styles = StyleSheet.create({
     bottom: 12,
     right: 12,
     backgroundColor: '#333',
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    zIndex: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+      },
+      android: {
+        elevation: 12,
+      },
+    }),
   },
   addButtonDisabled: {
     backgroundColor: '#ccc',
+    opacity: 0.5,
   },
 });
 
